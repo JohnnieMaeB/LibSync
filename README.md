@@ -5,7 +5,6 @@ Connects to Hugging Face’s open AI models to simulate a friendly digital libra
 
 ## ✨ Features
 - Real AI responses (via Hugging Face Inference API)
-- Fully client-side — no server needed
 - Dark mode design with chat bubbles
 - Smooth UX with loading animation
 - Portable and perfect for GitHub Pages or portfolios
