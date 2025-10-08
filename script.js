@@ -24,7 +24,7 @@ async function sendMessage() {
   loadingMsg.classList.add("loading");
 
   try {
-    const response = await fetch("https://your-backend-url.com/chat", {  // <-- point to your backend
+    const response = await fetch("http://localhost:3000/chat", {  // <-- point to your backend
       method: "POST",
       headers: {
         "Content-Type": "application/json",
