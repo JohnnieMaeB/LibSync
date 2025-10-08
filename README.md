@@ -21,3 +21,9 @@ Connects to Hugging Face’s open AI models to simulate a friendly digital libra
 2. Paste your key into `script.js`:
    ```js
    const HF_API_KEY = "your_token_here";
+
+
+cd ai-library-backend
+npm init -y
+npm install express node-fetch dotenv cors
+
