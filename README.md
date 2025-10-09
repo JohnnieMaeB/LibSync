@@ -14,9 +14,42 @@ Connects to Hugging Face’s open AI models to simulate a friendly digital libra
 - Hugging Face Inference API (`facebook/blenderbot-400M-distill`)
 
 ## 🚀 Setup
-1. Get a free API key:
-   - Go to [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
-   - Click “New token” → Copy it
-2. Paste your key into `script.js`:
-   ```js
-   const HF_API_KEY = "your_token_here";
+
+Follow these steps to get the project up and running:
+
+### 1️⃣ Get a Hugging Face API Key
+1. Go to [Hugging Face Tokens](https://huggingface.co/settings/tokens).  
+2. Click **New token** and copy it.  
+
+### 2️⃣ Set up the backend
+```bash
+cd ai-library-backend
+npm init -y
+npm install express node-fetch dotenv cors
+```
+3️⃣ Project structure
+
+Your ai-library-backend/ folder should look like this:
+
+```
+ai-library-backend/
+├─ server.js
+├─ .env
+└─ package.json
+```
+
+4️⃣ Configure environment variables
+
+Create a .env file in the project root with the following:
+```
+HUGGINGFACE_TOKEN=your_hf_token_here
+PORT=3000
+```
+
+5️⃣ Start the server
+
+```
+node server.js
+```
+
+

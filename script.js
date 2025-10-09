@@ -24,23 +24,23 @@ async function sendMessage() {
   loadingMsg.classList.add("loading");
 
   try {
-    const response = await fetch("https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill", {
+    const response = await fetch("http://localhost:3000/chat", {  // <-- point to your backend
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${HF_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ inputs: question }),
+      body: JSON.stringify({ message: question }),  // send the user question
     });
-
+  
     const data = await response.json();
-    const botReply = data?.generated_text || "Sorry, I couldn’t find an answer right now.";
+    const botReply = data?.reply || "Sorry, I couldn’t find an answer right now.";
+
 
     loadingMsg.remove();
     appendMessage("bot", botReply);
   } catch (err) {
     loadingMsg.remove();
-    appendMessage("bot", "⚠️ Error: Unable to reach AI service. Please try again later.");
+    appendMessage("bot", "⚠️ Error: Unable to reach AI service. Please try again later. This app is currently under construction! Cloud deployments comming soon.");
     console.error(err);
   }
 }
