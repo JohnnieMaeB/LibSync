@@ -3,7 +3,7 @@ const userInput = document.getElementById("userInput");
 const chatBox = document.getElementById("chatBox");
 
 // Get a free key at: https://huggingface.co/settings/tokens
-const HF_API_KEY = "hf_jkOIEEXAMPLEKEY123"; // Replace with your key
+const HF_API_KEY = "hf_jkOIEEXAMPLEKEY123"; // Replace with your key. This is a random string/place holder value. Cloud deployment comming soon! 
 
 sendBtn.addEventListener("click", sendMessage);
 userInput.addEventListener("keypress", (e) => {
