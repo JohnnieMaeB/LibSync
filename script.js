@@ -2,8 +2,6 @@ const sendBtn = document.getElementById("sendBtn");
 const userInput = document.getElementById("userInput");
 const chatBox = document.getElementById("chatBox");
 
-// Get a free key at: https://huggingface.co/settings/tokens
-const HF_API_KEY = "hf_jkOIEEXAMPLEKEY123"; // Replace with your key. This is a random string/place holder value. Cloud deployment comming soon! 
 
 sendBtn.addEventListener("click", sendMessage);
 userInput.addEventListener("keypress", (e) => {
@@ -31,7 +29,7 @@ async function sendMessage() {
       },
       body: JSON.stringify({ message: question }),  // send the user question
     });
-  
+
     const data = await response.json();
     const botReply = data?.reply || "Sorry, I couldn’t find an answer right now.";
 
