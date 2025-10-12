@@ -1,55 +1,128 @@
 # 📚 AI Library Assistant — Portfolio Demo
 
-An elegant, browser-based chatbot built with HTML, CSS, and JavaScript.  
-Connects to Hugging Face’s open AI models to simulate a friendly digital librarian.
+![Status: Live](https://img.shields.io/badge/Status-Live-brightgreen) ![Frontend](https://img.shields.io/badge/Frontend-GitHub-blue) ![Backend](https://img.shields.io/badge/Backend-Render-purple)
+
+# 🚀 LibSync
+
+**LibSync** is an AI-powered chatbot designed to assist users with library services. Built with modern web technologies and Hugging Face's inference API, LibSync demonstrates a full-stack workflow, cloud deployment, and AI integration.
+
+---
+
+## 🎯 Purpose
+
+LibSync provides a conversational interface for library patrons, enabling natural language questions and helpful responses.  
+The project is currently in **active development**, focusing on technical experimentation, deployment workflows, and AI capabilities.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend:** Vanilla JavaScript, HTML, CSS  
+- **Backend:** Node.js, Express.js  
+- **AI Integration:** Hugging Face Inference API, `InferenceClient`  
+- **Cloud Deployment:** [Render](https://render.com/)
+
+---
+
+## 🏆 Skills Demonstrated
+
+This project showcases a variety of in-demand skills, including:
+
+- **Full-Stack Development:** Building and connecting frontend (JS/HTML/CSS) with backend (Node.js/Express)  
+- **API Integration:** Using Hugging Face Inference API to generate AI responses  
+- **Cloud Deployment:** Deploying backend on Render, frontend on GitHub Pages  
+- **Environment Configuration & Security:** Managing environment variables, securing API tokens  
+- **Debugging & Logging:** Implementing request/response logging for monitoring and troubleshooting  
+- **Project Workflow:** Version control with Git, branching, and basic CI/CD awareness  
+- **UI/UX Design:** Real-time chat interface, responsive and interactive frontend design  
+
+---
 
 ## ✨ Features
-- Real AI responses (via Hugging Face Inference API)
-- Dark mode design with chat bubbles
-- Smooth UX with loading animation
-- Portable and perfect for GitHub Pages or portfolios
 
-## 🧠 Tech Stack
-- HTML5, CSS3, Vanilla JavaScript
-- Hugging Face Inference API (`facebook/blenderbot-400M-distill`)
+- Real-time chat interface  
+- Hugging Face AI responses  
+- Cloud deployment for remote access  
 
-## 🚀 Setup
+---
 
-Follow these steps to get the project up and running:
+## 💻 Local Setup
 
-### 1️⃣ Get a Hugging Face API Key
-1. Go to [Hugging Face Tokens](https://huggingface.co/settings/tokens).  
-2. Click **New token** and copy it.  
+1. **Clone the repository**  
 
-### 2️⃣ Set up the backend
+```bash
+git clone <your-repo-url>
+cd LibSync
+```
+
+2. Install backend dependencies
+
 ```bash
 cd ai-library-backend
-npm init -y
-npm install express node-fetch dotenv cors
-```
-3️⃣ Project structure
-
-Your ai-library-backend/ folder should look like this:
-
-```
-ai-library-backend/
-├─ server.js
-├─ .env
-└─ package.json
+npm install
 ```
 
-4️⃣ Configure environment variables
+3. Create a .env file in ai-library-backend with your Hugging Face token:
 
-Create a .env file in the project root with the following:
 ```
-HUGGINGFACE_TOKEN=your_hf_token_here
+HUGGINGFACE_TOKEN=your_huggingface_api_token_here
 PORT=3000
 ```
 
-5️⃣ Start the server
+4. Run the backend locally
 
-```
+```bash
 node server.js
 ```
 
+5. Run the frontend locally
+Open index.html in your browser. Make sure the fetch call in your JS points to your local backend:
+
+```JavaScript
+const response = await fetch("http://localhost:3000/chat", { ... });
+```
+
+6. Start chatting! 💬
+
+---
+
+## ☁️ Cloud Deployment (Render)
+
+- **Start Command:** `node server.js`  
+- **Environment Variables:** Set `HUGGINGFACE_TOKEN` on Render  
+
+Once deployed, update the frontend `fetch` URL to point to your Render URL:
+
+```JavaScript
+const response = await fetch("https://<your-render-app>.onrender.com/chat", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ message: question }),
+});
+```
+---
+
+## 🛠️ Next Steps
+
+- **Model refinement:** Narrow AI responses to library-specific queries  
+- **Frontend improvements:** Enhanced UI/UX, loading indicators, error handling  
+- **Testing:** Unit and integration tests for backend and API  
+- **Additional features:** Session persistence, logging, authentication, security optimizations
+- **Deployment optimization:** Continuous Integration / Continuous Deployment (CI/CD) setup for automated builds and updates
+
+---
+
+## 🚀 Featured Deployment
+
+Experience LibSync in action! Interact with the chatbot and explore the UI:
+
+| Environment | Link |
+|-------------|------|
+| Prod | [🌐 Visit LibSync](https://your-username.github.io/your-repo-name/) |
+
+Interact with the chatbot, explore the interface, and see the project in action.  
+
+> **Note:** This is a demo project running exclusively on free-tier services. The backend on Render may spin down after periods of inactivity, which can result in a delay of up to ~50 seconds for the AI to respond when waking from idle.
 
