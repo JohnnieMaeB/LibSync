@@ -30,7 +30,7 @@ app.post("/chat", async (req, res) => {
     res.json({ reply: chatCompletion.choices[0].message.content });
   } catch (error) {
     console.error("HF API error:", error);
-    res.status(500).json({ error: "Something went wrong." });
+    res.status(500).json({ error: "⚠️ Error: Unable to reach AI service. Please try again later." });
   }
 });
 
