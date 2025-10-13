@@ -38,7 +38,7 @@ async function sendMessage() {
     appendMessage("bot", botReply);
   } catch (err) {
     loadingMsg.remove();
-    appendMessage("bot", "⚠️ Error: Unable to reach AI service. Please try again later. This app is currently under construction! Cloud deployments comming soon.");
+    appendMessage("bot", "⚠️ Error: Unable to reach AI service. Please try again later.");
     console.error(err);
   }
 }
