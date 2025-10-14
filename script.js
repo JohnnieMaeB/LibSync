@@ -38,7 +38,6 @@ async function sendMessage() {
     const data = await response.json();
     const botReply = data?.reply || "Sorry, I couldn’t find an answer right now.";
 
-    loadingMsg.textContent = botReply;
     loadingMsg.remove();
     appendMessage("bot", botReply);
   } catch (err) {
