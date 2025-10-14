@@ -17,6 +17,7 @@ async function sendMessage() {
 
   appendMessage("user", question);
   userInput.value = "";
+  userInput.style.height = 'auto'; // Reset height
 
   const loadingMsg = appendMessage("bot", "Thinking...");
   loadingMsg.classList.add("loading");
@@ -30,16 +31,21 @@ async function sendMessage() {
       body: JSON.stringify({ message: question }),  // send the user question
     });
 
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
     const botReply = data?.reply || "Sorry, I couldn’t find an answer right now.";
-
 
     loadingMsg.remove();
     appendMessage("bot", botReply);
   } catch (err) {
-    loadingMsg.remove();
-    appendMessage("bot", "⚠️ Error: Unable to reach AI service. Please try again later.");
-    console.error(err);
+      const errorMsg = "⚠️ Error: Unable to reach AI service. Please try again later.";
+      // Update loading message with error
+      loadingMsg.textContent = errorMsg;
+      loadingMsg.classList.remove("loading");
+      console.error(err);
   }
 }
 
@@ -51,3 +57,10 @@ function appendMessage(sender, text) {
   chatBox.scrollTop = chatBox.scrollHeight;
   return msg;
 }
+
+// Auto-resize textarea
+userInput.addEventListener('input', () => {
+    userInput.style.height = 'auto';
+    const newHeight = Math.min(userInput.scrollHeight, 120); // max height of 120px
+    userInput.style.height = newHeight + 'px';
+});

@@ -10,13 +10,16 @@ body {
 }
 
 .container {
-  background-color: #1e1e1e;
-  border-radius: 15px;
-  width: 420px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
+    background-color: #1e1e1e;
+    border-radius: 15px;
+    width: 100%;
+    max-width: 420px;
+    height: 90vh;
+    max-height: 700px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
 }
 
 header {
@@ -31,6 +34,7 @@ header {
   width: 50px;
   height: 50px;
   margin-right: 10px;
+  border-radius: 50%;
 }
 
 h1 {
@@ -59,6 +63,7 @@ h1 {
   border-radius: 10px;
   max-width: 80%;
   line-height: 1.4;
+  word-wrap: break-word;
 }
 
 .bot {
@@ -75,6 +80,7 @@ footer {
   display: flex;
   background: #252525;
   border-top: 1px solid #333;
+  padding: 5px;
 }
 
 #userInput {
@@ -85,6 +91,7 @@ footer {
   padding: 12px;
   font-size: 1rem;
   resize: none;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 #userInput:focus {
@@ -99,19 +106,40 @@ footer {
   font-weight: bold;
   cursor: pointer;
   transition: background 0.3s;
+  border-radius: 10px;
 }
 
 #sendBtn:hover {
   background-color: #ffe066;
 }
 
-.loading {
-  display: inline-block;
-  font-style: italic;
-  color: #999;
-  animation: blink 1.5s infinite;
+.bot.loading {
+    font-style: italic;
+    color: #999;
+}
+
+.bot.loading::after {
+    content: '...';
+    display: inline-block;
+    animation: blink 1.5s infinite;
 }
 
 @keyframes blink {
-  50% { opacity: 0.5; }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Custom scrollbar for webkit browsers */
+#chatBox::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chatBox::-webkit-scrollbar-track {
+    background: #1e1e1e;
+}
+
+#chatBox::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 10px;
+    border: 2px solid #1e1e1e;
 }
