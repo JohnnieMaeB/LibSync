@@ -1,20 +1,4 @@
-import { jest } from '@jest/globals';
-
-// Mock the Hugging Face client before importing the app so the server uses the mock
-jest.unstable_mockModule('@huggingface/inference', () => {
-    return {
-        InferenceClient: function (token) {
-            this.chatCompletion = async ({ messages }) => {
-                // Return a predictable mocked response
-                return {
-                    choices: [
-                        { message: { content: `Mock reply for: ${messages?.[0]?.content || ''}` } }
-                    ]
-                };
-            };
-        }
-    };
-});
+import './helpers/mockHfClient.js';
 
 let request;
 let app;
