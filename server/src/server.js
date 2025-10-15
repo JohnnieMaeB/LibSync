@@ -29,10 +29,16 @@ app.post("/chat", async (req, res) => {
 
     res.json({ reply: chatCompletion.choices[0].message.content });
   } catch (error) {
-    console.error("HF API error:", error);
+    console.error("HF API error:", error.httpResponse);
     res.status(500).json({ error: "⚠️ Error: Unable to reach AI service. Please try again later." });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const isTestEnv = process.env.NODE_ENV === 'test';
+
+if (!isTestEnv) {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+export default app; // Export the app for testing (ESM)
