@@ -5,7 +5,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+  "test": "cross-env NODE_ENV=test node --experimental-vm-modules .\\node_modules\\jest\\bin\\jest.js --runInBand --silent",
     "start": "node server.js"
   },
   "keywords": [],
@@ -17,5 +17,10 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }
