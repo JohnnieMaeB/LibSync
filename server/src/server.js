@@ -2,14 +2,25 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { InferenceClient } from "@huggingface/inference";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 const app = express();
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: { error: "Too many requests, please try again later." }, // Custom error message
+});
+
 app.use(cors());
 app.use(express.json());
+app.use(limiter);
 
 // Initialize the Hugging Face Inference client
 const client = new InferenceClient(process.env.HUGGINGFACE_TOKEN);
+
 
 // Endpoint for chat messages
 app.post("/chat", async (req, res) => {
@@ -35,11 +46,17 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+
+
+
 const PORT = process.env.PORT || 3000;
 const isTestEnv = process.env.NODE_ENV === 'test';
 
 if (!isTestEnv) {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
+
+
+
 
 export default app; // Export the app for testing (ESM)

@@ -32,7 +32,7 @@ async function sendMessage() {
     });
 
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
@@ -41,11 +41,11 @@ async function sendMessage() {
     loadingMsg.remove();
     appendMessage("bot", botReply);
   } catch (err) {
-      const errorMsg = "⚠️ Error: Unable to reach AI service. Please try again later.";
-      // Update loading message with error
-      loadingMsg.textContent = errorMsg;
-      loadingMsg.classList.remove("loading");
-      console.error(err);
+    const errorMsg = "⚠️ Error: Unable to reach AI service. Please try again later.";
+    // Update loading message with error
+    loadingMsg.textContent = errorMsg;
+    loadingMsg.classList.remove("loading");
+    console.error(err);
   }
 }
 
@@ -60,7 +60,7 @@ function appendMessage(sender, text) {
 
 // Auto-resize textarea
 userInput.addEventListener('input', () => {
-    userInput.style.height = 'auto';
-    const newHeight = Math.min(userInput.scrollHeight, 120); // max height of 120px
-    userInput.style.height = newHeight + 'px';
+  userInput.style.height = 'auto';
+  const newHeight = Math.min(userInput.scrollHeight, 120); // max height of 120px
+  userInput.style.height = newHeight + 'px';
 });
