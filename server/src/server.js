@@ -13,7 +13,8 @@ const client = new InferenceClient(process.env.HUGGINGFACE_TOKEN);
 
 // Endpoint for chat messages
 app.post("/chat", async (req, res) => {
-  const { message } = req.body;
+  // Be defensive: req.body may not be an object if the client sent non-JSON content.
+  const message = req.body && typeof req.body === 'object' ? req.body.message : undefined;
   if (!message) return res.status(400).json({ error: "No message provided" });
 
   try {
