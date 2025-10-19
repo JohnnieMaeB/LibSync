@@ -5,7 +5,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --silent",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules .\\node_modules\\jest\\bin\\jest.js --runInBand --silent",
     "start": "node server.js"
   },
   "keywords": [],

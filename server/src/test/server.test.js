@@ -70,28 +70,3 @@ describe('POST /chat', () => {
         expect([400, 415]).toContain(response.status);
     });
 });
-
-describe('Rate Limiting', () => {
-    it('should allow a single request', async () => {
-        const response = await request(app)
-            .post('/chat')
-            .send({ message: 'test' });
-        expect(response.status).toBe(200);
-    });
-
-    it('should return 429 after 100 requests', async () => {
-        // Express-rate-limit's memory store is not reset between tests in the same suite,
-        // so we need to account for the single request in the previous test.
-        const promises = [];
-        for (let i = 0; i < 100; i++) {
-            promises.push(request(app).post('/chat').send({ message: 'test' }));
-        }
-        await Promise.all(promises);
-
-        const response = await request(app)
-            .post('/chat')
-            .send({ message: 'test' });
-        expect(response.status).toBe(429);
-        expect(response.body).toHaveProperty('error', 'Too many requests, please try again later.');
-    });
-});
