@@ -64,3 +64,5 @@ userInput.addEventListener('input', () => {
   const newHeight = Math.min(userInput.scrollHeight, 120); // max height of 120px
   userInput.style.height = newHeight + 'px';
 });
+
+module.exports = { sendMessage, appendMessage };
