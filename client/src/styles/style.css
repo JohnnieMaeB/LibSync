@@ -1,24 +1,21 @@
 body {
-  background-color: #121212;
+  background-color: #1e1e1e;
   color: #f0f0f0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
   margin: 0;
 }
 
 .container {
     background-color: #1e1e1e;
-    border-radius: 15px;
-    width: 100%;
-    max-width: 420px;
-    height: 90vh;
-    max-height: 700px;
+    border-radius: 0;
+    width: 65%;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    box-shadow: none;
     overflow: hidden;
 }
 
@@ -26,8 +23,8 @@ header {
   display: flex;
   align-items: center;
   padding: 15px;
-  background: #252525;
-  border-bottom: 1px solid #333;
+  background: transparent;
+  border-bottom: none;
 }
 
 .logo {
@@ -67,12 +64,12 @@ h1 {
 }
 
 .bot {
-  background-color: #2a2a2a;
+  background-color: transparent;
   align-self: flex-start;
 }
 
 .user {
-  background-color: #3b3b3b;
+  background-color: transparent;
   align-self: flex-end;
 }
 
@@ -81,6 +78,8 @@ footer {
   background: #252525;
   border-top: 1px solid #333;
   padding: 5px;
+  border-radius: 25px;
+  margin: 5px 10px;
 }
 
 #userInput {
@@ -99,18 +98,17 @@ footer {
 }
 
 #sendBtn {
-  background-color: #ffd166;
-  color: #222;
+  background-color: transparent;
+  color: #ffd166;
   border: none;
   padding: 12px 20px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
   border-radius: 10px;
 }
 
 #sendBtn:hover {
-  background-color: #ffe066;
+  color: #ffe066;
 }
 
 .bot.loading {
