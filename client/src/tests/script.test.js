@@ -13,7 +13,7 @@ document.body.innerHTML = `
 `;
 
 // Import the functions to be tested
-const { appendMessage, sendMessage } = require('./script.js');
+const { appendMessage, sendMessage } = require('../script.js');
 
 describe('appendMessage', () => {
     beforeEach(() => {
