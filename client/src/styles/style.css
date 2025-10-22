@@ -22,8 +22,8 @@ header {
   display: flex;
   align-items: center;
   padding: 15px;
-  background: #252525;
-  border-bottom: 1px solid #333;
+  background: transparent;
+  border-bottom: none;
 }
 
 .logo {
@@ -74,8 +74,8 @@ h1 {
 
 footer {
   display: flex;
-  background: #252525;
-  border-top: 1px solid #333;
+  background: transparent;
+  border-top: none;
   padding: 5px;
 }
 
