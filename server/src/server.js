@@ -26,13 +26,24 @@ app.use(limiter);
 const client = new InferenceClient(process.env.HUGGINGFACE_TOKEN);
 
 const systemPrompt = `
+<primary_instructions>
 ${personaPrompt}
+</primary_instructions>
 
+<guiding_principles>
+<knowledge_source name="RUSA Guidelines for Behavioral Performance">
 ${rusaGuidelines}
+</knowledge_source>
 
+<knowledge_source name="ALA Library Bill of Rights">
 ${alaBillOfRights}
+</knowledge_source>
 
+<knowledge_source name="ALA Core Values of Librarianship">
 ${alaCoreValues}
+</knowledge_source>
+
+</guiding_principles>
 `;
 
 // Endpoint for chat messages
