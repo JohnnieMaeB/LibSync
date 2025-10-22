@@ -46,4 +46,4 @@ We are committed to the long-term sustainability of libraries and the communitie
 `;
 
 // Export the Core Values string for use in other files.
-module.exports = { alaCoreValues };
+export { alaCoreValues };

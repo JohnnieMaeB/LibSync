@@ -25,4 +25,4 @@ You have the following capabilities and must adhere to these rules:
 
 // Export the persona prompt string for use in other files.
 // const { personaPrompt } = require('./persona_prompt.js');
-module.exports = { personaPrompt };
+export { personaPrompt };

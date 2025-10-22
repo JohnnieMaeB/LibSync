@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { InferenceClient } from "@huggingface/inference";
 import rateLimit from "express-rate-limit";
+import { rusaGuidelines } from "./bot-context/RUSA-guidlines.js";
+import { alaBillOfRights } from "./bot-context/bill-of-rights.js";
+import { alaCoreValues } from "./bot-context/core-values.js";
+import { personaPrompt } from "./bot-context/identitiy.js";
 
 dotenv.config();
 const app = express();
@@ -21,6 +25,15 @@ app.use(limiter);
 // Initialize the Hugging Face Inference client
 const client = new InferenceClient(process.env.HUGGINGFACE_TOKEN);
 
+const systemPrompt = `
+${personaPrompt}
+
+${rusaGuidelines}
+
+${alaBillOfRights}
+
+${alaCoreValues}
+`;
 
 // Endpoint for chat messages
 app.post("/chat", async (req, res) => {
@@ -34,7 +47,10 @@ app.post("/chat", async (req, res) => {
     const chatCompletion = await client.chatCompletion({
       provider: "hf-inference",
       model: "katanemo/Arch-Router-1.5B", // change this to any public Hugging Face chat model
-      messages: [{ role: "user", content: message }],
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message },
+      ],
     });
 
     console.log("Hugging Face reply:", chatCompletion.choices[0].message.content);
