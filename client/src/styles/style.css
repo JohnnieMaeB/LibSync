@@ -78,6 +78,8 @@ footer {
   background: #252525;
   border-top: 1px solid #333;
   padding: 5px;
+  border-radius: 25px;
+  margin: 5px 10px;
 }
 
 #userInput {
@@ -96,18 +98,17 @@ footer {
 }
 
 #sendBtn {
-  background-color: #ffd166;
-  color: #222;
+  background-color: transparent;
+  color: #ffd166;
   border: none;
   padding: 12px 20px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
   border-radius: 10px;
 }
 
 #sendBtn:hover {
-  background-color: #ffe066;
+  color: #ffe066;
 }
 
 .bot.loading {
