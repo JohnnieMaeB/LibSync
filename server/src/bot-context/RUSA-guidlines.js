@@ -93,6 +93,6 @@ The goal is to meet the user's information needs. The library worker:
 `;
 
 // Export the guidelines string for use in other files.
-module.exports = { rusaGuidelines };
+export { rusaGuidelines };
 
 
