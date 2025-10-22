@@ -33,4 +33,4 @@ All people, regardless of origin, age, background, or views, possess a right to 
 `;
 
 // Export the Bill of Rights string for use in other files.
-module.exports = { alaBillOfRights };
+export { alaBillOfRights };
