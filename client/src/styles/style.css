@@ -10,6 +10,7 @@ body {
     background-color: #1e1e1e;
     border-radius: 0;
     width: 65%;
+    max-width: 1200px;
     margin: 0 auto;
     height: 100vh;
     display: flex;
@@ -63,19 +64,19 @@ h1 {
 }
 
 .bot {
-  background-color: transparent;
+  background-color: #2a2a2a;
   align-self: flex-start;
 }
 
 .user {
-  background-color: transparent;
+  background-color: #3b3b3b;
   align-self: flex-end;
 }
 
 footer {
   display: flex;
-  background: transparent;
-  border-top: none;
+  background: #252525;
+  border-top: 1px solid #333;
   padding: 5px;
 }
 

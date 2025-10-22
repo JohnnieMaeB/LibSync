@@ -20,13 +20,14 @@ describe('UI Layout', () => {
     document.head.appendChild(styleElement);
   });
 
-  test('container should have a buffered width and seamless background', () => {
+  test('container should have a buffered width, max-width, and seamless background', () => {
     const container = document.querySelector('.container');
     const body = document.querySelector('body');
     const containerStyle = window.getComputedStyle(container);
     const bodyStyle = window.getComputedStyle(body);
 
     expect(containerStyle.width).toBe('65%');
+    expect(containerStyle.maxWidth).toBe('1200px');
     expect(containerStyle.height).toBe('100vh');
     expect(containerStyle.borderRadius).toBe('0');
     expect(bodyStyle.backgroundColor).toBe(containerStyle.backgroundColor);
