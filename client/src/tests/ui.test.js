@@ -20,12 +20,15 @@ describe('UI Layout', () => {
     document.head.appendChild(styleElement);
   });
 
-  test('container should have a buffered width', () => {
+  test('container should have a buffered width and seamless background', () => {
     const container = document.querySelector('.container');
-    const style = window.getComputedStyle(container);
+    const body = document.querySelector('body');
+    const containerStyle = window.getComputedStyle(container);
+    const bodyStyle = window.getComputedStyle(body);
 
-    expect(style.width).toBe('70%');
-    expect(style.height).toBe('100vh');
-    expect(style.borderRadius).toBe('0');
+    expect(containerStyle.width).toBe('65%');
+    expect(containerStyle.height).toBe('100vh');
+    expect(containerStyle.borderRadius).toBe('0');
+    expect(bodyStyle.backgroundColor).toBe(containerStyle.backgroundColor);
   });
 });

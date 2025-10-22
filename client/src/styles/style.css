@@ -1,5 +1,5 @@
 body {
-  background-color: #121212;
+  background-color: #1e1e1e;
   color: #f0f0f0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   height: 100vh;
@@ -9,7 +9,7 @@ body {
 .container {
     background-color: #1e1e1e;
     border-radius: 0;
-    width: 70%;
+    width: 65%;
     margin: 0 auto;
     height: 100vh;
     display: flex;
@@ -63,12 +63,12 @@ h1 {
 }
 
 .bot {
-  background-color: #2a2a2a;
+  background-color: transparent;
   align-self: flex-start;
 }
 
 .user {
-  background-color: #3b3b3b;
+  background-color: transparent;
   align-self: flex-end;
 }
 
