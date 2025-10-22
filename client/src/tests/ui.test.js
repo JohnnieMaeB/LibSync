@@ -20,11 +20,11 @@ describe('UI Layout', () => {
     document.head.appendChild(styleElement);
   });
 
-  test('container should have full-screen styles', () => {
+  test('container should have a buffered width', () => {
     const container = document.querySelector('.container');
     const style = window.getComputedStyle(container);
 
-    expect(style.width).toBe('100%');
+    expect(style.width).toBe('70%');
     expect(style.height).toBe('100vh');
     expect(style.borderRadius).toBe('0');
   });
