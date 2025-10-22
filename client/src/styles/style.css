@@ -64,12 +64,12 @@ h1 {
 }
 
 .bot {
-  background-color: #2a2a2a;
+  background-color: transparent;
   align-self: flex-start;
 }
 
 .user {
-  background-color: #3b3b3b;
+  background-color: transparent;
   align-self: flex-end;
 }
 
