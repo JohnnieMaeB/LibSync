@@ -18,7 +18,7 @@ body {
     max-height: 700px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
     overflow: hidden;
 }
 
@@ -76,6 +76,10 @@ h1 {
   align-self: flex-end;
 }
 
+.spacer {
+  flex-grow: 1;
+}
+
 footer {
   display: flex;
   background: #252525;
@@ -99,18 +103,18 @@ footer {
 }
 
 #sendBtn {
-  background-color: #ffd166;
-  color: #222;
+  background-color: transparent;
+  color: #ffd166;
   border: none;
   padding: 12px 20px;
-  font-weight: bold;
+  font-size: 1.5rem;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: color 0.3s;
   border-radius: 10px;
 }
 
 #sendBtn:hover {
-  background-color: #ffe066;
+  color: #ffe066;
 }
 
 .bot.loading {
