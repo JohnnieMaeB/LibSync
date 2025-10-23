@@ -30,6 +30,7 @@ describe('UI Layout', () => {
     expect(containerStyle.maxWidth).toBe('1200px');
     expect(containerStyle.height).toBe('100vh');
     expect(containerStyle.borderRadius).toBe('0');
+    expect(bodyStyle.backgroundColor).toBe('rgb(0, 0, 0)');
     expect(bodyStyle.backgroundColor).toBe(containerStyle.backgroundColor);
   });
 });

@@ -1,5 +1,5 @@
 body {
-  background-color: #1e1e1e;
+  background-color: #000000;
   color: #f0f0f0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   height: 100vh;
@@ -7,7 +7,7 @@ body {
 }
 
 .container {
-    background-color: #1e1e1e;
+    background-color: #000000;
     border-radius: 0;
     width: 65%;
     max-width: 1200px;
@@ -55,6 +55,10 @@ h1 {
   gap: 10px;
 }
 
+.spacer {
+  flex-grow: 1;
+}
+
 .bot, .user {
   padding: 10px 12px;
   border-radius: 10px;
@@ -98,18 +102,17 @@ footer {
 }
 
 #sendBtn {
-  background-color: #ffd166;
-  color: #222;
+  background-color: transparent;
+  color: #ffd166;
   border: none;
   padding: 12px 20px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
   border-radius: 10px;
 }
 
 #sendBtn:hover {
-  background-color: #ffe066;
+  color: #ffe066;
 }
 
 .bot.loading {
