@@ -15,6 +15,11 @@ async function sendMessage() {
   const question = userInput.value.trim();
   if (!question) return;
 
+  const spacer = document.querySelector('.spacer');
+  if (spacer) {
+    spacer.remove();
+  }
+
   appendMessage("user", question);
   userInput.value = "";
   userInput.style.height = 'auto'; // Reset height
