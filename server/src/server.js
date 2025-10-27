@@ -56,8 +56,8 @@ app.post("/chat", async (req, res) => {
     console.log("Received message:", message);
 
     const chatCompletion = await client.chatCompletion({
-      provider: "hf-inference",
-      model: "katanemo/Arch-Router-1.5B", // change this to any public Hugging Face chat model
+      provider: "novita",
+      model: "deepseek-ai/DeepSeek-V3.2-Exp",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message },
