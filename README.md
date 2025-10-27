@@ -19,21 +19,33 @@ The project is currently in **active development**, focusing on technical experi
 
 - **Frontend:** Vanilla JavaScript, HTML, CSS  
 - **Backend:** Node.js, Express.js  
-- **AI Integration:** Hugging Face Inference API, `InferenceClient`  
-- **Cloud Deployment:** [Render](https://render.com/)
+- **AI Integration:** Hugging Face Inference API, InferenceClient  
+- **Vector Database:** Pinecone (for semantic search and retrieval)  
+- **Automation & DevOps:** GitHub Actions for CI/CD and Infrastructure as Code (IaC)  
+- **Cloud Deployment:** Render
+
+---
+
+## 🧩 Architecture Overview
+
+- **Frontend:** Simple chat UI built with JavaScript, HTML, and CSS  
+- **Backend:** Express.js server handling requests, rate limiting, and API calls to Hugging Face models  
+- **Vector Layer:** Pinecone stores and retrieves library policies for factual RAG-based answers  
+- **Automation:** GitHub Actions workflow provisions and updates Pinecone vectors automatically (IaC)  
+- **Deployment:** Hosted on Render (backend) and GitHub Pages (frontend)  
 
 ---
 
 ## 🏆 Skills Demonstrated
 
-This project showcases a variety of in-demand skills, including:
-
 - **Full-Stack Development:** Building and connecting frontend (JS/HTML/CSS) with backend (Node.js/Express)  
 - **API Integration:** Using Hugging Face Inference API to generate AI responses  
+- **Vector Search & Retrieval:** Implementing Pinecone for RAG workflows and policy-based query retrieval  
+- **Infrastructure as Code (IaC):** Automating Pinecone vector DB setup and data upserts with GitHub Actions  
 - **Cloud Deployment:** Deploying backend on Render, frontend on GitHub Pages  
-- **Environment Configuration & Security:** Managing environment variables, securing API tokens  
+- **Environment Configuration & Security:** Managing environment variables and securing API tokens  
 - **Debugging & Logging:** Implementing request/response logging for monitoring and troubleshooting  
-- **Project Workflow:** Version control with Git, branching, and basic CI/CD awareness  
+- **Project Workflow:** Version control with Git, branching, and automated build/test pipelines  
 - **UI/UX Design:** Real-time chat interface, responsive and interactive frontend design  
 
 ---
