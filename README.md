@@ -106,11 +106,13 @@ const response = await fetch("https://<your-render-app>.onrender.com/chat", {
 
 ## 🛠️ Next Steps
 
-- **Model refinement:** Narrow AI responses to library-specific queries  
-- **Frontend improvements:** Enhanced UI/UX, loading indicators, error handling  
-- **Testing:** Unit and integration tests for backend and API  
-- **Additional features:** Session persistence, logging, authentication, security optimizations
-- **Deployment optimization:** Continuous Integration / Continuous Deployment (CI/CD) setup for automated builds and updates
+- **Vector Database Integration:** Add **Pinecone** for semantic search and retrieval of library policies and resources. Automate vector DB creation and upsert operations using **GitHub Actions** as Infrastructure as Code (IaC).  
+- **Model refinement:** Narrow AI responses to library-specific queries and improve policy adherence through prompt and model tuning.  
+- **Frontend improvements:** Enhanced UI/UX, loading indicators, error handling, and session persistence for a smoother chat experience.  
+- **Testing:** Unit, integration, and end-to-end tests for backend stability and API reliability.  
+- **Additional features:** Logging, authentication, and advanced security optimizations.  
+- **Deployment optimization:** Expand **CI/CD** pipelines for automated testing, vector updates, and production deployment.  
+
 
 ---
 
