@@ -1,6 +1,12 @@
 # 📚 AI Library Assistant — Portfolio Demo
 
-![Status: Live](https://img.shields.io/badge/Status-Live-brightgreen) ![Frontend](https://img.shields.io/badge/Frontend-GitHub-blue) ![Backend](https://img.shields.io/badge/Backend-Render-purple)
+![Status: Active Development](https://img.shields.io/badge/Status-Active_Development-brightgreen)
+![Frontend](https://img.shields.io/badge/Frontend-GitHub_Pages-blue)
+![Backend](https://img.shields.io/badge/Backend-Render-purple)
+![AI](https://img.shields.io/badge/AI-HuggingFace-yellow)
+![Vector_DB](https://img.shields.io/badge/Vector_DB-Pinecone-teal)
+![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-lightgrey)
+
 
 # 🚀 LibSync
 
