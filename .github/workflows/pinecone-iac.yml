@@ -19,13 +19,19 @@ jobs:
         working-directory: ./pinecone-scripts
 
       - name: Check for index
+        env:
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
         run: node check-pinecone-index.js
         working-directory: ./pinecone-scripts
 
       - name: Upsert records
+        env:
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
         run: node upsert-pinecone-records.js
         working-directory: ./pinecone-scripts
 
       - name: Test records
+        env:
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
         run: node test-pinecone-records.js
         working-directory: ./pinecone-scripts
