@@ -8,16 +8,16 @@ const pc = new Pinecone({
 const indexName = 'libsync-policy-index';
 
 const records = [
-    { "_id": "rec1", "chunk_text": "The Eiffel Tower was completed in 1889 and stands in Paris, France.", "category": "history" },
-    { "_id": "rec2", "chunk_text": "Photosynthesis allows plants to convert sunlight into energy.", "category": "science" },
-    { "_id": "rec3", "chunk_text": "Albert Einstein developed the theory of relativity.", "category": "science" },
-    { "_id": "rec4", "chunk_text": "The mitochondrion is often called the powerhouse of the cell.", "category": "biology" },
-    { "_id": "rec5", "chunk_text": "Shakespeare wrote many famous plays, including Hamlet and Macbeth.", "category": "literature" },
-    { "_id": "rec6", "chunk_text": "Water boils at 100°C under standard atmospheric pressure.", "category": "physics" },
-    { "_id": "rec7", "chunk_text": "The Great Wall of China was built to protect against invasions.", "category": "history" },
-    { "_id": "rec8", "chunk_text": "Honey never spoils due to its low moisture content and acidity.", "category": "food science" },
-    { "_id": "rec9", "chunk_text": "The speed of light in a vacuum is approximately 299,792 km/s.", "category": "physics" },
-    { "_id": "rec10", "chunk_text": "Newton's laws describe the motion of objects.", "category": "physics" }
+    { "_id": "pol1", "chunk_text": "Library cards are free to all residents. Please provide proof of address to register.", "category": "membership" },
+    { "_id": "pol2", "chunk_text": "Books may be borrowed for a period of three weeks. Renewals are available online.", "category": "lending" },
+    { "_id": "pol3", "chunk_text": "A fine of $0.25 per day is charged for overdue items. This applies to all books and media.", "category": "fines" },
+    { "_id": "pol4", "chunk_text": "Public computers are available for use for up to two hours per day. A library card is required to log in.", "category": "computer use" },
+    { "_id": "pol5", "chunk_text": "The library's meeting rooms can be booked for non-commercial use. Please inquire at the front desk for availability.", "category": "facilities" },
+    { "_id": "pol6", "chunk_text": "Quiet study areas are designated on the second floor. Please be respectful of other patrons.", "category": "conduct" },
+    { "_id": "pol7", "chunk_text": "Printing and photocopying services are available. Black and white copies are $0.10 per page.", "category": "services" },
+    { "_id": "pol8", "chunk_text": "The library is not responsible for lost or stolen personal items. Please keep your valuables with you.", "category": "conduct" },
+    { "_id": "pol9", "chunk_text": "Inter-library loan services are available for materials not found in our collection. Request forms are at the circulation desk.", "category": "lending" },
+    { "_id": "pol10", "chunk_text": "Food and drink are permitted only in designated lounge areas. Please dispose of all trash properly.", "category": "conduct" }
 ];
 
 async function upsertRecords() {
