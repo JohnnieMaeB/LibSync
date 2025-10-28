@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import routes from './routes.js';
+import chatRoutes from './routes/chat.js';
+import pineconeRoutes from './routes/pinecone.js';
 
 dotenv.config();
 const app = express();
@@ -17,7 +18,8 @@ const limiter = rateLimit({
 app.use(cors());
 app.use(express.json());
 app.use(limiter);
-app.use(routes);
+app.use(chatRoutes);
+app.use(pineconeRoutes);
 
 const PORT = process.env.PORT || 3000;
 const isTestEnv = process.env.NODE_ENV === 'test';
