@@ -1,4 +1,5 @@
 import './helpers/mockHfClient.js';
+import './helpers/mockPineconeClient.js';
 import { setMockReplyPrefix, simulateFailure, resetMock } from './helpers/mockHfClient.js';
 
 let request;
