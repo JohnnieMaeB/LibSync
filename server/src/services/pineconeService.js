@@ -16,7 +16,7 @@ const index = pinecone.index(indexName);
  * @param {number} topK - The number of results to return.
  * @returns {Promise<object>} - The query results.
  */
-async function queryPinecone(vector, topK = 5) {
+async function queryPinecone(vector, topK = 5) { // Default to 5 results
   if (!vector) {
     throw new Error("Query vector is required.");
   }
