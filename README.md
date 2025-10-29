@@ -140,7 +140,7 @@ Experience LibSync in action! Interact with the chatbot and explore the UI:
 
 | Environment | Link |
 |-------------|------|
-| Prod | [🌐 Visit LibSync](https://your-username.github.io/your-repo-name/) |
+| Prod | [🌐 Visit LibSync](https://johnniemaeb.github.io/LibSync/)|
 
 Interact with the chatbot, explore the interface, and see the project in action.  
 
