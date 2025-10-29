@@ -1,9 +1,11 @@
 import { InferenceClient } from '@huggingface/inference';
+import dotenv from 'dotenv';
 import { rusaGuidelines } from '../bot-context/RUSA-guidlines.js';
 import { alaBillOfRights } from '../bot-context/bill-of-rights.js';
 import { alaCoreValues } from '../bot-context/core-values.js';
 import { personaPrompt } from '../bot-context/identitiy.js';
 
+dotenv.config();
 const client = new InferenceClient(process.env.HUGGINGFACE_TOKEN);
 
 const systemPrompt = `
