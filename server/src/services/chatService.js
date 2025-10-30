@@ -55,8 +55,8 @@ async function getChatReply(message) {
 
     // Call the Hugging Face chat completion API.
     const chatCompletion = await client.chatCompletion({
-      provider: 'hf-inference',
-      model: 'katanemo/Arch-Router-1.5B', // The specific chat model to use.
+      provider: "novita",
+      model: "deepseek-ai/DeepSeek-V3.2-Exp", // The specific chat model to use.
       messages: [
         { role: 'system', content: systemPrompt }, // The guiding prompt for the AI.
         { role: 'user', content: message }, // The user's message.

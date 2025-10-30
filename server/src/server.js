@@ -48,5 +48,5 @@ if (!isTestEnv) {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
-// Export the app instance to be used by the test suite.
-export default app;
+export default app; // Export the app for testing (ESM)
+
