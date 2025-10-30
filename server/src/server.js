@@ -48,7 +48,5 @@ if (!isTestEnv) {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
-
-
-
 export default app; // Export the app for testing (ESM)
+
