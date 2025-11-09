@@ -3,10 +3,10 @@
  * It centralizes the logic for creating both default and context-enriched prompts.
  */
 
-import { alaBillOfRights } from '../bot-context/bill-of-rights.js';
-import { alaCoreValues } from '../bot-context/core-values.js';
-import { personaPrompt } from '../bot-context/identitiy.js';
-import { rusaGuidelines } from '../bot-context/RUSA-guidlines.js';
+import { alaBillOfRights } from '../../bot-context/bill-of-rights.js';
+import { alaCoreValues } from '../../bot-context/core-values.js';
+import { personaPrompt } from '../../bot-context/identitiy.js';
+import { rusaGuidelines } from '../../bot-context/RUSA-guidlines.js';
 
 /**
  * The base system prompt provides the AI with its core identity and guiding principles.
@@ -36,18 +36,18 @@ ${alaCoreValues}
 /**
  * Creates a system prompt, dynamically injecting Pinecone search results if they are provided.
  * If no results are provided, it returns the default system prompt.
- * @param {Array<object>} [pineconeResults] - An optional array of match objects from the Pinecone query.
+ * @param {object} [pineconeResponse] - An optional object from the Pinecone query.
  * @returns {string} The constructed system prompt.
  */
-export function getSystemPrompt(pineconeResults) {
+export function getSystemPrompt(pineconeResponse) {
   // If there are no Pinecone results, or the results array is empty, return the default prompt.
-  if (!pineconeResults || pineconeResults.length === 0) {
+  if (!pineconeResponse?.matches?.length > 0) {
     return defaultSystemPrompt;
   }
 
   // Format the Pinecone results into an XML-like structure for the AI model.
   // This helps the model distinguish the search results from other parts of the prompt.
-  const searchResultsText = pineconeResults
+  const searchResultsText = pineconeResponse.matches
     .map(
       (result) =>
         `<document_chunk source="${result.metadata.source}">${result.metadata.text}</document_chunk>`

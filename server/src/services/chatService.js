@@ -5,9 +5,8 @@
 
 import { InferenceClient } from '@huggingface/inference';
 import dotenv from 'dotenv';
-import { getEmbedding } from './embeddingService.js';
-import { queryPinecone } from './pineconeService.js';
-import { getSystemPrompt } from './promptService.js';
+import { queryPinecone } from '../pineconeService.js';
+import { getSystemPrompt } from './utils/promptService.js';
 
 // Load environment variables.
 dotenv.config();
@@ -24,25 +23,20 @@ export async function getChatReply(message) {
   try {
     console.log('Received message:', message);
 
-    let pineconeMatches = [];
+    let pineconeResponse = null;
     try {
-      // 1. Get embedding for the user's message.
-      const vector = await getEmbedding(message);
-      // 2. Query Pinecone for context.
-      const pineconeResponse = await queryPinecone(vector, 3);
-      if (pineconeResponse?.matches?.length > 0) {
-        pineconeMatches = pineconeResponse.matches;
-        console.log('Pinecone context retrieved.');
-      }
+      // 1. Query Pinecone for context using the user's message directly.
+      pineconeResponse = await queryPinecone(message, 3);
+      console.log('Pinecone context retrieved.');
     } catch (error) {
       console.error('Error fetching or processing Pinecone context:', error.message);
       // Non-fatal, proceed without Pinecone context.
     }
 
-    // 3. Construct the system prompt.
-    const finalSystemPrompt = getSystemPrompt(pineconeMatches);
+    // 2. Construct the system prompt.
+    const finalSystemPrompt = getSystemPrompt(pineconeResponse);
 
-    // 4. Call the Hugging Face chat completion API.
+    // 3. Call the Hugging Face chat completion API.
     const chatCompletion = await chatClient.chatCompletion({
       provider: "novita",
       model: "deepseek-ai/DeepSeek-V3.2-Exp",

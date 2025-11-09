@@ -15,7 +15,6 @@ import { jest } from '@jest/globals';
 let mockReplyPrefix = 'Mock reply for: ';
 // Flags to control the mock's behavior, allowing us to simulate failure scenarios.
 let shouldThrowChat = false;
-let shouldThrowEmbedding = false;
 
 jest.unstable_mockModule('@huggingface/inference', () => {
   return {
@@ -46,18 +45,6 @@ jest.unstable_mockModule('@huggingface/inference', () => {
           ],
         };
       };
-      /**
-       * Mocks the sentenceEmbedding method.
-       * This is used by the embedding service to generate vectors for user messages.
-       */
-      this.sentenceEmbedding = async ({ model, inputs }) => {
-        if (shouldThrowEmbedding) {
-          throw new Error('Mocked embedding failure');
-        }
-        // The actual values of the returned vector are not important for testing,
-        // only that it has the correct shape (an array of numbers).
-        return [0.1, 0.2, 0.3, 0.4, 0.5];
-      };
     },
   };
 });
@@ -73,11 +60,9 @@ export function setMockReplyPrefix(prefix) {
 /**
  * A test utility to simulate failure modes in the mock client.
  * @param {boolean} shouldFailChat - If true, `chatCompletion` will throw an error.
- * @param {boolean} shouldFailEmbedding - If true, `sentenceEmbedding` will throw an error.
  */
-export function simulateFailure(shouldFailChat = true, shouldFailEmbedding = false) {
+export function simulateFailure(shouldFailChat = true) {
   shouldThrowChat = shouldFailChat;
-  shouldThrowEmbedding = shouldFailEmbedding;
 }
 
 /**
@@ -87,5 +72,4 @@ export function simulateFailure(shouldFailChat = true, shouldFailEmbedding = fal
 export function resetMock() {
   mockReplyPrefix = 'Mock reply for: ';
   shouldThrowChat = false;
-  shouldThrowEmbedding = false;
 }
