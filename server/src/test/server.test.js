@@ -1,6 +1,8 @@
 import './helpers/mockHfClient.js';
 import './helpers/mockPineconeClient.js';
-import { setMockReplyPrefix, simulateFailure, resetMock } from './helpers/mockHfClient.js';
+import { setMockReplyPrefix, simulateFailure as simulateHfFailure, resetMock as resetHfMock } from './helpers/mockHfClient.js';
+import { simulateFailure as simulatePineconeFailure, resetMock as resetPineconeMock } from './helpers/mockPineconeClient.js';
+
 
 let request;
 let app;
@@ -13,7 +15,8 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
-    resetMock();
+    resetHfMock();
+    resetPineconeMock();
 });
 
 describe('POST /chat', () => {
@@ -40,7 +43,7 @@ describe('POST /chat', () => {
     });
 
     it('should handle HF client errors and return 500', async () => {
-        simulateFailure(true);
+        simulateHfFailure(true);
         const response = await request(app)
             .post('/chat')
             .send({ message: 'Trigger failure' })
