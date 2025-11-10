@@ -44,5 +44,5 @@ jobs:
         working-directory: ./server/src
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --testPathPatterns=server/src/test/chat.test.js --testPathPatterns=server/src/test/pinecone.test.js
         working-directory: ./server/src

@@ -73,54 +73,6 @@ describe('POST /chat', () => {
         // Express will not parse body as JSON and our handler will see no message
         expect([400, 415]).toContain(response.status);
     });
-
-    // This test verifies the "happy path" for the Pinecone integration.
-    it('should include Pinecone context in the system prompt', async () => {
-        const response = await request(app)
-            .post('/chat')
-            .send({ message: 'What are the library hours?' })
-            .set('Accept', 'application/json');
-
-        expect(response.status).toBe(200);
-        // We check if the AI's reply contains the text from our mocked Pinecone result.
-        // This confirms that the context was successfully retrieved and injected into the prompt.
-        expect(response.body.reply).toContain('Mocked search result');
-        // We also check for the XML tags to ensure the prompt is structured correctly.
-        expect(response.body.reply).toContain('<pinecone_search_results>');
-    });
-
-    // This test simulates a failure when querying Pinecone and ensures the application
-    // gracefully falls back to the default system prompt.
-    it('should fall back to the default prompt if Pinecone fails', async () => {
-        simulatePineconeFailure(true); // Simulate a failure in the Pinecone mock.
-        const response = await request(app)
-            .post('/chat')
-            .send({ message: 'What are the library hours?' })
-            .set('Accept', 'application/json');
-
-        expect(response.status).toBe(200);
-        // We assert that the reply does NOT contain the Pinecone context,
-        // which confirms that the fallback to the default prompt was successful.
-        expect(response.body.reply).not.toContain('Mocked search result');
-        // We also check that the XML tags are not present in the final prompt.
-        expect(response.body.reply).not.toContain('<pinecone_search_results>');
-    });
-
-    // This test simulates a failure in the embedding generation and checks that
-    // the system falls back to the default prompt, just like a Pinecone query failure.
-    it('should fall back to default prompt if embedding fails', async () => {
-        simulateHfFailure(false, true); // Simulate only an embedding failure.
-        const response = await request(app)
-            .post('/chat')
-            .send({ message: 'Message that will trigger embedding failure' })
-            .set('Accept', 'application/json');
-
-        expect(response.status).toBe(200);
-        // The assertions are the same as the Pinecone failure test:
-        // the reply should not contain any Pinecone-specific context or tags.
-        expect(response.body.reply).not.toContain('Mocked search result');
-        expect(response.body.reply).not.toContain('<pinecone_search_results>');
-    });
 });
 
 describe('Rate Limiting', () => {

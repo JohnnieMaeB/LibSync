@@ -20,24 +20,29 @@ const indexName = "libsync-policy-index";
 const index = pinecone.index(indexName);
 
 /**
- * Queries the Pinecone index with a given vector to find the most similar items.
- * @param {number[]} vector - The embedding vector to search for.
- * @param {number} topK - The number of top results to return. Defaults to 5, a reasonable number to prevent overly large responses.
+ * Queries the Pinecone index with a given text query to find the most similar items.
+ * Pinecone will handle the embedding of the query text.
+ * @param {string} queryText - The text to search for.
+ * @param {number} topK - The number of top results to return. Defaults to 3.
  * @returns {Promise<object>} - A promise that resolves to the query results from Pinecone.
- * @throws {Error} If the query vector is not provided or if the query fails.
+ * @throws {Error} If the query text is not provided or if the query fails.
  */
-async function queryPinecone(vector, topK = 5) {
-  // A query vector is essential for performing a search.
-  if (!vector) {
-    throw new Error("Query vector is required.");
+export async function queryPinecone(queryText, topK = 3) {
+  if (!queryText) {
+    throw new Error("Query text is required.");
   }
 
   try {
-    // Perform the query against the Pinecone index.
-    // We include values and metadata to get the full context of the search results.
+    // Perform the query against the Pinecone index using a text-based query.
+    // Pinecone will automatically generate the embedding for the query text.
     const queryResponse = await index.query({
       topK,
-      vector,
+      // The query is now an object with the text to be embedded.
+      query: {
+        inputs: {
+          text: queryText
+        }
+      },
       includeValues: true,
       includeMetadata: true,
     });
@@ -49,6 +54,3 @@ async function queryPinecone(vector, topK = 5) {
     throw new Error("Failed to query Pinecone index.");
   }
 }
-
-// Export the query function to be used by other parts of the application (e.g., controllers).
-export { queryPinecone };
