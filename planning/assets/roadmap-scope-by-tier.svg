@@ -1,0 +1,73 @@
+<svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, -apple-system, Helvetica Neue, Arial, sans-serif" role="img" aria-label="Bar chart of estimated core scope in person-days for each of the nine LibSync tiers: Tier 1 Foundation 14 days, Tier 2 Interactive and Research 16 days, Tier 3 UI/UX 14 days, Tier 4 React Migration 12 days, Tier 5 Standalone App 13 days, Tier 6 Embeddable Widget 9 days, Tier 7 Mobile Apps 9 days plus an optional store-publication exception, Tier 8 Dashboard 23 days, Tier 9 Patron Accounts 15 days. Total approximately 125 person-days. Tiers 3, 8, and 9 are marked as having real visual mockups already built.">
+  <rect x="0" y="0" width="900" height="460" fill="#121212"/>
+
+  <text x="24" y="34" fill="#f0f0f0" font-size="16" font-weight="700">Estimated core scope, by tier</text>
+  <text x="24" y="52" fill="#797979" font-size="10.5">Person-days, midpoint of each phase's estimate range — optional/stretch phases excluded</text>
+
+  <!-- rows: label, y, days, hasMockup -->
+  <!-- scale: 22px per day, bar area starts x=210 -->
+
+  <g>
+    <text x="196" y="86" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 1 — Foundation</text>
+    <rect x="210" y="72" width="308" height="22" rx="4" fill="#ffd166"/>
+    <text x="526" y="87" fill="#aaaaaa" font-size="11">14d</text>
+  </g>
+
+  <g>
+    <text x="196" y="126" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 2 — Interactive &amp; Research</text>
+    <rect x="210" y="112" width="352" height="22" rx="4" fill="#ffd166"/>
+    <text x="570" y="127" fill="#aaaaaa" font-size="11">16d</text>
+  </g>
+
+  <g>
+    <text x="196" y="166" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 3 — UI/UX</text>
+    <rect x="210" y="152" width="308" height="22" rx="4" fill="#ffd166"/>
+    <text x="526" y="167" fill="#aaaaaa" font-size="11">14d</text>
+    <rect x="562" y="153" width="90" height="19" rx="9" fill="#7cc48f1c"/>
+    <text x="572" y="167" fill="#7cc48f" font-size="9.5">✓ mockup</text>
+  </g>
+
+  <g>
+    <text x="196" y="206" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 4 — React Migration</text>
+    <rect x="210" y="192" width="264" height="22" rx="4" fill="#ffd166"/>
+    <text x="482" y="207" fill="#aaaaaa" font-size="11">12d</text>
+  </g>
+
+  <g>
+    <text x="196" y="246" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 5 — Standalone App</text>
+    <rect x="210" y="232" width="286" height="22" rx="4" fill="#ffd166"/>
+    <text x="504" y="247" fill="#aaaaaa" font-size="11">13d</text>
+  </g>
+
+  <g>
+    <text x="196" y="286" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 6 — Embeddable Widget</text>
+    <rect x="210" y="272" width="198" height="22" rx="4" fill="#ffd166"/>
+    <text x="416" y="287" fill="#aaaaaa" font-size="11">9d</text>
+  </g>
+
+  <g>
+    <text x="196" y="326" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 7 — Mobile Apps</text>
+    <rect x="210" y="312" width="198" height="22" rx="4" fill="#ffd166"/>
+    <rect x="408" y="312" width="33" height="22" rx="4" fill="none" stroke="#e8735c" stroke-dasharray="3 2"/>
+    <text x="450" y="327" fill="#aaaaaa" font-size="11">9d + optional store fees</text>
+  </g>
+
+  <g>
+    <text x="196" y="366" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 8 — Dashboard</text>
+    <rect x="210" y="352" width="506" height="22" rx="4" fill="#ffd166"/>
+    <text x="724" y="367" fill="#aaaaaa" font-size="11">23d</text>
+    <rect x="748" y="353" width="90" height="19" rx="9" fill="#7cc48f1c"/>
+    <text x="758" y="367" fill="#7cc48f" font-size="9.5">✓ mockup</text>
+  </g>
+
+  <g>
+    <text x="196" y="406" fill="#f0f0f0" font-size="12" text-anchor="end">Tier 9 — Patron Accounts</text>
+    <rect x="210" y="392" width="330" height="22" rx="4" fill="#ffd166"/>
+    <text x="548" y="407" fill="#aaaaaa" font-size="11">15d</text>
+    <rect x="584" y="393" width="90" height="19" rx="9" fill="#7cc48f1c"/>
+    <text x="594" y="407" fill="#7cc48f" font-size="9.5">✓ mockup</text>
+  </g>
+
+  <line x1="210" y1="426" x2="210" y2="434" stroke="#333333"/>
+  <text x="24" y="446" fill="#797979" font-size="11">Total core scope across all nine tiers: <tspan fill="#ffd166" font-weight="700">~125 person-days</tspan> — a solo-paced estimate, not a team-scaled one.</text>
+</svg>
