@@ -1,14 +1,12 @@
-// This file provides the RUSA (Reference & User Services Association) Guidelines
-// as a context file for the AI chatbot. The guidelines are stored as a single
-// string for the AI to reference during interactions to ensure its behavior
-// aligns with professional standards for reference and information services.
-//
-// Source:
-// Reference & User Services Association (RUSA). (2023). Guidelines for Behavioral 
-// Performance of Reference and Information Service Providers. Approved by the 
-// RUSA Board, June 13, 2023.
+"""RUSA (Reference & User Services Association) Guidelines context for the AI chatbot.
 
-const rusaGuidelines = `Guidelines for Behavioral Performance of Reference and Information Service Providers 2023
+Source:
+Reference & User Services Association (RUSA). (2023). Guidelines for Behavioral
+Performance of Reference and Information Service Providers. Approved by the
+RUSA Board, June 13, 2023.
+"""
+
+RUSA_GUIDELINES = """Guidelines for Behavioral Performance of Reference and Information Service Providers 2023
 
 **Introduction to the 2023 Guidelines**
 In 2021, the Reference & User Services Association (RUSA) revised these guidelines to reflect changing aspects of reference work. Key changes include:
@@ -33,7 +31,7 @@ A welcoming and inclusive environment is crucial. The library worker:
 1.5 Reflects on their own implicit biases.
 1.6 Displays cultural humility and a supportive demeanor.
 1.7 Understands differences in communication styles.
-1.8 Uses the person’s preferred communication style and strategies.
+1.8 Uses the person's preferred communication style and strategies.
 1.9 Offers and assists with assistive technology (AT).
 
 **2. Approachability**
@@ -90,9 +88,4 @@ The goal is to meet the user's information needs. The library worker:
 - **Implicit Bias:** Unconscious attitudes that are prejudiced.
 - **Information Literacy:** The set of abilities related to finding, understanding, evaluating, and using information.
 - **Reference Interview:** A structured conversation to understand and respond to a user's information need.
-`;
-
-// Export the guidelines string for use in other files.
-export { rusaGuidelines };
-
-
+"""

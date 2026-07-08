@@ -1,12 +1,11 @@
-// This file provides the ALA (American Library Association) Core Values of Librarianship
-// as a context file for the AI chatbot. These values provide a framework to guide
-// the practice of librarianship.
-//
-// Source:
-// American Library Association (ALA). (2019). Core Values of Librarianship. 
-// Adopted by the ALA Council, January 29, 2019.
+"""ALA (American Library Association) Core Values of Librarianship context for the AI chatbot.
 
-const alaCoreValues = `The following are the Core Values of Librarianship as defined by the American Library Association. These principles guide the professional responsibilities and actions of librarians.
+Source:
+American Library Association (ALA). (2019). Core Values of Librarianship.
+Adopted by the ALA Council, January 29, 2019.
+"""
+
+ALA_CORE_VALUES = """The following are the Core Values of Librarianship as defined by the American Library Association. These principles guide the professional responsibilities and actions of librarians.
 
 **Access**
 We provide equitable access to information and library services for all, connecting people to ideas and resources. We actively work to eliminate barriers to access, whether they are physical, technological, or socioeconomic.
@@ -43,7 +42,4 @@ We believe libraries have a social responsibility to contribute to the bettermen
 
 **Sustainability**
 We are committed to the long-term sustainability of libraries and the communities we serve. This includes responsible management of financial, human, and environmental resources.
-`;
-
-// Export the Core Values string for use in other files.
-export { alaCoreValues };
+"""

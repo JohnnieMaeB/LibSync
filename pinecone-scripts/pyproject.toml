@@ -1,0 +1,11 @@
+[project]
+name = "libsync-pinecone-scripts"
+version = "1.0.0"
+description = "IaC scripts to provision and validate the LibSync Pinecone index"
+requires-python = ">=3.11"
+dependencies = [
+    "pinecone>=7.0",
+]
+
+[tool.uv]
+package = false

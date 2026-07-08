@@ -9,29 +9,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          node-version: '20'
+          version: "latest"
 
       - name: Install dependencies
-        run: npm install @pinecone-database/pinecone
+        run: uv sync --locked
         working-directory: ./pinecone-scripts
 
       - name: Check for index
         env:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-        run: node check-pinecone-index.js
+        run: uv run python check_pinecone_index.py
         working-directory: ./pinecone-scripts
 
       - name: Upsert records
         env:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-        run: node upsert-pinecone-records.js
+        run: uv run python upsert_pinecone_records.py
         working-directory: ./pinecone-scripts
 
       - name: Test records
         env:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-        run: node test-pinecone-records.js
+        run: uv run python test_pinecone_records.py
         working-directory: ./pinecone-scripts

@@ -32,17 +32,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: server/src/package-lock.json
+          version: "latest"
 
       - name: Install dependencies
-        run: npm install
-        working-directory: ./server/src
+        run: uv sync --locked
+        working-directory: ./server
 
       - name: Run tests
-        run: npm test
-        working-directory: ./server/src
+        run: uv run pytest
+        working-directory: ./server

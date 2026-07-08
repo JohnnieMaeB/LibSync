@@ -1,3 +1,9 @@
 **/.env
 **/node_modules
 coverage/
+
+# Python / uv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
