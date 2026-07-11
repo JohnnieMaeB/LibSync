@@ -14,4 +14,7 @@ def reset_rate_limiter():
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    # Used as a context manager so the app's lifespan (which sets up the
+    # shared httpx client on app.state) actually runs.
+    with TestClient(app) as test_client:
+        yield test_client

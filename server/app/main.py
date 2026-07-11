@@ -4,15 +4,38 @@ Sets up the app, configures middleware (CORS, rate limiting), and registers
 all API routes. Mirrors the structure of the original Express server.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import httpx
+import logfire
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
+from app.config import LOGFIRE_TOKEN
 from app.rate_limit import limiter
 from app.routers import chat, pinecone_query
 
-app = FastAPI(title="LibSync Backend")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # A single shared client (connection pooling) for tool calls to Open
+    # Library, reused across every request for the life of the process.
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        app.state.http_client = client
+        yield
+
+
+app = FastAPI(title="LibSync Backend", lifespan=lifespan)
+
+# Tracing is opt-in: only configured when a token is present (e.g. not set in
+# CI/tests), so the free Logfire Hobby tier is never required to run the app.
+if LOGFIRE_TOKEN:
+    logfire.configure(token=LOGFIRE_TOKEN, service_name="libsync-backend")
+    logfire.instrument_pydantic_ai()
+    logfire.instrument_fastapi(app)
 
 # Rate limiting is enforced per-route via the @limiter.limit(...) decorator
 # on the chat and query endpoints (see app/rate_limit.py); this just wires up
