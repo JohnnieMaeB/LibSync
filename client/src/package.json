@@ -4,7 +4,8 @@
   "description": "",
   "main": "script.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "sync-docs": "node ../../scripts/sync-docs.js"
   },
   "keywords": [],
   "author": "",

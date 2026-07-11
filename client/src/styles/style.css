@@ -129,6 +129,59 @@ footer {
     50% { opacity: 0.5; }
 }
 
+.book-result-intro {
+    margin-bottom: 6px;
+}
+
+.book-card {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-left: 3px solid #ffd166;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+}
+
+.book-card:last-child {
+    margin-bottom: 0;
+}
+
+.book-card-title {
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.book-card-author {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+.book-card-availability {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #333;
+    color: #ddd;
+}
+
+.book-card-availability--lendable,
+.book-card-availability--borrowable,
+.book-card-availability--public,
+.book-card-availability--full-access {
+    background-color: #2e5e3e;
+    color: #b7f0c8;
+}
+
+.book-card-availability--checked-out,
+.book-card-availability--not-available-online {
+    background-color: #5e3e2e;
+    color: #f0cdb7;
+}
+
 /* Custom scrollbar for webkit browsers */
 #chatBox::-webkit-scrollbar {
     width: 8px;
