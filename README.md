@@ -57,7 +57,8 @@ The project is currently in **active development**, focusing on technical experi
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Vanilla JavaScript, HTML, CSS — with a hand-rolled AG-UI SSE event router (no framework)
+- **Frontend:** Vanilla JavaScript, HTML, CSS — with a hand-rolled AG-UI SSE event router (no framework), a
+  CSS custom-property design-token system, and a safe (escape-by-default) inline markdown renderer
 - **Backend:** Python, FastAPI
 - **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V3.2-Exp`) wired as an automatic fallback via `FallbackModel`
 - **Interactive transport:** [AG-UI protocol](https://docs.ag-ui.com/) (`pydantic-ai-slim[ag-ui]`) at `POST /agent` — streams text deltas, live tool-call progress, and structured `CUSTOM` events the frontend renders as real cards; `/chat`/`/chat/stream` remain as a simpler fallback transport
@@ -122,8 +123,8 @@ flowchart LR
     AGT -->|reply + thread_id| API --> FE --> U
 ```
 
-This is today's actual wiring (Tier 1 + Tier 2, complete) — see [ARCHITECTURE.md](ARCHITECTURE.md) for the
-per-turn sequence diagram and the reasoning behind each choice. The tiered plans linked under
+This is today's actual wiring (Tier 1 + Tier 2 + Tier 3, complete) — see [ARCHITECTURE.md](ARCHITECTURE.md)
+for the per-turn sequence diagram and the reasoning behind each choice. The tiered plans linked under
 [Future Enhancements](#-future-enhancements) pick up from here.
 
 <p align="center">
@@ -140,16 +141,18 @@ value shown was captured from a live run against the real APIs, not staged.</sub
 
 ## 🎨 Target Experience
 
-The screenshots above are today's real, working demo. The mockup below goes further — it's the **design
-target** from the [Tier 3 UI/UX plan](TIER3_PLAN.md): capability chips, live tool-call status, and grounded
-replies with numbered source citations layered on top of the book/research/citation cards already live
-today — built entirely in LibSync's existing black-and-amber brand.
+The screenshots above are Tier 1 + Tier 2. The mockup below is now **shipped, not aspirational** — it was
+the design plan for [Tier 3 UI/UX](TIER3_PLAN.md), and the real chat widget now matches it: suggestion
+chips, a live tool-call status pill, an interactive book card with an availability badge, a citation card
+with an APA/MLA/Chicago style switcher, a grounded reply with numbered source badges, and a distinct error
+state with a retry button — all built in LibSync's existing black-and-amber brand, verified live in a
+browser against the real event stream.
 
 <p align="center">
-  <img src="planning/assets/tier3-target-experience.svg" alt="Mockup of the target LibSync chat experience: suggested prompt chips, a live tool-status pill, an interactive book result card with an availability badge, a citation card with an APA/MLA/Chicago style switcher, a grounded reply with a numbered source citation, and a distinct error state with a retry button." width="420" />
+  <img src="planning/assets/tier3-target-experience.svg" alt="Mockup of the LibSync chat experience, now shipped: suggested prompt chips, a live tool-status pill, an interactive book result card with an availability badge, a citation card with an APA/MLA/Chicago style switcher, a grounded reply with a numbered source citation, and a distinct error state with a retry button." width="420" />
 </p>
 
-<p align="center"><sub>Static mockup — see <a href="#-future-enhancements">Future Enhancements</a> for the plan that builds it.</sub></p>
+<p align="center"><sub>This mockup doubled as the acceptance target — the shipped UI matches it feature-for-feature. See <a href="TIER3_PLAN.md">TIER3_PLAN.md</a> for the full plan and rationale.</sub></p>
 
 Patrons are only half the picture. [Tier 8](TIER8_PLAN.md) gives library staff a real dashboard — free-tier
 budget headroom surfaced where they'll actually see it, not buried in a planning doc:
@@ -188,8 +191,12 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
   `httpx.MockTransport` for third-party API clients with zero live calls in CI, and golden-file citation tests
 - **Project Workflow:** Version control with Git, branching, and automated build/test pipelines — including
   a CI check that fails the build if two copies of the frontend drift apart
-- **UI/UX Design:** Real-time chat interface with session persistence, retry/backoff, and distinct
-  rate-limited vs. service-down error states
+- **UI/UX Design:** Real-time chat interface with session persistence, retry/backoff, distinct rate-limited
+  vs. service-down error states, and a full conversational-affordance layer (suggestion chips, tool-status
+  pills, stop/regenerate/copy, scroll-to-latest)
+- **Security & Accessibility:** An escape-by-default markdown renderer closing a raw-`innerHTML` XSS gap in
+  untrusted model output, plus an accessibility baseline (`aria-live` region, visible focus rings,
+  `prefers-reduced-motion`) — verified with both unit tests and live browser interaction
 - **Technical Roadmapping:** A nine-tier, dependency-mapped growth plan from prototype to multi-tenant SaaS — each tier budget-audited, cross-referenced, and mocked up before a line of new code, not just described
 
 ---
@@ -207,7 +214,15 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 - Citation requests resolve a real Crossref record and format it with citeproc-py against a real CSL style
   file (APA/MLA/Chicago), with a copy button and an instant style switcher that doesn't re-run the lookup
 - Groq-primary, Hugging Face-fallback LLM routing, so a single provider outage doesn't take the demo down
-- Retry-with-backoff and distinct error states (rate-limited vs. service-down) on the frontend
+- Retry-with-backoff and distinct error states (rate-limited vs. service-down) on the frontend, with an
+  inline Retry button that resubmits the last question
+- Model output renders through a safe, escape-by-default markdown path (bold/links) — never raw `innerHTML`
+- Suggestion chips, per-tool status pills ("🔍 Searching the catalog…"), and a stop-generating control that
+  can interrupt a request at any point, including before the first token arrives
+- Grounded replies show a "Grounded in N sources" tag and numbered source badges on every card that backed
+  the answer
+- Copy and regenerate actions on bot replies; a floating scroll-to-latest control while streaming
+- Accessible by default: `aria-live` chat log, visible keyboard focus rings, `prefers-reduced-motion` support
 - Cloud deployment for remote access
 
 ---
@@ -486,7 +501,7 @@ embeddable widget:
 |---|---|---|---|---|
 | 1 | **✅ Complete** — Foundation: real RAG, real catalog data (Open Library), a $0-safe LLM provider (Groq), session continuity, observability | [TIER1_PLAN.md](TIER1_PLAN.md) | [planning/TIER1_PLAN.html](planning/TIER1_PLAN.html) | [rendered](https://claude.ai/code/artifact/6d36123a-b07b-471b-b792-fa2f72f70222) |
 | 2 | **✅ Complete** — Interactive & research: AG-UI streaming transport, interactive book/research/citation cards, OpenAlex + Crossref/citeproc tooling | [TIER2_PLAN.md](TIER2_PLAN.md) | [planning/TIER2_PLAN.html](planning/TIER2_PLAN.html) | [rendered](https://claude.ai/code/artifact/6a4601ca-c629-478a-818f-fc6134221838) |
-| 3 | UI/UX — grounded-citation UI, accessibility pass, a real design-token system on top of the current brand | [TIER3_PLAN.md](TIER3_PLAN.md) | [planning/TIER3_PLAN.html](planning/TIER3_PLAN.html) | [rendered](https://claude.ai/code/artifact/e444be53-8ca6-4813-8e07-2c6c92653448) |
+| 3 | **✅ Complete** — UI/UX: an escape-by-default safe markdown renderer (closes the raw-`innerHTML` XSS gap), an accessibility baseline (`aria-live` chat log, focus rings, reduced-motion), suggestion chips, per-tool status pills, stop/regenerate/copy actions, grounded-citation UI (numbered source badges + tag), and a real design-token system on top of the current brand | [TIER3_PLAN.md](TIER3_PLAN.md) | [planning/TIER3_PLAN.html](planning/TIER3_PLAN.html) | [rendered](https://claude.ai/code/artifact/e444be53-8ca6-4813-8e07-2c6c92653448) |
 | 4 | React migration — behavior-preserving move to React + CopilotKit/AG-UI, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |
 | 5 | Standalone web app — dynamic responsive layout, PWA installability, and **multi-conversation chat history** | [TIER5_PLAN.md](TIER5_PLAN.md) | [planning/TIER5_PLAN.html](planning/TIER5_PLAN.html) | [rendered](https://claude.ai/code/artifact/501ca3cc-b4c9-4f9a-a233-54a43134eb5a) |
 | 6 | Embeddable widget — a two-line snippet for library websites, iframe-isolated, reusing the Tier 4 components | [TIER6_PLAN.md](TIER6_PLAN.md) | [planning/TIER6_PLAN.html](planning/TIER6_PLAN.html) | [rendered](https://claude.ai/code/artifact/bdb8c64e-4019-4c39-bf6f-7d05538e3b30) |

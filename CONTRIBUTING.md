@@ -78,6 +78,15 @@ dispatch-by-`event.name` switch, and make sure it appends via `ensureContentStar
 [ARCHITECTURE.md's "Frontend text and cards must coexist" entry](ARCHITECTURE.md#why-these-choices) for why
 that's a real, previously-shipped bug, not a hypothetical).
 
+**Never set `.innerHTML` (or any DOM property) from model output or other untrusted text.** Model output is
+untrusted — it can echo retrieved text or be steered via prompt injection. Any new bot-facing text must go
+through `renderInlineMarkdown()` / `setBotTextContent()` in `script.js`, which only ever insert
+`document.createTextNode`/`el.textContent` and a small fixed set of safe elements (`<strong>`, `<em>`, an
+`<a>` restricted to `http(s)` hrefs) — never raw markup. If you need a new inline format, extend
+`INLINE_MARKDOWN_PATTERN` and its handler in `renderInlineMarkdown()` rather than reaching for `innerHTML`.
+The `safe markdown rendering` block in `script.test.js` has a regression test asserting `<script>`/`<img
+onerror>` in model output never becomes live markup — add a case there if you touch this path.
+
 ## Commit / PR expectations
 
 - Keep the budget constraint in mind: no change should require a paid tier on Groq, Pinecone, Render, Open
