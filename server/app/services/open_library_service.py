@@ -12,6 +12,7 @@ import httpx
 SEARCH_URL = "https://openlibrary.org/search.json"
 AVAILABILITY_URL = "https://openlibrary.org/api/volumes/brief/olid/{olid}.json"
 COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
+WORK_URL = "https://openlibrary.org{key}"
 
 # Open Library asks anonymous callers to identify themselves via User-Agent;
 # doing so raises the courtesy rate limit from 1 req/s to 3 req/s.
@@ -25,7 +26,8 @@ async def search_catalog(client: httpx.AsyncClient, query: str, limit: int = 3) 
     """Search Open Library for books matching a title/author query.
 
     Returns a list of dicts: title, author, first_publish_year, cover_url,
-    and availability (one of the Read API's status strings — "full access",
+    url (the work's Open Library page, for a real link-out), and
+    availability (one of the Read API's status strings — "full access",
     "lendable", "checked out", "restricted" — or "not available online" /
     "unknown"). Results are cached in-process for a few minutes so repeated
     questions in a conversation don't hammer the free, unauthenticated API.
@@ -56,12 +58,14 @@ async def search_catalog(client: httpx.AsyncClient, query: str, limit: int = 3) 
             if edition_keys
             else _availability_from_search_doc(doc)
         )
+        key = doc.get("key")
         results.append(
             {
                 "title": doc.get("title", "Unknown title"),
                 "author": ", ".join(doc.get("author_name", [])) or "Unknown author",
                 "first_publish_year": doc.get("first_publish_year"),
                 "cover_url": COVER_URL.format(cover_id=cover_i) if cover_i else None,
+                "url": WORK_URL.format(key=key) if key else None,
                 "availability": availability,
             }
         )

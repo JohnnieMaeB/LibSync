@@ -1,0 +1,86 @@
+<svg viewBox="0 0 440 860" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#ffd166" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="440" height="860" fill="#121212"/>
+
+  <!-- App container -->
+  <rect x="20" y="20" width="400" height="820" rx="16" fill="#000000" filter="url(#glow)"/>
+
+  <!-- Header -->
+  <circle cx="60" cy="62" r="20" fill="#1d1c19" stroke="#ffd166" stroke-width="1.5"/>
+  <path d="M52 68 h16 M52 62 h16 M52 56 h10" stroke="#ffd166" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <text x="92" y="60" fill="#ffd166" font-size="20" font-weight="700">LibSync</text>
+  <text x="92" y="78" fill="#aaaaaa" font-size="12">Your personal AI library assistant.</text>
+  <line x1="20" y1="98" x2="420" y2="98" stroke="#333333" stroke-width="1"/>
+
+  <!-- User: book question -->
+  <rect x="140" y="114" width="264" height="34" rx="10" fill="#3b3b3b"/>
+  <text x="156" y="136" fill="#f0f0f0" font-size="13">Is Project Hail Mary available?</text>
+
+  <!-- Bot: narration + book card with cover and link-out -->
+  <rect x="36" y="162" width="300" height="30" rx="10" fill="#2a2a2a"/>
+  <text x="52" y="182" fill="#f0f0f0" font-size="12">I'll search our catalog for you!</text>
+
+  <rect x="36" y="200" width="300" height="80" rx="8" fill="#1e1e1e" stroke="#333333" stroke-width="1"/>
+  <rect x="36" y="200" width="3" height="80" fill="#ffd166"/>
+  <!-- cover thumbnail -->
+  <rect x="50" y="212" width="40" height="56" rx="4" fill="#3a3020"/>
+  <path d="M58 224 h24 M58 232 h24 M58 240 h16" stroke="#ffd166" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <text x="100" y="228" fill="#ffd166" font-size="13" font-weight="600" text-decoration="underline">Project Hail Mary (2021)</text>
+  <text x="100" y="246" fill="#aaaaaa" font-size="11">by Andy Weir</text>
+  <rect x="100" y="254" width="64" height="20" rx="10" fill="#333333"/>
+  <text x="132" y="268" fill="#dddddd" font-size="10" font-weight="600" text-anchor="middle">unknown</text>
+  <text x="304" y="272" fill="#666666" font-size="9" text-anchor="end">openlibrary.org ↗</text>
+
+  <!-- User: research question -->
+  <rect x="60" y="304" width="344" height="34" rx="10" fill="#3b3b3b"/>
+  <text x="76" y="326" fill="#f0f0f0" font-size="12">Find recent papers on large language models in education</text>
+
+  <!-- Bot: research_results card -->
+  <rect x="36" y="352" width="300" height="130" rx="10" fill="#2a2a2a"/>
+  <text x="52" y="374" fill="#cccccc" font-size="12">Found 5 work(s) for &quot;large language models&quot;:</text>
+
+  <rect x="52" y="386" width="268" height="86" rx="8" fill="#1e1e1e" stroke="#333333" stroke-width="1"/>
+  <rect x="52" y="386" width="3" height="86" fill="#ffd166"/>
+  <text x="68" y="406" fill="#ffd166" font-size="12" font-weight="600" text-decoration="underline">ChatGPT for good? (2023)</text>
+  <text x="68" y="422" fill="#aaaaaa" font-size="10">Enkelejda Kasneci, Kathrin Seßler, et al.</text>
+  <rect x="68" y="432" width="80" height="20" rx="10" fill="#333333"/>
+  <text x="108" y="446" fill="#dddddd" font-size="9" font-weight="600" text-anchor="middle">5340 citations</text>
+  <rect x="154" y="432" width="88" height="20" rx="10" fill="#2e5e3e"/>
+  <text x="198" y="446" fill="#b7f0c8" font-size="9" font-weight="600" text-anchor="middle">Open access</text>
+  <text x="68" y="464" fill="#ffd166" font-size="10" font-weight="600">▸ Abstract</text>
+
+  <!-- User: citation question -->
+  <rect x="52" y="504" width="352" height="34" rx="10" fill="#3b3b3b"/>
+  <text x="68" y="526" fill="#f0f0f0" font-size="12">Cite this in MLA: 10.1016/j.lindif.2023.102274</text>
+
+  <!-- Bot: citation card -->
+  <rect x="36" y="552" width="300" height="176" rx="10" fill="#1e1e1e" stroke="#333333" stroke-width="1"/>
+  <rect x="36" y="552" width="3" height="176" fill="#ffd166"/>
+  <text x="52" y="576" fill="#f0f0f0" font-size="11">Kasneci, E., et al.. &quot;ChatGPT for</text>
+  <text x="52" y="592" fill="#f0f0f0" font-size="11">Good? On Opportunities and</text>
+  <text x="52" y="608" fill="#f0f0f0" font-size="11">Challenges of Large Language</text>
+  <text x="52" y="624" fill="#f0f0f0" font-size="11">Models for Education&quot;. Learning</text>
+  <text x="52" y="640" fill="#f0f0f0" font-size="11">and Individual Differences, vol.</text>
+  <text x="52" y="656" fill="#f0f0f0" font-size="11">103, Apr. 2023, p. 102274,</text>
+  <text x="52" y="672" fill="#f0f0f0" font-size="11">doi.org/10.1016/j.lindif...</text>
+
+  <rect x="52" y="686" width="60" height="26" rx="6" fill="#333333"/>
+  <text x="82" y="703" fill="#dddddd" font-size="11" font-weight="600" text-anchor="middle">Copy</text>
+  <rect x="120" y="686" width="70" height="26" rx="6" fill="#333333" stroke="#444444" stroke-width="1"/>
+  <text x="155" y="703" fill="#dddddd" font-size="11" text-anchor="middle">MLA ▾</text>
+
+  <!-- caption row: style switcher hint -->
+  <text x="52" y="732" fill="#666666" font-size="9">Switch style — re-formats instantly, no new lookup</text>
+
+  <!-- Footer -->
+  <line x1="20" y1="760" x2="420" y2="760" stroke="#333333" stroke-width="1"/>
+  <rect x="20" y="760" width="400" height="80" rx="0" fill="#252525"/>
+  <text x="40" y="806" fill="#777777" font-size="13">Type your question here...</text>
+  <rect x="330" y="782" width="72" height="36" rx="10" fill="#ffd166"/>
+  <text x="366" y="805" fill="#222222" font-size="13" font-weight="700" text-anchor="middle">Send</text>
+</svg>

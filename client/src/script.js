@@ -72,6 +72,8 @@ async function fetchWithRetry(url, options) {
   throw lastNetworkError || new ServiceDownError("Request failed.");
 }
 
+const DEFAULT_ERROR_MSG = "⚠️ Error: Unable to reach AI service. Please try again later.";
+
 async function sendMessage() {
   const question = userInput.value.trim();
   if (!question) return;
@@ -87,17 +89,18 @@ async function sendMessage() {
     // Streaming means the connection opens (and the "Thinking..." bubble
     // starts updating) right away instead of waiting for the full reply —
     // this is what actually hides Render's cold-start latency.
-    const response = await fetchWithRetry(`${API_BASE_URL}/chat/stream`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/agent`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "text/event-stream",
       },
-      body: JSON.stringify({ message: question, session_id: getOrCreateSessionId() }),
+      body: JSON.stringify(buildRunAgentInput(question)),
     });
 
-    await consumeChatStream(response, loadingMsg);
+    await consumeAgentStream(response, loadingMsg);
   } catch (err) {
-    let errorMsg = "⚠️ Error: Unable to reach AI service. Please try again later.";
+    let errorMsg = DEFAULT_ERROR_MSG;
     if (err instanceof RateLimitedError) {
       errorMsg = "⏳ You're sending messages a little too quickly. Please wait a moment and try again.";
     }
@@ -107,11 +110,37 @@ async function sendMessage() {
   }
 }
 
-async function consumeChatStream(response, targetMsg) {
+// Builds an AG-UI RunAgentInput body. The backend (see server/app/routers/agent.py)
+// keeps full conversation history server-side, keyed by threadId, so only the
+// new user turn is sent here — not the whole message array.
+function buildRunAgentInput(question) {
+  return {
+    threadId: getOrCreateSessionId(),
+    runId: generateSessionId(),
+    state: null,
+    messages: [{ id: generateSessionId(), role: "user", content: question }],
+    tools: [],
+    context: [],
+    forwardedProps: null,
+  };
+}
+
+// Consumes the AG-UI SSE event stream from POST /agent and drives a single
+// bot message bubble: incremental text as TEXT_MESSAGE_CONTENT deltas arrive,
+// a "Searching..." state while a tool call is in flight, and CUSTOM events
+// dispatched by name to a card renderer (see renderCustomEvent).
+async function consumeAgentStream(response, targetMsg) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let sawContent = false;
+
+  const ctx = {
+    targetMsg,
+    activeTextMessageId: null,
+    currentText: "",
+    textEl: null,
+    hasContent: false,
+  };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -122,52 +151,232 @@ async function consumeChatStream(response, targetMsg) {
     while ((boundary = buffer.indexOf("\n\n")) !== -1) {
       const rawEvent = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
-      const { event, data } = parseSseEvent(rawEvent);
-      if (!event) continue;
+      const event = parseAgUiEvent(rawEvent);
+      if (!event || !event.type) continue;
 
-      if (event === "session") {
-        if (data.session_id) {
-          localStorage.setItem(SESSION_STORAGE_KEY, data.session_id);
-        }
-      } else if (event === "text") {
-        sawContent = true;
-        targetMsg.classList.remove("loading");
-        targetMsg.innerHTML = "";
-        targetMsg.textContent = data.text;
-      } else if (event === "books") {
-        sawContent = true;
-        targetMsg.classList.remove("loading");
-        renderBookResult(targetMsg, data);
-      } else if (event === "error") {
-        targetMsg.classList.remove("loading");
-        targetMsg.textContent = data.error || "⚠️ Error: Unable to reach AI service. Please try again later.";
-        return;
-      } else if (event === "done") {
-        targetMsg.classList.remove("loading");
-        if (!sawContent) {
-          targetMsg.textContent = "Sorry, I couldn’t find an answer right now.";
-        }
+      if (handleAgentEvent(event, ctx) === "stop") {
         return;
       }
     }
   }
 }
 
-function parseSseEvent(rawEvent) {
-  let event = null;
-  let data = null;
-  for (const line of rawEvent.split("\n")) {
-    if (line.startsWith("event: ")) {
-      event = line.slice("event: ".length);
-    } else if (line.startsWith("data: ")) {
-      try {
-        data = JSON.parse(line.slice("data: ".length));
-      } catch {
-        data = {};
-      }
-    }
+function parseAgUiEvent(rawEvent) {
+  const dataLines = rawEvent
+    .split("\n")
+    .filter((line) => line.startsWith("data: "))
+    .map((line) => line.slice("data: ".length));
+  if (dataLines.length === 0) return null;
+  try {
+    return JSON.parse(dataLines.join("\n"));
+  } catch {
+    return null;
   }
-  return { event, data };
+}
+
+// Clears the "Thinking..."/"Searching..." placeholder exactly once, the
+// first time any real content (text or a card) arrives. Text and cards can
+// arrive in either order (a tool call's card typically resolves before the
+// model's trailing narration, but not always) and must coexist as siblings
+// in the bubble afterward — neither should wipe the other out.
+function ensureContentStarted(ctx) {
+  if (!ctx.hasContent) {
+    ctx.targetMsg.classList.remove("loading");
+    ctx.targetMsg.innerHTML = "";
+    ctx.hasContent = true;
+  }
+}
+
+// Returns "stop" when the caller should stop reading the stream.
+function handleAgentEvent(event, ctx) {
+  switch (event.type) {
+    case "TEXT_MESSAGE_START":
+      ctx.activeTextMessageId = event.messageId;
+      ctx.currentText = "";
+      ctx.textEl = null;
+      return;
+    case "TEXT_MESSAGE_CONTENT":
+      if (event.messageId !== ctx.activeTextMessageId) {
+        ctx.activeTextMessageId = event.messageId;
+        ctx.currentText = "";
+        ctx.textEl = null;
+      }
+      ctx.currentText += event.delta;
+      ensureContentStarted(ctx);
+      if (!ctx.textEl) {
+        ctx.textEl = document.createElement("div");
+        ctx.textEl.className = "bot-text";
+        ctx.targetMsg.appendChild(ctx.textEl);
+      }
+      ctx.textEl.textContent = ctx.currentText;
+      return;
+    case "TOOL_CALL_START":
+      if (!ctx.hasContent) {
+        ctx.targetMsg.textContent = "Searching...";
+        ctx.targetMsg.classList.add("loading");
+      }
+      return;
+    case "CUSTOM":
+      renderCustomEvent(event, ctx);
+      return;
+    case "RUN_ERROR":
+      ctx.targetMsg.classList.remove("loading");
+      ctx.targetMsg.textContent = event.message || DEFAULT_ERROR_MSG;
+      return "stop";
+    case "RUN_FINISHED":
+      ctx.targetMsg.classList.remove("loading");
+      if (!ctx.hasContent) {
+        ctx.targetMsg.textContent = "Sorry, I couldn’t find an answer right now.";
+      }
+      return "stop";
+    default:
+      return;
+  }
+}
+
+// Dispatches a CUSTOM AG-UI event (see app/agent.py's _custom_event helper)
+// to the right card renderer by name.
+function renderCustomEvent(event, ctx) {
+  ensureContentStarted(ctx);
+  if (event.name === "book_card") {
+    const book = event.value || {};
+    ctx.targetMsg.appendChild(
+      renderBookCard(book.title, book.author, book.first_publish_year, book.availability, book.cover_url, book.url),
+    );
+  } else if (event.name === "research_results") {
+    ctx.targetMsg.appendChild(renderResearchResult(event.value || {}));
+  } else if (event.name === "citation") {
+    ctx.targetMsg.appendChild(renderCitationCard(event.value || {}));
+  }
+}
+
+// Renders a citation CUSTOM event payload (see app.schemas.Citation on the
+// backend) as a citation card: formatted text, a copy-to-clipboard button,
+// and a style switcher that re-formats via GET /citation/{doi} instead of
+// re-running the whole lookup_and_cite tool call.
+function renderCitationCard(citation) {
+  const card = document.createElement("div");
+  card.className = "citation-card";
+
+  const textEl = document.createElement("p");
+  textEl.className = "citation-card-text";
+  textEl.textContent = citation.formatted;
+  card.appendChild(textEl);
+
+  const controls = document.createElement("div");
+  controls.className = "citation-card-controls";
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "citation-card-copy";
+  copyBtn.textContent = "Copy";
+  copyBtn.addEventListener("click", () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textEl.textContent);
+    }
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => {
+      copyBtn.textContent = "Copy";
+    }, 1500);
+  });
+  controls.appendChild(copyBtn);
+
+  if (citation.doi && citation.available_styles && citation.available_styles.length > 1) {
+    const select = document.createElement("select");
+    select.className = "citation-card-style-select";
+    citation.available_styles.forEach((style) => {
+      const option = document.createElement("option");
+      option.value = style;
+      option.textContent = style.toUpperCase();
+      if (style === citation.style) option.selected = true;
+      select.appendChild(option);
+    });
+    select.addEventListener("change", async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/citation/${citation.doi}?style=${encodeURIComponent(select.value)}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        textEl.textContent = data.formatted;
+        citation.style = data.style;
+      } catch {
+        // Network hiccup: leave the previously formatted text in place.
+      }
+    });
+    controls.appendChild(select);
+  }
+
+  card.appendChild(controls);
+  return card;
+}
+
+// Renders a research_results CUSTOM event payload (see app.schemas.ResearchResult
+// on the backend) as a result-list card: one entry per work, each with an
+// expandable abstract instead of dumping the full text inline.
+function renderResearchResult(result) {
+  const container = document.createElement("div");
+  container.className = "research-result";
+
+  if (result.intro) {
+    const intro = document.createElement("div");
+    intro.className = "research-result-intro";
+    intro.textContent = result.intro;
+    container.appendChild(intro);
+  }
+
+  (result.works || []).forEach((work) => {
+    container.appendChild(renderScholarlyWorkCard(work));
+  });
+
+  return container;
+}
+
+function renderScholarlyWorkCard(work) {
+  const card = document.createElement("div");
+  card.className = "work-card";
+
+  const titleEl = document.createElement(work.doi ? "a" : "div");
+  titleEl.className = "work-card-title";
+  titleEl.textContent = work.year ? `${work.title} (${work.year})` : work.title;
+  if (work.doi) {
+    titleEl.href = work.doi;
+    titleEl.target = "_blank";
+    titleEl.rel = "noopener noreferrer";
+  }
+  card.appendChild(titleEl);
+
+  const authorsEl = document.createElement("div");
+  authorsEl.className = "work-card-authors";
+  authorsEl.textContent = work.authors;
+  card.appendChild(authorsEl);
+
+  const meta = document.createElement("div");
+  meta.className = "work-card-meta";
+
+  const citationBadge = document.createElement("span");
+  citationBadge.className = "work-card-citations";
+  citationBadge.textContent = `${work.citation_count} citation${work.citation_count === 1 ? "" : "s"}`;
+  meta.appendChild(citationBadge);
+
+  const oaBadge = document.createElement("span");
+  oaBadge.className = `work-card-oa work-card-oa--${work.is_oa ? "open" : "closed"}`;
+  oaBadge.textContent = work.is_oa ? "Open access" : "Not open access";
+  meta.appendChild(oaBadge);
+
+  card.appendChild(meta);
+
+  if (work.abstract) {
+    const details = document.createElement("details");
+    details.className = "work-card-abstract";
+    const summary = document.createElement("summary");
+    summary.textContent = "Abstract";
+    details.appendChild(summary);
+    const abstractText = document.createElement("p");
+    abstractText.textContent = work.abstract;
+    details.appendChild(abstractText);
+    card.appendChild(details);
+  }
+
+  return card;
 }
 
 // Fallback pattern for the (rare, non-streaming) case a plain-text reply
@@ -198,42 +407,45 @@ function renderPlainTextContent(el, text) {
   }
 }
 
-// Renders the /chat/stream "books" event payload: { intro, books: [...] }
-// (see app.schemas.BookResult on the backend) as real cards from data,
-// instead of parsing it back out of prose.
-function renderBookResult(el, bookResult) {
-  el.innerHTML = "";
-  if (bookResult.intro) {
-    const intro = document.createElement("div");
-    intro.className = "book-result-intro";
-    intro.textContent = bookResult.intro;
-    el.appendChild(intro);
-  }
-  (bookResult.books || []).forEach((book) => {
-    el.appendChild(renderBookCard(book.title, book.author, book.first_publish_year, book.availability));
-  });
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function renderBookCard(title, author, year, availability) {
+// Renders one book as a real card from data (title, author, availability,
+// and — once a tool call supplies them, see Phase 9's book_card CUSTOM event
+// — a cover image and an Open Library link-out) instead of prose.
+function renderBookCard(title, author, year, availability, coverUrl, url) {
   const card = document.createElement("div");
   card.className = "book-card";
 
-  const titleEl = document.createElement("div");
+  if (coverUrl) {
+    const cover = document.createElement("img");
+    cover.className = "book-card-cover";
+    cover.src = coverUrl;
+    cover.alt = `Cover of ${title}`;
+    card.appendChild(cover);
+  }
+
+  const body = document.createElement("div");
+  body.className = "book-card-body";
+
+  const titleEl = document.createElement(url ? "a" : "div");
   titleEl.className = "book-card-title";
   titleEl.textContent = year ? `${title} (${year})` : title;
-  card.appendChild(titleEl);
+  if (url) {
+    titleEl.href = url;
+    titleEl.target = "_blank";
+    titleEl.rel = "noopener noreferrer";
+  }
+  body.appendChild(titleEl);
 
   const authorEl = document.createElement("div");
   authorEl.className = "book-card-author";
   authorEl.textContent = `by ${author}`;
-  card.appendChild(authorEl);
+  body.appendChild(authorEl);
 
   const badge = document.createElement("span");
   badge.className = `book-card-availability book-card-availability--${availability.trim().replace(/\s+/g, "-")}`;
   badge.textContent = availability;
-  card.appendChild(badge);
+  body.appendChild(badge);
 
+  card.appendChild(body);
   return card;
 }
 

@@ -9,7 +9,8 @@ covers how the pieces fit together and why.
 - Read [README.md § Local Setup](README.md#-local-setup) to get the backend and frontend running.
 - Skim [ARCHITECTURE.md](ARCHITECTURE.md) if your change touches the agent, tools, or session handling —
   it explains the reasoning behind choices that aren't obvious from the code alone (e.g. why Groq is
-  primary and HF is fallback-only, why the session store is in-process rather than a database).
+  primary and HF is fallback-only, why the session store is in-process rather than a database). For the
+  mechanical "what calls what, in what order" version, see [server/TRACE.md](server/TRACE.md).
 - Check the [tiered roadmap](README.md#-future-enhancements) if you're planning something bigger than a
   bug fix — it may already be scoped in a later tier, and aligning with that saves rework.
 
@@ -17,6 +18,8 @@ covers how the pieces fit together and why.
 
 ```
 server/         Python/FastAPI + PydanticAI backend (uv-managed)
+  app/routers/     /agent (AG-UI, primary), /chat + /chat/stream (fallback), /citation, /api/query
+  app/services/    Pinecone, Open Library, OpenAlex, Crossref, citeproc-py clients
 client/src/     Frontend source of truth (vanilla JS/HTML/CSS)
 docs/           GitHub Pages copy, generated from client/src/ — never hand-edit
 pinecone-scripts/  IaC scripts for the Pinecone policy index
@@ -32,12 +35,23 @@ uv run pytest
 ```
 
 - Tests use `FunctionModel`/`FallbackModel` overrides to fake LLM behavior and `httpx.MockTransport` to
-  fake Open Library — no live API calls, no API keys needed to run the suite.
+  fake Open Library/OpenAlex/Crossref — no live API calls, no API keys needed to run the suite.
 - If you add a new `@chat_agent.tool` or `@chat_agent.tool_plain`, add a test that asserts the tool is
   actually invoked for a representative prompt (see `tests/test_chat.py` for the pattern: a
   `FunctionModel` that issues a `ToolCallPart` on the first turn and grounds its reply in the
   `ToolReturnPart` on the next). Don't just test the service function in isolation — the point is
-  confirming the agent actually reaches for the tool.
+  confirming the agent actually reaches for the tool. `tests/test_agent_endpoint.py` has the equivalent
+  pattern for the AG-UI transport (`/agent`), asserting on the actual SSE event sequence, including that a
+  tool emitting a card shows up as a `CUSTOM` event.
+- If your tool should render as a card on the AG-UI transport, return a
+  `pydantic_ai.messages.ToolReturn(return_value=..., metadata=_custom_event("your_event_name", payload))`
+  instead of a plain string — see `search_catalog`/`search_scholarly_works`/`lookup_and_cite` in
+  `app/agent.py` for the pattern, and `_custom_event()` itself for why this works (it rides on the same
+  tool-return mechanism `AGUIEventStream` already inspects — no new plumbing needed).
+- New third-party API client? Follow the existing service pattern: a plain async function taking a shared
+  `httpx.AsyncClient`, an in-process TTL cache (see `open_library_service.py`/`openalex_service.py` for the
+  pattern), and identify the app to the API's polite pool (`User-Agent` header or a `mailto=`/contact-email
+  param) rather than going fully anonymous.
 
 ## Making a frontend change
 
@@ -56,10 +70,23 @@ npm run sync-docs
 CI fails the build if `docs/` doesn't match what `sync-docs` produces, so this isn't optional — it's what
 keeps the two from drifting the way they did before Tier 1.
 
+`script.js` speaks two wire protocols to the backend: `POST /agent` (AG-UI, primary — `sendMessage()` /
+`consumeAgentStream()` / `handleAgentEvent()`) and the older `/chat`/`/chat/stream` (kept as a fallback, not
+called by the current frontend). If you're adding a new card type, wire it into `renderCustomEvent()`'s
+dispatch-by-`event.name` switch, and make sure it appends via `ensureContentStarted()` rather than clearing
+`innerHTML` directly — text and cards can arrive in either order and must not clobber each other (see
+[ARCHITECTURE.md's "Frontend text and cards must coexist" entry](ARCHITECTURE.md#why-these-choices) for why
+that's a real, previously-shipped bug, not a hypothetical).
+
 ## Commit / PR expectations
 
-- Keep the budget constraint in mind: no change should require a paid tier on Groq, Pinecone, Render,
-  Open Library, or Logfire. If a change needs one, flag it explicitly rather than assuming it's fine.
+- Keep the budget constraint in mind: no change should require a paid tier on Groq, Pinecone, Render, Open
+  Library, OpenAlex, Crossref, or Logfire. If a change needs one, flag it explicitly rather than assuming
+  it's fine.
+- Don't bump `fastapi` past `<0.137` without checking the pin's comment in `server/pyproject.toml` first —
+  it's there to avoid a real CORS-preflight-breaking bug (`opentelemetry-instrumentation-fastapi` 0.63b1
+  can't handle FastAPI 0.137+'s `_IncludedRouter`), not an arbitrary version freeze. See
+  [ARCHITECTURE.md](ARCHITECTURE.md) for the full explanation.
 - Run the relevant test suite(s) before opening a PR. CI runs both (`server-tests`, `client-tests`) plus
   the docs-sync check on every PR.
 - Prefer a small, focused PR over a large one spanning multiple tiers of the roadmap.

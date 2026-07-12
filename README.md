@@ -42,7 +42,9 @@
 - [Featured Deployment](#-featured-deployment)
 
 For the full request-flow diagrams and the reasoning behind each infrastructure choice, see
-[ARCHITECTURE.md](ARCHITECTURE.md). Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md).
+[ARCHITECTURE.md](ARCHITECTURE.md); for a mechanical, method-by-method trace of the backend (entry point
+through every file and function), see [server/TRACE.md](server/TRACE.md). Contributing? See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -55,15 +57,18 @@ The project is currently in **active development**, focusing on technical experi
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Vanilla JavaScript, HTML, CSS
+- **Frontend:** Vanilla JavaScript, HTML, CSS — with a hand-rolled AG-UI SSE event router (no framework)
 - **Backend:** Python, FastAPI
 - **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V3.2-Exp`) wired as an automatic fallback via `FallbackModel`
-- **Tool-using agent:** Two PydanticAI tools ground replies in real data — `search_library_policies` (Pinecone) and `search_catalog` (Open Library)
-- **Structured output:** `output_type=str | BookResult` — book answers come back as real data (title, author, availability) for the frontend to render as cards, not prose the UI has to parse
-- **Streaming:** `/chat/stream` (SSE via `agent.run_stream`) opens the connection and starts showing activity immediately, hiding Render's cold-start latency instead of a blank spinner
+- **Interactive transport:** [AG-UI protocol](https://docs.ag-ui.com/) (`pydantic-ai-slim[ag-ui]`) at `POST /agent` — streams text deltas, live tool-call progress, and structured `CUSTOM` events the frontend renders as real cards; `/chat`/`/chat/stream` remain as a simpler fallback transport
+- **Tool-using agent:** Four PydanticAI tools ground replies in real data — `search_library_policies` (Pinecone), `search_catalog` (Open Library), `search_scholarly_works` (OpenAlex), and `lookup_and_cite` (Crossref + citeproc-py)
+- **Structured output:** `output_type=str | BookResult` on the fallback transport, plus AG-UI `CUSTOM` events (`book_card`, `research_results`, `citation`) on the primary transport — either way, results come back as real data for the frontend to render as cards, not prose the UI has to parse
+- **Streaming:** `/agent` opens the connection and starts showing activity immediately, hiding Render's cold-start latency instead of a blank spinner
 - **Vector Database:** Pinecone, integrated-embedding `search()`, for policy RAG
-- **Real catalog data:** [Open Library API](https://openlibrary.org/developers/api) (free, keyless) for book/author lookups and lending availability
-- **Session continuity:** In-process, TTL-bounded session store keyed by a client-minted `session_id`
+- **Real catalog data:** [Open Library API](https://openlibrary.org/developers/api) (free, keyless) for book/author lookups, lending availability, and cover art
+- **Research data:** [OpenAlex API](https://docs.openalex.org/) (free, keyless) for real scholarly works — citation counts, open-access status, abstracts
+- **Citation formatting:** [Crossref REST API](https://api.crossref.org/) (free, keyless) for bibliographic records, formatted by [citeproc-py](https://github.com/brechtm/citeproc-py) against real CSL 1.0.1 style files (APA/MLA/Chicago) — the same processor family Zotero uses
+- **Session continuity:** In-process, TTL-bounded session store keyed by the AG-UI thread id
 - **Observability:** [Logfire](https://logfire.pydantic.dev/) (free Hobby tier), opt-in via `LOGFIRE_TOKEN`
 - **Package Management:** [uv](https://docs.astral.sh/uv/) for the Python backend and IaC scripts
 - **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), a docs/client drift check, and a weekly free-tier keep-alive ping
@@ -76,15 +81,22 @@ The project is currently in **active development**, focusing on technical experi
 - **Frontend:** Chat UI in vanilla JavaScript, HTML, and CSS. `client/src/` is the source of truth; `docs/`
   (GitHub Pages) is generated from it by `scripts/sync-docs.js`, with CI failing the build if they drift.
 - **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — Groq
-  primary / Hugging Face fallback — with two tools that ground replies in real data instead of guessing.
-  `/chat` returns a single JSON reply; `/chat/stream` streams the same turn over SSE and returns book
-  answers as structured `BookResult` data instead of prose.
+  primary / Hugging Face fallback — with four tools that ground replies in real data instead of guessing.
+  `/agent` (AG-UI protocol) is the primary transport: it streams token deltas, live tool-call progress, and
+  structured `CUSTOM` events the frontend renders as book/research/citation cards. `/chat` and `/chat/stream`
+  remain as a simpler fallback transport.
 - **Vector Layer:** Pinecone's integrated-embedding `search()` powers `search_library_policies`, called by
   the agent whenever a patron asks about a concrete policy (fines, lending periods, etc.).
 - **Real catalog data:** `search_catalog` calls the free, keyless Open Library API for book/author lookups
-  and real lending/availability status.
-- **Session continuity:** A client-minted `session_id` (persisted in `localStorage`) threads conversation
-  history through an in-process, TTL-bounded session store.
+  and real lending/availability status, rendering a card with cover art and a link-out as results resolve.
+- **Research assistant:** `search_scholarly_works` calls the free OpenAlex API for real papers — title,
+  authors, year, citation count, open-access status, and an expandable abstract.
+- **Citation assistant:** `lookup_and_cite` resolves a real Crossref bibliographic record (by DOI or
+  title/author search) and formats it with `citeproc-py` against a real CSL style file (APA/MLA/Chicago) —
+  the actual processor family Zotero uses, not a model guessing at citation punctuation rules from memory.
+  A style switcher re-formats client-side via `GET /citation/{doi}` without a new Crossref lookup.
+- **Session continuity:** A client-minted thread id (persisted in `localStorage`) threads conversation
+  history through an in-process, TTL-bounded session store, keyed by the AG-UI thread id.
 - **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set.
 - **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), verifies `docs/` stays in sync
   with `client/src/`, and pings Pinecone/Render weekly so the free tiers don't silently auto-pause.
@@ -92,39 +104,46 @@ The project is currently in **active development**, focusing on technical experi
 
 ```mermaid
 flowchart LR
-    U["Patron<br/>(browser)"] -->|POST /chat| FE["Static frontend<br/>GitHub Pages"]
-    FE -->|fetch, session_id| API["FastAPI<br/>Render free web service"]
+    U["Patron<br/>(browser)"] -->|POST /agent, AG-UI SSE| FE["Static frontend<br/>GitHub Pages"]
+    FE -->|fetch, thread_id| API["FastAPI<br/>Render free web service"]
     API --> AGT["PydanticAI Agent<br/>(deps: http client, session store)"]
     AGT -->|primary| GROQ["Groq<br/>free tier LLM"]
     AGT -.fallback.-> HF["HF Inference Providers<br/>(novita) — budget-limited"]
-    AGT -->|tool call| POL["search_library_policies<br/>tool"]
-    AGT -->|tool call| CAT["search_catalog<br/>tool"]
+    AGT -->|tool call| POL["search_library_policies"]
+    AGT -->|tool call| CAT["search_catalog"]
+    AGT -->|tool call| RES["search_scholarly_works"]
+    AGT -->|tool call| CITE["lookup_and_cite"]
     POL --> PC["Pinecone serverless index<br/>integrated embedding, free tier"]
     CAT --> OL["Open Library API<br/>free, no key"]
+    RES --> OA["OpenAlex API<br/>free"]
+    CITE --> CR["Crossref API + citeproc-py<br/>free, real CSL styles"]
+    AGT -->|CUSTOM events| CARD["Book / research / citation<br/>cards rendered client-side"]
     AGT --> LOG["Logfire<br/>free tier tracing"]
-    AGT -->|reply + session_id| API --> FE --> U
+    AGT -->|reply + thread_id| API --> FE --> U
 ```
 
-This is today's actual wiring (Tier 1, complete) — see [ARCHITECTURE.md](ARCHITECTURE.md) for the per-turn
-sequence diagram and the reasoning behind each choice. The tiered plans linked under
+This is today's actual wiring (Tier 1 + Tier 2, complete) — see [ARCHITECTURE.md](ARCHITECTURE.md) for the
+per-turn sequence diagram and the reasoning behind each choice. The tiered plans linked under
 [Future Enhancements](#-future-enhancements) pick up from here.
 
 <p align="center">
   <img src="planning/assets/tier1-live-demo.svg" alt="Screenshot of the live LibSync chat widget: a policy question answered with a grounded reply citing the real $0.25/day late fee cap from Pinecone, followed by a book availability question answered with a real structured result card for Project Hail Mary by Andy Weir, sourced from Open Library, showing a green 'lendable' availability badge." width="380" />
+  <img src="planning/assets/tier2-live-demo.svg" alt="Screenshot of the live LibSync chat widget on the AG-UI transport: a book card for Project Hail Mary with a real cover thumbnail and an Open Library link-out, a research result card for a real OpenAlex paper showing citation count and an open-access badge with an expandable abstract, and a citation card with a real Crossref-resolved MLA citation, a copy button, and a style switcher." width="380" />
 </p>
 
-<p align="center"><sub>Both replies stream in over SSE and are grounded in real data — the fee amount comes
-from the Pinecone policy index, and the book card is real Open Library data rendered from structured
-output, not parsed out of prose.</sub></p>
+<p align="center"><sub>Left: Tier 1 — grounded policy and book answers streamed over SSE. Right: Tier 2 —
+the same conversation on the AG-UI transport, now with a live book card (real cover + link-out), a research
+card sourced from OpenAlex, and a citation card formatted by citeproc-py from a real Crossref record. Every
+value shown was captured from a live run against the real APIs, not staged.</sub></p>
 
 ---
 
 ## 🎨 Target Experience
 
-The screenshot above is today's real, working demo. The mockup below goes further — it's the **design
-target** from the [Tier 3 UI/UX plan](TIER3_PLAN.md): capability chips, live tool-call status, card-based
-research/citation results alongside the book cards already live today, and grounded replies with numbered
-source citations — built entirely in LibSync's existing black-and-amber brand.
+The screenshots above are today's real, working demo. The mockup below goes further — it's the **design
+target** from the [Tier 3 UI/UX plan](TIER3_PLAN.md): capability chips, live tool-call status, and grounded
+replies with numbered source citations layered on top of the book/research/citation cards already live
+today — built entirely in LibSync's existing black-and-amber brand.
 
 <p align="center">
   <img src="planning/assets/tier3-target-experience.svg" alt="Mockup of the target LibSync chat experience: suggested prompt chips, a live tool-status pill, an interactive book result card with an availability badge, a citation card with an APA/MLA/Chicago style switcher, a grounded reply with a numbered source citation, and a distinct error state with a retry button." width="420" />
@@ -148,17 +167,25 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 - **Full-Stack Development:** Building and connecting frontend (JS/HTML/CSS) with backend (Python/FastAPI)
 - **Agentic AI Integration:** A typed, testable PydanticAI agent with tool calling, a `deps_type` for shared
   resources (HTTP client, session store), and a `FallbackModel` for provider resilience
+- **Protocol Integration:** Wired the AG-UI protocol (`pydantic-ai-slim[ag-ui]`) end to end — a custom
+  `AGUIAdapter` request handler that threads server-side session history through AG-UI thread ids, tool
+  calls that emit structured `CUSTOM` events, and a hand-rolled frontend SSE event router with no framework
 - **Retrieval-Augmented Generation:** Pinecone integrated-embedding search wired as an agent tool, verified
   by tests that assert the tool actually fires — not just that the endpoint returns 200
-- **Third-Party API Integration:** Open Library (search, availability, covers) with in-process caching and
-  a User-Agent identifying the app, per the API's courtesy rate-limit guidance
+- **Third-Party API Integration:** Open Library (search, availability, covers), OpenAlex (scholarly search),
+  and Crossref (bibliographic lookup) — each with in-process caching and polite-pool identification
+  (User-Agent or `mailto=`) per that API's own courtesy rate-limit guidance
+- **Deterministic Formatting over LLM Guessing:** Citation formatting via `citeproc-py` against real CSL
+  1.0.1 style files instead of asking the model to recall style rules from memory — verified with
+  golden-file tests pinned to the processor's actual output
 - **Infrastructure as Code (IaC):** Automating Pinecone vector DB setup and data upserts with GitHub Actions
 - **Cloud Deployment:** Deploying backend on Render, frontend on GitHub Pages
 - **Environment Configuration & Security:** Managing environment variables and securing API tokens across
-  four external services, each gated to fail safe (opt-in tracing, fallback LLM) rather than fail loud
+  six external services, each gated to fail safe (opt-in tracing, fallback LLM, keyless research APIs)
+  rather than fail loud
 - **Observability:** Logfire tracing of agent runs, tool calls, and model usage
 - **Testing Strategy:** `FunctionModel`/`FallbackModel` overrides for deterministic agent tests,
-  `httpx.MockTransport` for a third-party API client with zero live calls in CI
+  `httpx.MockTransport` for third-party API clients with zero live calls in CI, and golden-file citation tests
 - **Project Workflow:** Version control with Git, branching, and automated build/test pipelines — including
   a CI check that fails the build if two copies of the frontend drift apart
 - **UI/UX Design:** Real-time chat interface with session persistence, retry/backoff, and distinct
@@ -169,11 +196,16 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 
 ## ✨ Features
 
-- Streamed replies with persistent, multi-turn conversation history per session
+- Streamed replies over the AG-UI protocol, with live tool-call progress ("Searching…") and persistent,
+  multi-turn conversation history per session
 - Answers grounded in a real Pinecone-backed policy knowledge base and the real Open Library catalog —
   not just system-prompt text or hallucinated availability
-- Book answers render as real result cards (title, author, availability badge) from structured agent
-  output, not prose the frontend has to pattern-match
+- Book answers render as real result cards (cover art, title linked to Open Library, author, availability
+  badge) from a live tool-call event, not prose the frontend has to pattern-match
+- Research questions return real OpenAlex results as cards — title, authors, year, citation count, an
+  open-access badge, and an expandable abstract
+- Citation requests resolve a real Crossref record and format it with citeproc-py against a real CSL style
+  file (APA/MLA/Chicago), with a copy button and an instant style switcher that doesn't re-run the lookup
 - Groq-primary, Hugging Face-fallback LLM routing, so a single provider outage doesn't take the demo down
 - Retry-with-backoff and distinct error states (rate-limited vs. service-down) on the frontend
 - Cloud deployment for remote access
@@ -237,12 +269,28 @@ HUGGINGFACE_TOKEN=your_huggingface_api_token_here
 PINECONE_API_KEY=your_pinecone_api_key_here
 PORT=3000
 LOGFIRE_TOKEN=your_logfire_write_token_here
+OPENALEX_MAILTO=you@example.com
+OPENALEX_API_KEY=
+CROSSREF_MAILTO=you@example.com
 ```
 
 `GROQ_API_KEY` and `PINECONE_API_KEY` are required for the chat agent to actually answer anything —
-without them, `/chat` returns a clean error rather than crashing, but every reply will be the fallback
-error message. `HUGGINGFACE_TOKEN` and `LOGFIRE_TOKEN` are optional (fallback LLM and tracing,
-respectively); the app runs fine without either.
+without them, `/chat`/`/agent` return a clean error rather than crashing, but every reply will be the
+fallback error message. Everything else is optional; the app runs fine with any of them unset.
+
+#### Environment variables at a glance
+
+| Variable | Required? | Used for | Cost |
+|---|---|---|---|
+| `GROQ_API_KEY` | **Required** | Primary LLM | Free — no card |
+| `PINECONE_API_KEY` | **Required** | Policy RAG (`search_library_policies`) | Free tier |
+| `HUGGINGFACE_TOKEN` | Optional | Fallback LLM if Groq is unavailable | Free tier ($0.10/mo credit) |
+| `LOGFIRE_TOKEN` | Optional | Tracing of agent runs/tool calls | Free Hobby tier |
+| `OPENALEX_MAILTO` | Optional | Polite-pool identification for `search_scholarly_works` | Free, no signup |
+| `OPENALEX_API_KEY` | Optional | OpenAlex premium tier, if you have one | N/A unless you have a paid plan |
+| `CROSSREF_MAILTO` | Optional | Polite-pool identification for `lookup_and_cite` | Free, no signup |
+
+The last three are new in Tier 2 (research/citation tooling) — details below.
 
 **Getting a Groq key (primary LLM, required):**
 
@@ -285,6 +333,25 @@ It must be a **write** token, not a read/query token — using the wrong type is
 requests to fail with `401 Unauthorized` (visible as a `Failed to export span batch` warning in the server
 logs; it doesn't crash the app, but no traces get recorded). Leave `LOGFIRE_TOKEN` unset entirely to skip
 tracing — the app checks for it at startup and no-ops if it's missing.
+
+**Getting an OpenAlex contact email (research assistant, optional):** `search_scholarly_works` calls the
+free, keyless [OpenAlex API](https://docs.openalex.org/). No account or signup is needed — `OPENALEX_MAILTO`
+just identifies your app to OpenAlex's "polite pool," which gets you higher, more reliable rate limits than
+fully anonymous requests (the same courtesy pattern Open Library uses via a `User-Agent` header).
+
+1. Set `OPENALEX_MAILTO` to any real email address you control — it's sent as a plain query parameter,
+   nothing is emailed to you.
+2. Leave `OPENALEX_API_KEY` blank unless you separately have an OpenAlex premium-tier key; it's unused
+   otherwise.
+3. Skip both entirely and `search_scholarly_works` still works — you'll just be in the anonymous rate-limit
+   pool instead of the polite one.
+
+**Getting a Crossref contact email (citation assistant, optional):** `lookup_and_cite` resolves
+bibliographic records via the free, keyless [Crossref REST API](https://api.crossref.org/). Same pattern as
+OpenAlex — no account needed, just a contact email for the polite pool.
+
+1. Set `CROSSREF_MAILTO` to any real email address you control.
+2. Leave it unset and `lookup_and_cite` still works, in Crossref's anonymous (lower-priority) request pool.
 
 ### 3. Install backend dependencies and run the server
 
@@ -338,11 +405,11 @@ LibSync/
 │   │   ├── main.py          # FastAPI app, lifespan (shared httpx client), CORS, rate limiting, Logfire
 │   │   ├── agent.py         # PydanticAI agent, system prompt, tool registration
 │   │   ├── deps.py          # LibSyncDeps — shared resources injected into tools
-│   │   ├── session_store.py # In-process, TTL-bounded conversation history store
+│   │   ├── session_store.py # In-process, TTL-bounded conversation history store, keyed by AG-UI thread id
 │   │   ├── bot_context/     # Persona and library-policy knowledge sources
-│   │   ├── routers/         # /chat and /api/query endpoints
-│   │   └── services/        # Pinecone and Open Library clients
-│   ├── tests/            # pytest suite (no live external calls)
+│   │   ├── routers/         # /agent (AG-UI), /chat + /chat/stream (fallback), /citation, /api/query
+│   │   └── services/        # Pinecone, Open Library, OpenAlex, Crossref, and citeproc-py clients
+│   ├── tests/            # pytest suite (no live external calls; golden-file tests for citations)
 │   └── pyproject.toml
 ├── pinecone-scripts/     # Python IaC scripts (uv-managed) for the Pinecone index
 └── planning/             # Tier 1-9 roadmap: durable source for Future Enhancements below
@@ -358,7 +425,7 @@ LibSync/
 - **Root Directory:** `server`
 - **Build Command:** `pip install uv && uv sync --frozen`
 - **Start Command:** `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **Environment Variables:** Set `GROQ_API_KEY` and `PINECONE_API_KEY` on Render (required); `HUGGINGFACE_TOKEN` and `LOGFIRE_TOKEN` optional (fallback LLM, tracing)
+- **Environment Variables:** Set `GROQ_API_KEY` and `PINECONE_API_KEY` on Render (required); `HUGGINGFACE_TOKEN`, `LOGFIRE_TOKEN`, `OPENALEX_MAILTO`, `OPENALEX_API_KEY`, and `CROSSREF_MAILTO` are all optional (fallback LLM, tracing, and research/citation polite-pool identification — see [Environment variables at a glance](#-local-setup) above)
 
 > **Migrating an existing Render service from before this refactor?** The service was originally configured for the Node backend at `server/src` and won't update itself just because the code changed — Render settings are dashboard state, not something a `git push` touches. In the Render dashboard, open the service → **Settings** → **Build & Deploy** and update all four fields above (Runtime, Root Directory, Build Command, Start Command) to match this table, then trigger a manual deploy. If your plan doesn't let you change **Runtime** on an existing service, create a new Python web service pointed at this repo instead and delete the old Node one.
 
@@ -418,7 +485,7 @@ embeddable widget:
 | Tier | Focus | Doc | Visual plan (local) | Visual plan (rendered) |
 |---|---|---|---|---|
 | 1 | **✅ Complete** — Foundation: real RAG, real catalog data (Open Library), a $0-safe LLM provider (Groq), session continuity, observability | [TIER1_PLAN.md](TIER1_PLAN.md) | [planning/TIER1_PLAN.html](planning/TIER1_PLAN.html) | [rendered](https://claude.ai/code/artifact/6d36123a-b07b-471b-b792-fa2f72f70222) |
-| 2 | Interactive & research — AG-UI streaming, interactive book/research/citation cards, OpenAlex + Crossref/citeproc tooling | [TIER2_PLAN.md](TIER2_PLAN.md) | [planning/TIER2_PLAN.html](planning/TIER2_PLAN.html) | [rendered](https://claude.ai/code/artifact/6a4601ca-c629-478a-818f-fc6134221838) |
+| 2 | **✅ Complete** — Interactive & research: AG-UI streaming transport, interactive book/research/citation cards, OpenAlex + Crossref/citeproc tooling | [TIER2_PLAN.md](TIER2_PLAN.md) | [planning/TIER2_PLAN.html](planning/TIER2_PLAN.html) | [rendered](https://claude.ai/code/artifact/6a4601ca-c629-478a-818f-fc6134221838) |
 | 3 | UI/UX — grounded-citation UI, accessibility pass, a real design-token system on top of the current brand | [TIER3_PLAN.md](TIER3_PLAN.md) | [planning/TIER3_PLAN.html](planning/TIER3_PLAN.html) | [rendered](https://claude.ai/code/artifact/e444be53-8ca6-4813-8e07-2c6c92653448) |
 | 4 | React migration — behavior-preserving move to React + CopilotKit/AG-UI, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |
 | 5 | Standalone web app — dynamic responsive layout, PWA installability, and **multi-conversation chat history** | [TIER5_PLAN.md](TIER5_PLAN.md) | [planning/TIER5_PLAN.html](planning/TIER5_PLAN.html) | [rendered](https://claude.ai/code/artifact/501ca3cc-b4c9-4f9a-a233-54a43134eb5a) |
