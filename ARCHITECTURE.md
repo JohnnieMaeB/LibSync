@@ -1,13 +1,16 @@
 # LibSync Architecture
 
-This is the as-built architecture after [Tier 1](TIER1_PLAN.md) and [Tier 2](TIER2_PLAN.md): real RAG, real
-catalog/research/citation data, a budget-safe LLM provider, an interactive AG-UI transport, session
-continuity, tracing, and structured card output — the foundation the rest of the
-[roadmap](README.md#-future-enhancements) builds on. All of it runs at **$0/month** on free tiers; see
-[TIER1_PLAN.md §4](TIER1_PLAN.md#4-budget-ledger-must-stay-at-0) and
-[TIER2_PLAN.md §7](TIER2_PLAN.md#7-budget-ledger-addendum) for the budget ledgers. For a mechanical,
-method-by-method trace of the backend — what runs at import time and a step-by-step walk of every request —
-see [server/TRACE.md](server/TRACE.md); this doc stays at the "why" level.
+This is the as-built architecture after [Tier 1](TIER1_PLAN.md), [Tier 2](TIER2_PLAN.md), and
+[Tier 3](TIER3_PLAN.md): real RAG, real catalog/research/citation data, a budget-safe LLM provider, an
+interactive AG-UI transport, session continuity, tracing, structured card output, and a presentation layer
+(safe markdown, accessibility, conversational affordances, grounding UI) on top of it — the foundation the
+rest of the [roadmap](README.md#-future-enhancements) builds on. All of it runs at **$0/month** on free
+tiers; see [TIER1_PLAN.md §4](TIER1_PLAN.md#4-budget-ledger-must-stay-at-0),
+[TIER2_PLAN.md §7](TIER2_PLAN.md#7-budget-ledger-addendum), and
+[TIER3_PLAN.md §7](TIER3_PLAN.md#7-budget-ledger-addendum) for the budget ledgers (Tier 3 added no new
+services or dependencies — CSS and vanilla JS only). For a mechanical, method-by-method trace of the
+backend — what runs at import time and a step-by-step walk of every request — see
+[server/TRACE.md](server/TRACE.md); this doc stays at the "why" level.
 
 ---
 
@@ -239,6 +242,31 @@ just a local annoyance. A fixed instrumentation release (`0.64b0`) exists, but i
 `opentelemetry-sdk<1.43.0` ceiling — so pinning FastAPI below 0.137 was the only fix actually available
 today. See the pin's comment in [`server/pyproject.toml`](server/pyproject.toml) for when it can be lifted.
 
+**Tier 3's markdown renderer builds DOM nodes directly instead of ever touching `innerHTML` with interpolated
+text.** Model output is untrusted — it can echo retrieved text or be steered via prompt injection — so
+`renderInlineMarkdown` (see [`client/src/script.js`](client/src/script.js)) matches a small, fixed set of
+patterns (`**bold**`, `*italic*`, `[text](https://url)`) and inserts everything else, matched or not, as a
+plain text node via `document.createTextNode`/`el.textContent`. There is no code path where a string derived
+from the model can become live markup — closing the gap the [TIER3_PLAN.md §1](TIER3_PLAN.md#1-brand-audit--whats-actually-there-today)
+audit flagged, while finally rendering the bold/link formatting the model already tends to produce.
+
+**"Grounded in N sources" and numbered card badges are computed client-side from the cards already
+rendered, not from new backend-supplied citation markers.** Tier 3's definition of done requires no backend
+changes, and the model doesn't emit inline `[1]`-style markers into its own text. Instead, every `book_card`,
+`research_results` work, and `citation` CUSTOM event rendered into a reply increments a per-turn counter
+(`ctx.cardCount` in `consumeAgentStream`); each card gets a numbered `.source-badge` in render order, and a
+`.grounded-tag` summarizing the count is prepended once the turn finishes. This gives Tier 2's retrieval work
+a visible, honest payoff (a reply either shows sources or it doesn't) without inventing a citation-marker
+protocol the backend doesn't produce.
+
+**Regenerate and retry re-run the question through a shared `runAgentTurn`, not a second copy of
+`sendMessage`'s body.** `sendMessage` appends the user bubble then delegates to `runAgentTurn(question)`;
+`regenerateLastReply()` calls the same function with the last question and no new user bubble. The error
+bubble's Retry button and a completed reply's Regenerate action both remove their message element and call
+`regenerateLastReply()` — so neither path duplicates the user's turn in the transcript, and stopping
+mid-stream (via `AbortController`, wired through `fetch`'s `signal`) reuses the exact same finalization path
+(`finalizeCompletedTurn`) as a normal completion, just with a "(Stopped)" note instead of a fallback message.
+
 ---
 
 ## Where things live
@@ -257,13 +285,18 @@ today. See the pin's comment in [`server/pyproject.toml`](server/pyproject.toml)
 | `/chat` and `/chat/stream` endpoints (fallback transport) | [`server/app/routers/chat.py`](server/app/routers/chat.py) |
 | Structured output types (`Book`, `BookResult`, `ScholarlyWork`, `ResearchResult`, `Citation`) | [`server/app/schemas.py`](server/app/schemas.py) |
 | `/api/query` endpoint (direct Pinecone search) | [`server/app/routers/pinecone_query.py`](server/app/routers/pinecone_query.py) |
-| Frontend source, incl. the AG-UI SSE event router | [`client/src/script.js`](client/src/script.js) |
+| Frontend source, incl. the AG-UI SSE event router, safe markdown renderer, and Tier 3 UX (chips, tool-status pills, stop/regenerate, grounding tags) | [`client/src/script.js`](client/src/script.js) |
+| Design tokens (`--ls-*` custom properties) and Tier 3 component styles | [`client/src/styles/style.css`](client/src/styles/style.css) |
 | GitHub Pages copy (generated, do not hand-edit) | [`docs/`](docs/) |
 | Pinecone IaC (index creation, seed data, smoke test) | [`pinecone-scripts/`](pinecone-scripts/) |
 
 ## What's next
 
-[TIER3_PLAN.md](TIER3_PLAN.md) builds on this foundation directly: surfacing Tier 2's tool calls and
-grounded sources more visibly in the UI (capability chips, numbered source citations), a real card design
-system, and an accessibility pass — in LibSync's existing black-and-amber brand, no new backend work. See
-the full [roadmap](README.md#-future-enhancements) for Tiers 4–9.
+Tier 3 is built: a safe (escape-by-default) markdown renderer closing the raw-`innerHTML` XSS gap, an
+accessibility baseline (`role="log"`/`aria-live` on the chat region, visible focus rings, `prefers-reduced-motion`
+handling), suggestion chips and per-tool status pills, a stop/regenerate/copy action set, a scroll-to-latest
+control, numbered source badges with a "Grounded in N sources" tag, and a distinct error style with an
+inline Retry — all CSS and vanilla JS on the existing black-and-amber brand, no backend changes. See
+[TIER3_PLAN.md](TIER3_PLAN.md) for the full plan and rationale. [TIER4_PLAN.md](TIER4_PLAN.md) covers
+porting this component/token spec into a React codebase next; see the full
+[roadmap](README.md#-future-enhancements) for Tiers 4–9.
