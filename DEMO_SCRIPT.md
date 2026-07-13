@@ -16,7 +16,7 @@ citation tools work without them, just in each API's slower anonymous rate-limit
 ## Before you start
 
 - **Server running:** `cd server && uv run uvicorn app.main:app --reload --port 3000`
-- **Frontend open:** `client/src/index.html` in a browser, pointed at your server (see
+- **Frontend open:** `cd app && npm run dev`, pointed at your server (see
   [README §5](README.md#-local-setup)) — or the [live GitHub Pages demo](https://johnniemaeb.github.io/LibSync/)
   against the deployed Render backend.
 - **Optional but recommended:** [Logfire](https://logfire.pydantic.dev/) dashboard open in another tab if

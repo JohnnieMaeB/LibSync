@@ -1,0 +1,18 @@
+:root {
+  --ls-bg: #121212;
+  --ls-surface: #000000;
+  --ls-bubble-bot: #2a2a2a;
+  --ls-bubble-user: #3b3b3b;
+  --ls-border: #333;
+  --ls-text: #f0f0f0;
+  --ls-text-muted: #aaa;
+  --ls-accent: #ffd166;
+  --ls-accent-hover: #ffe066;
+
+  /* semantic states */
+  --ls-danger: #e8735c;
+  --ls-success: #7cc48f;
+  --ls-info: #7fb3d9;
+
+  --ls-font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}

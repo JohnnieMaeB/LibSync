@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="client/src/assets/logo.png" alt="LibSync logo" width="112" />
+  <img src="app/src/assets/logo.png" alt="LibSync logo" width="112" />
 </p>
 
 <h1 align="center">LibSync</h1>
@@ -22,7 +22,7 @@
   <a href="#-future-enhancements">Roadmap</a>
 </p>
 
-**LibSync** is an AI-powered chatbot designed to assist users with library services. Built with a Python/PydanticAI backend and a vanilla JS frontend, LibSync demonstrates a full-stack workflow, cloud deployment, and AI integration.
+**LibSync** is an AI-powered chatbot designed to assist users with library services. Built with a Python/PydanticAI backend and a React/Vite frontend, LibSync demonstrates a full-stack workflow, cloud deployment, and AI integration.
 
 ---
 
@@ -57,8 +57,9 @@ The project is currently in **active development**, focusing on technical experi
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Vanilla JavaScript, HTML, CSS — with a hand-rolled AG-UI SSE event router (no framework), a
-  CSS custom-property design-token system, and a safe (escape-by-default) inline markdown renderer
+- **Frontend:** React + TypeScript on Vite, talking AG-UI directly via `@ag-ui/client`'s `HttpAgent` (no
+  CopilotKit runtime — see [TIER4_PLAN.md](TIER4_PLAN.md)), a CSS custom-property design-token system, and a
+  safe (escape-by-default) markdown renderer built from real React elements, never `dangerouslySetInnerHTML`
 - **Backend:** Python, FastAPI
 - **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V3.2-Exp`) wired as an automatic fallback via `FallbackModel`
 - **Interactive transport:** [AG-UI protocol](https://docs.ag-ui.com/) (`pydantic-ai-slim[ag-ui]`) at `POST /agent` — streams text deltas, live tool-call progress, and structured `CUSTOM` events the frontend renders as real cards; `/chat`/`/chat/stream` remain as a simpler fallback transport
@@ -72,15 +73,15 @@ The project is currently in **active development**, focusing on technical experi
 - **Session continuity:** In-process, TTL-bounded session store keyed by the AG-UI thread id
 - **Observability:** [Logfire](https://logfire.pydantic.dev/) (free Hobby tier), opt-in via `LOGFIRE_TOKEN`
 - **Package Management:** [uv](https://docs.astral.sh/uv/) for the Python backend and IaC scripts
-- **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), a docs/client drift check, and a weekly free-tier keep-alive ping
+- **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), a docs/app build-drift check, and a weekly free-tier keep-alive ping
 - **Cloud Deployment:** Render
 
 ---
 
 ## 🧩 Architecture Overview
 
-- **Frontend:** Chat UI in vanilla JavaScript, HTML, and CSS. `client/src/` is the source of truth; `docs/`
-  (GitHub Pages) is generated from it by `scripts/sync-docs.js`, with CI failing the build if they drift.
+- **Frontend:** Chat UI in React + TypeScript, on Vite. `app/` is the source of truth; `docs/`
+  (GitHub Pages) is a `vite build` output generated from it, with CI failing the build if they drift.
 - **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — Groq
   primary / Hugging Face fallback — with four tools that ground replies in real data instead of guessing.
   `/agent` (AG-UI protocol) is the primary transport: it streams token deltas, live tool-call progress, and
@@ -100,7 +101,7 @@ The project is currently in **active development**, focusing on technical experi
   history through an in-process, TTL-bounded session store, keyed by the AG-UI thread id.
 - **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set.
 - **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), verifies `docs/` stays in sync
-  with `client/src/`, and pings Pinecone/Render weekly so the free tiers don't silently auto-pause.
+  with `app/`'s build output, and pings Pinecone/Render weekly so the free tiers don't silently auto-pause.
 - **Deployment:** Hosted on Render (backend) and GitHub Pages (frontend).
 
 ```mermaid
@@ -389,13 +390,21 @@ uv run pytest
 
 ### 5. Run the frontend locally
 
-Open `client/src/index.html` in your browser. By default it points at the deployed Render backend — to test against your local server, update `API_BASE_URL` in `client/src/config.js`:
-
-```JavaScript
-const API_BASE_URL = "http://localhost:3000";
+```bash
+cd app
+npm install
+npm run dev
 ```
 
-After editing anything under `client/src/`, run `npm run sync-docs` (from `client/src/`) to regenerate `docs/` — CI fails the build if the two drift out of sync.
+By default it points at the deployed Render backend — to test against your local server, create
+`app/.env.local`:
+
+```
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+After editing anything under `app/`, run `npm run build` (from `app/`) to regenerate `docs/` — CI fails the
+build if the two drift out of sync.
 
 ### 6. Start chatting! 💬
 
@@ -409,12 +418,14 @@ lookups, multi-turn continuity, honesty boundaries) with expected answers to che
 
 ```
 LibSync/
-├── client/src/          # Frontend source of truth (vanilla JS/HTML/CSS)
-│   ├── config.js            # API_BASE_URL — the one place that changes per environment
-│   └── script.js
-├── docs/                # GitHub Pages copy, generated from client/src/ by scripts/sync-docs.js
-├── scripts/
-│   └── sync-docs.js         # client/src/ -> docs/, CI fails the build if they drift
+├── app/                  # Frontend source of truth (React + TypeScript, Vite)
+│   ├── src/
+│   │   ├── config.ts         # API_BASE_URL — the one place that changes per environment
+│   │   ├── hooks/             # useAgentStream (AG-UI transport via @ag-ui/client's HttpAgent)
+│   │   ├── components/        # Chat UI, book/research/citation cards
+│   │   └── lib/                # Safe markdown renderer, session id, plain-text extraction
+│   └── vite.config.ts        # outDir: '../docs' — docs/ is a build artifact, never hand-edited
+├── docs/                # GitHub Pages source, generated by `npm run build` in app/
 ├── server/              # Python/FastAPI + PydanticAI backend (uv-managed)
 │   ├── app/
 │   │   ├── main.py          # FastAPI app, lifespan (shared httpx client), CORS, rate limiting, Logfire
@@ -444,11 +455,11 @@ LibSync/
 
 > **Migrating an existing Render service from before this refactor?** The service was originally configured for the Node backend at `server/src` and won't update itself just because the code changed — Render settings are dashboard state, not something a `git push` touches. In the Render dashboard, open the service → **Settings** → **Build & Deploy** and update all four fields above (Runtime, Root Directory, Build Command, Start Command) to match this table, then trigger a manual deploy. If your plan doesn't let you change **Runtime** on an existing service, create a new Python web service pointed at this repo instead and delete the old Node one.
 
-Once deployed, update `API_BASE_URL` in `client/src/config.js` to point to your Render URL, then run
-`npm run sync-docs` (from `client/src/`) so `docs/` picks up the change:
+Once deployed, set `VITE_API_BASE_URL` in `app/.env.production` (or your CI environment) to your Render URL,
+then run `npm run build` (from `app/`) so `docs/` picks up the change:
 
-```JavaScript
-const API_BASE_URL = "https://<your-render-app>.onrender.com";
+```
+VITE_API_BASE_URL=https://<your-render-app>.onrender.com
 ```
 
 ---

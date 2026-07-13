@@ -8,10 +8,10 @@
       "port": 3000
     },
     {
-      "name": "client",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", "client/src", "-p", "5503", "-c-1"],
-      "port": 5503
+      "name": "app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "app", "run", "dev", "--", "--port", "5174", "--strictPort"],
+      "port": 5174
     }
   ]
 }

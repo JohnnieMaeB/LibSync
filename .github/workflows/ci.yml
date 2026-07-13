@@ -17,20 +17,22 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: client/src/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
       - name: Install dependencies
-        run: npm install
-        working-directory: ./client/src
+        run: npm ci
+        working-directory: ./app
 
       - name: Run tests
         run: npm test
-        working-directory: ./client/src
+        working-directory: ./app
 
-      - name: Verify docs/ is in sync with client/src
-        run: |
-          node scripts/sync-docs.js
-          git diff --exit-code -- docs || (echo "::error::docs/ is out of sync with client/src — run 'npm run sync-docs' in client/src and commit the result." && exit 1)
+      - name: Build app/
+        run: npm run build
+        working-directory: ./app
+
+      - name: Verify docs/ is in sync with app/'s build output
+        run: git diff --exit-code -- docs || (echo "::error::docs/ is out of sync with app/ — run 'npm run build' in app/ and commit the result." && exit 1)
 
   server-tests:
     runs-on: ubuntu-latest
