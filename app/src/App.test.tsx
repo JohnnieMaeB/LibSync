@@ -3,6 +3,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { API_BASE_URL } from "./config";
+import { deleteConversation, listConversations } from "./lib/db";
 
 // Builds one AG-UI SSE event chunk, matching the wire format encoded by
 // pydantic_ai's AGUIEventStream: a single `data: {...}` line per event.
@@ -57,9 +58,14 @@ function getBotBubbles() {
 }
 
 describe("LibSync chat", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.stubGlobal("fetch", vi.fn());
     localStorage.clear();
+    // Conversations persist to IndexedDB across tests within this file
+    // (fake-indexeddb isn't reset per-test); clear them so each test starts
+    // from a clean slate regardless of what earlier tests in this file saved.
+    const existing = await listConversations();
+    await Promise.all(existing.map((c) => deleteConversation(c.id)));
   });
 
   afterEach(() => {
@@ -96,7 +102,6 @@ describe("LibSync chat", () => {
     expect(typeof body.threadId).toBe("string");
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0]).toMatchObject({ role: "user", content: "Test message" });
-    expect(localStorage.getItem("libsync_session_id")).toBe(body.threadId);
   });
 
   it("reuses the same threadId across requests", async () => {
@@ -118,6 +123,31 @@ describe("LibSync chat", () => {
     const firstBody = JSON.parse((fetch as any).mock.calls[0][1].body);
     const secondBody = JSON.parse((fetch as any).mock.calls[1][1].body);
     expect(secondBody.threadId).toBe(firstBody.threadId);
+  });
+
+  it("sends the whole conversation's history (not just the latest question) on the second turn", async () => {
+    // Tier 5: the server stops relying on its own cross-request memory once
+    // the client reliably resends full history — see server/app/routers/agent.py.
+    (fetch as any).mockImplementation(async () =>
+      makeStreamingResponse([
+        aguiEvent({ type: "RUN_STARTED", threadId: "abc-123", runId: "run-1" }),
+        ...textMessageEvents("msg-1", ["first reply"]),
+        aguiEvent({ type: "RUN_FINISHED", threadId: "abc-123", runId: "run-1" }),
+      ]),
+    );
+
+    const user = userEvent.setup();
+    render(<App />);
+    await sendViaTextarea(user, "first question");
+    await screen.findByText("first reply");
+    await sendViaTextarea(user, "second question");
+    await screen.findAllByText("first reply");
+
+    const secondBody = JSON.parse((fetch as any).mock.calls[1][1].body);
+    expect(secondBody.messages).toHaveLength(3);
+    expect(secondBody.messages[0]).toMatchObject({ role: "user", content: "first question" });
+    expect(secondBody.messages[1]).toMatchObject({ role: "assistant", content: "first reply" });
+    expect(secondBody.messages[2]).toMatchObject({ role: "user", content: "second question" });
   });
 
   it("renders a book_card CUSTOM event as a real card with cover and link-out", async () => {

@@ -50,6 +50,23 @@ class SessionStore:
         session.messages = session.messages[-MAX_MESSAGES_PER_SESSION:]
         session.last_used = time.monotonic()
 
+    def set(self, session_id: str, messages: list[ModelMessage]) -> None:
+        """Replaces (rather than extends) a session's history.
+
+        Used when the caller already has the complete, authoritative history
+        for this turn (e.g. a Tier 5 client that resends its full
+        conversation each request) — appending on top of whatever's already
+        stored would double up turns the client already included.
+        """
+        self._evict_expired()
+        session = self._sessions.get(session_id)
+        if session is None:
+            self._evict_oldest_if_full()
+            session = _Session()
+            self._sessions[session_id] = session
+        session.messages = messages[-MAX_MESSAGES_PER_SESSION:]
+        session.last_used = time.monotonic()
+
     def _evict_expired(self) -> None:
         now = time.monotonic()
         expired = [sid for sid, session in self._sessions.items() if now - session.last_used > self._ttl_seconds]

@@ -1,14 +1,15 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HttpAgent } from "@ag-ui/client";
 import type { BaseEvent, RunAgentInput } from "@ag-ui/client";
 import { API_BASE_URL } from "../config";
-import { generateId, getOrCreateSessionId } from "../lib/session";
+import { generateId } from "../lib/id";
 import type { BotEntry, ChatEntry, NumberedWork } from "../types";
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 600;
 const DEFAULT_ERROR_MSG = "⚠️ Error: Unable to reach AI service. Please try again later.";
 const RATE_LIMIT_MSG = "⏳ You're sending messages a little too quickly. Please wait a moment and try again.";
+const PERSIST_DEBOUNCE_MS = 300;
 
 // Friendly, tool-specific status text shown while a tool call is in flight,
 // sourced from the AG-UI TOOL_CALL_START event's toolCallName.
@@ -72,28 +73,94 @@ function runAgentOnce(
   });
 }
 
-export function useAgentStream() {
-  const [entries, setEntries] = useState<ChatEntry[]>([]);
+// Reconstructs the AG-UI wire messages the model should see from this
+// conversation's rendered entries — user text as-is, and only the *text*
+// blocks of each bot reply (card blocks were CUSTOM events, never part of
+// the assistant's text-message content, so they're correctly left out).
+function entriesToMessages(entries: ChatEntry[]): { id: string; role: string; content: string }[] {
+  const messages: { id: string; role: string; content: string }[] = [];
+  for (const entry of entries) {
+    if (entry.kind === "user") {
+      messages.push({ id: entry.id, role: "user", content: entry.text });
+    } else {
+      const text = entry.blocks
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { text: string }).text)
+        .join("\n\n");
+      if (text) messages.push({ id: entry.id, role: "assistant", content: text });
+    }
+  }
+  return messages;
+}
+
+export function useAgentStream({
+  conversationId,
+  initialEntries,
+  onEntriesChange,
+}: {
+  conversationId: string;
+  initialEntries: ChatEntry[];
+  onEntriesChange: (conversationId: string, entries: ChatEntry[]) => void;
+}) {
+  const [entries, setEntriesState] = useState<ChatEntry[]>(initialEntries);
   const [isStreaming, setIsStreaming] = useState(false);
+  const entriesRef = useRef<ChatEntry[]>(initialEntries);
   const lastQuestionRef = useRef("");
   const agentRef = useRef<HttpAgent | null>(null);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const patchBot = useCallback((id: string, updater: (entry: BotEntry) => BotEntry) => {
-    setEntries((prev) =>
-      prev.map((e) => (e.kind === "bot" && e.id === id ? updater(e) : e)),
-    );
+  // entries live in a ref (not just state) so a turn can synchronously read
+  // "everything sent/received so far" the moment it starts, without racing
+  // React's deferred state updates — see Phase 21's history reconstruction.
+  const commitEntries = useCallback(
+    (next: ChatEntry[]) => {
+      entriesRef.current = next;
+      setEntriesState(next);
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = setTimeout(() => {
+        persistTimerRef.current = null;
+        onEntriesChange(conversationId, entriesRef.current);
+      }, PERSIST_DEBOUNCE_MS);
+    },
+    [conversationId, onEntriesChange],
+  );
+
+  // Flush any pending debounced persist on unmount (e.g. the user switches
+  // conversations mid-stream) so the last few streamed chunks aren't lost.
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current);
+        onEntriesChange(conversationId, entriesRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const removeEntry = useCallback((id: string) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+  const patchBot = useCallback(
+    (id: string, updater: (entry: BotEntry) => BotEntry) => {
+      commitEntries(entriesRef.current.map((e) => (e.kind === "bot" && e.id === id ? updater(e) : e)));
+    },
+    [commitEntries],
+  );
+
+  const removeEntry = useCallback(
+    (id: string) => {
+      commitEntries(entriesRef.current.filter((e) => e.id !== id));
+    },
+    [commitEntries],
+  );
 
   const runTurn = useCallback(
     async (question: string) => {
       lastQuestionRef.current = question;
+      // Snapshot before the bot placeholder is appended: this is exactly
+      // the history the model should see for this turn (already includes
+      // the latest user question, appended by sendMessage/regenerate below).
+      const historyForRequest = entriesRef.current;
       const botId = generateId();
-      setEntries((prev) => [
-        ...prev,
+      commitEntries([
+        ...entriesRef.current,
         { kind: "bot", id: botId, status: "loading", blocks: [], cardCount: 0, isLatest: false },
       ]);
       setIsStreaming(true);
@@ -232,10 +299,10 @@ export function useAgentStream() {
       };
 
       const input: RunAgentInput = {
-        threadId: getOrCreateSessionId(),
+        threadId: conversationId,
         runId: generateId(),
         state: null,
-        messages: [{ id: generateId(), role: "user", content: question }],
+        messages: entriesToMessages(historyForRequest),
         tools: [],
         context: [],
         forwardedProps: null,
@@ -275,38 +342,32 @@ export function useAgentStream() {
       agentRef.current = null;
 
       if (outcome.aborted) {
-        setEntries((prev) => {
-          const demoted = prev.map((e) => (e.kind === "bot" ? { ...e, isLatest: false } : e));
-          return demoted.map((e) => {
-            if (e.kind !== "bot" || e.id !== botId) return e;
-            return { ...e, status: "stopped", isLatest: true };
-          });
-        });
+        const demoted = entriesRef.current.map((e) => (e.kind === "bot" ? { ...e, isLatest: false } : e));
+        commitEntries(
+          demoted.map((e) => (e.kind === "bot" && e.id === botId ? { ...e, status: "stopped", isLatest: true } : e)),
+        );
       } else if (outcome.errorMessage) {
         patchBot(botId, (e) => ({ ...e, status: "error", errorText: outcome.errorMessage! }));
       } else {
-        setEntries((prev) => {
-          const demoted = prev.map((e) => (e.kind === "bot" ? { ...e, isLatest: false } : e));
-          return demoted.map((e) => {
-            if (e.kind !== "bot" || e.id !== botId) return e;
-            return { ...e, status: "done", isLatest: true };
-          });
-        });
+        const demoted = entriesRef.current.map((e) => (e.kind === "bot" ? { ...e, isLatest: false } : e));
+        commitEntries(
+          demoted.map((e) => (e.kind === "bot" && e.id === botId ? { ...e, status: "done", isLatest: true } : e)),
+        );
       }
 
       setIsStreaming(false);
     },
-    [patchBot],
+    [commitEntries, conversationId, patchBot],
   );
 
   const sendMessage = useCallback(
     (question: string) => {
       const trimmed = question.trim();
       if (!trimmed) return;
-      setEntries((prev) => [...prev, { kind: "user", id: generateId(), text: trimmed }]);
+      commitEntries([...entriesRef.current, { kind: "user", id: generateId(), text: trimmed }]);
       void runTurn(trimmed);
     },
-    [runTurn],
+    [commitEntries, runTurn],
   );
 
   const regenerate = useCallback(

@@ -6,24 +6,256 @@ body {
   background-color: var(--ls-bg);
   color: var(--ls-text);
   font-family: var(--ls-font);
-  display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
   margin: 0;
+  overflow: hidden;
+}
+
+/* Dynamic layout shell (Tier 5): sidebar + full-height main column */
+.app-shell {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+}
+
+.main-column {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Sidebar: drawer on mobile (<640px), narrower fixed on tablet
+   (640-1024px), full-width and collapsible on desktop (>=1024px) */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    width: var(--ls-sidebar-width);
+    height: 100%;
+    background-color: var(--ls-surface);
+    border-right: 1px solid var(--ls-border);
+    flex-shrink: 0;
+    transition: width 0.2s, transform 0.2s;
+    position: fixed;
+    inset: 0 auto 0 0;
+    transform: translateX(-100%);
+    z-index: var(--ls-z-sidebar);
+}
+
+.sidebar.open {
+    transform: translateX(0);
+}
+
+.sidebar.collapsed {
+    width: var(--ls-sidebar-width-collapsed);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: var(--ls-z-overlay);
+}
+
+.sidebar-overlay.open {
+    display: block;
+}
+
+.sidebar-open-toggle {
+    position: fixed;
+    top: var(--ls-space-3);
+    left: var(--ls-space-3);
+    z-index: var(--ls-z-sidebar);
+    background: var(--ls-surface);
+    border: 1px solid var(--ls-border);
+    color: var(--ls-text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+@media (min-width: 640px) {
+    .sidebar {
+        position: relative;
+        transform: none;
+        width: var(--ls-sidebar-width-tablet);
+    }
+    .sidebar-overlay,
+    .sidebar-open-toggle {
+        display: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .sidebar {
+        width: var(--ls-sidebar-width);
+    }
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: var(--ls-space-2);
+    padding: var(--ls-space-3);
+    border-bottom: 1px solid var(--ls-border);
+}
+
+.sidebar-new-chat {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--ls-space-2);
+    background: var(--ls-accent);
+    color: #1a1204;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sidebar-new-chat:hover {
+    background: var(--ls-accent-hover);
+}
+
+.sidebar.collapsed .sidebar-label,
+.sidebar.collapsed .sidebar-conversation-title,
+.sidebar.collapsed .sidebar-conversation-actions {
+    display: none;
+}
+
+.sidebar-collapse-toggle,
+.sidebar-close {
+    background: none;
+    border: 1px solid var(--ls-border);
+    color: var(--ls-text-muted);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sidebar-close {
+    display: none;
+}
+
+@media (max-width: 639px) {
+    .sidebar-close {
+        display: inline-block;
+    }
+    .sidebar-collapse-toggle {
+        display: none;
+    }
+}
+
+.sidebar-conversations {
+    list-style: none;
+    margin: 0;
+    padding: var(--ls-space-2);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sidebar-empty {
+    padding: var(--ls-space-3);
+    color: var(--ls-text-muted);
+    font-size: 0.85rem;
+}
+
+.sidebar-conversation {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--ls-text-muted);
+}
+
+.sidebar-conversation:hover {
+    background: var(--ls-bubble-bot);
+}
+
+li.active .sidebar-conversation {
+    background: var(--ls-bubble-bot);
+    color: var(--ls-text);
+}
+
+.sidebar-conversation-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: 0;
+}
+
+.sidebar-conversation-rename-input {
+    flex: 1;
+    background: #1e1e1e;
+    border: 1px solid var(--ls-accent);
+    border-radius: 4px;
+    color: var(--ls-text);
+    padding: 2px 6px;
+    font: inherit;
+    min-width: 0;
+}
+
+.sidebar-conversation-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+}
+
+.sidebar-conversation:hover .sidebar-conversation-actions,
+.sidebar-conversation:focus-within .sidebar-conversation-actions {
+    opacity: 1;
+}
+
+.sidebar-conversation-action-btn {
+    background: none;
+    border: none;
+    color: var(--ls-text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 0.85rem;
+}
+
+.sidebar-conversation-action-btn:hover {
+    color: var(--ls-accent);
+}
+
+/* Compact mode: the original fixed 420px widget card, kept for Tier 6's
+   embeddable widget to reuse directly (see TIER5_PLAN.md §3) */
+.app-shell.compact {
+    justify-content: center;
+    align-items: center;
+}
+
+.app-shell.compact .container {
     background-color: var(--ls-surface);
     border-radius: 15px;
-    width: 100%;
     max-width: 420px;
     height: 90vh;
     max-height: 700px;
-    display: flex;
-    flex-direction: column;
     box-shadow: 0 0 15px var(--ls-accent);
-    overflow: hidden;
     position: relative;
 }
 

@@ -55,3 +55,14 @@ export interface UserEntry {
 }
 
 export type ChatEntry = UserEntry | BotEntry;
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
+export interface Conversation extends ConversationSummary {
+  createdAt: number;
+  entries: ChatEntry[];
+}
