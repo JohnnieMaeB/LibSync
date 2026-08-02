@@ -34,10 +34,21 @@ jobs:
         run: |
           set -e
           REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
           for attempt in 1 2 3 4 5; do
             rm -rf "$RUNNER_TEMP/gh-pages"
-            if git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages" 2>/dev/null; then
-              :
+
+            # Only create gh-pages fresh when it genuinely doesn't exist yet
+            # — checked explicitly via ls-remote (re-checked every attempt,
+            # in case a concurrent run creates it mid-retry), not inferred
+            # from a clone failure. A clone can fail for transient reasons
+            # (network blip) even when the branch exists; treating that the
+            # same as "doesn't exist" would re-init an empty orphan branch
+            # and silently wipe any pr-preview/ subfolders already
+            # published there (nothing to exclude-and-preserve in a
+            # brand-new empty tree).
+            if git ls-remote --exit-code --heads "$REPO_URL" gh-pages > /dev/null 2>&1; then
+              git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages"
             else
               mkdir -p "$RUNNER_TEMP/gh-pages"
               cd "$RUNNER_TEMP/gh-pages"
@@ -51,6 +62,17 @@ jobs:
 
             rsync -a --delete --exclude=.git --exclude=pr-preview --exclude=.nojekyll "$RUNNER_TEMP/site/" ./
             touch .nojekyll
+
+            # Verify the build/rsync actually produced a working root before
+            # committing it as the new production state — this is the one
+            # workflow allowed to touch the root, so it's the one place a
+            # regression here (a bad exclude, a broken build-site.js, an
+            # empty $RUNNER_TEMP/site) would otherwise go straight to
+            # production undetected.
+            if [ ! -f index.html ]; then
+              echo "::error::Build produced no root index.html — refusing to publish. Check the 'Build site' step output above."
+              exit 1
+            fi
 
             git add -A
             if git diff --cached --quiet; then

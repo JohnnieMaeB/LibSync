@@ -55,20 +55,38 @@ jobs:
         run: |
           set -e
           REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # This job must NEVER originate the gh-pages branch — only
+          # deploy-pages.yml (the production publisher) is allowed to create
+          # it, so that gh-pages always has real content at its root before
+          # any pr-preview/ subfolder exists. A previous version of this
+          # workflow fell back to `git init -b gh-pages` whenever the clone
+          # failed for *any* reason (including transient failures, not just
+          # "branch doesn't exist"), which once produced a gh-pages branch
+          # containing only pr-preview/pr-<N>/ and no root index.html —
+          # a real production outage once GitHub Pages was pointed at it.
+          if ! git ls-remote --exit-code --heads "$REPO_URL" gh-pages > /dev/null 2>&1; then
+            echo "::error::gh-pages branch doesn't exist yet. PR previews require production to have published at least once first — push to main (or run deploy-pages.yml via workflow_dispatch) so it can create gh-pages with real root content, then re-run this check."
+            exit 1
+          fi
+
           for attempt in 1 2 3 4 5; do
             rm -rf "$RUNNER_TEMP/gh-pages"
-            if git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages" 2>/dev/null; then
-              :
-            else
-              mkdir -p "$RUNNER_TEMP/gh-pages"
-              cd "$RUNNER_TEMP/gh-pages"
-              git init -q -b gh-pages
-              git remote add origin "$REPO_URL"
-              cd - > /dev/null
-            fi
+            git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages"
             cd "$RUNNER_TEMP/gh-pages"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Refuse to publish a preview on top of a broken production
+            # root — this is a direct invariant check ("root must have
+            # index.html"), not just re-checking the one specific failure
+            # mode that broke it before. A preview publishing fine while
+            # prod is silently 404ing would hide exactly the kind of
+            # problem this check exists to catch.
+            if [ ! -f index.html ]; then
+              echo "::error::gh-pages exists but has no root index.html — production is already broken. Not publishing a preview on top of it. Fix the production deploy first (see deploy-pages.yml)."
+              exit 1
+            fi
 
             mkdir -p "pr-preview/pr-${PR_NUMBER}"
             rsync -a --delete "$RUNNER_TEMP/site/" "pr-preview/pr-${PR_NUMBER}/"
@@ -120,12 +138,15 @@ jobs:
         run: |
           set -e
           REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if ! git ls-remote --exit-code --heads "$REPO_URL" gh-pages > /dev/null 2>&1; then
+            echo "gh-pages branch doesn't exist, nothing to clean up."
+            exit 0
+          fi
+
           for attempt in 1 2 3 4 5; do
             rm -rf "$RUNNER_TEMP/gh-pages"
-            if ! git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages" 2>/dev/null; then
-              echo "gh-pages branch doesn't exist yet, nothing to clean up."
-              exit 0
-            fi
+            git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages"
             cd "$RUNNER_TEMP/gh-pages"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
