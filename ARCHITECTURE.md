@@ -156,11 +156,36 @@ of tool calls, retries, and token usage — replacing `print()` debugging — bu
 `LOGFIRE_TOKEN` is set (see [`server/app/main.py`](server/app/main.py)). Tests and CI never need a Logfire
 account.
 
-**A single frontend source, synced to `docs/`.** `client/src/` is the source of truth;
-[`scripts/sync-docs.js`](scripts/sync-docs.js) copies it into `docs/` for GitHub Pages, and CI
-(`.github/workflows/ci.yml`) fails the build if the two drift, which is what let them diverge in the first
-place before Tier 1. The API base URL lives in one place, `client/src/config.js`, instead of being
-hardcoded per copy.
+**A single frontend source, published automatically instead of hand-synced.** `client/src/` is the source
+of truth; [`scripts/build-site.js`](scripts/build-site.js) builds it (with an optional `API_BASE_URL`
+override) into an output directory, and [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+publishes that to the `gh-pages` branch on every push to `main` — no manual sync step, and no drift possible
+between what's committed and what's live. This replaced an earlier Tier 1 design (`docs/` as a hand-committed
+copy of `client/src/`, checked for drift by CI rather than published automatically) once PR previews needed
+somewhere on the same Pages site to publish to that isn't the production root — see the next entry.
+
+**PR previews via a hand-rolled workflow, not a third-party GitHub Action.** GitHub Pages has no native
+per-PR preview mechanism — the standard pattern (used by actions like `rossjrw/pr-preview-action`) is
+publishing each PR's build to a subpath (`pr-preview/pr-<number>/`) of a dedicated `gh-pages` branch, which
+is why production also moved onto that branch rather than staying on `main`/`docs/` (Pages can only serve one
+committed tree; subpaths need to coexist in it without a bot committing preview content directly onto the
+protected trunk branch). [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml) implements
+this directly with `git`/`rsync`/`gh api` — clone-or-init the `gh-pages` branch, rsync the PR's build into its
+subfolder, commit, push with a short retry-on-race loop (concurrent PR activity can conflict on a shared
+branch), and use `gh api` to post or update a single tracked PR comment with the preview link, rather than
+pulling in a marketplace dependency for something this mechanical.
+
+**One shared dev backend for PR previews, not a per-PR ephemeral one.** Render's native "Preview
+Environments" would give true per-PR backend isolation, but the preview URL is only known after Render
+creates it (requiring a Render API key + lookup step to wire into the frontend preview), and whether a free
+web service's previews are actually billed at $0 isn't explicitly confirmed in Render's docs — only that
+"previews are billed at the same rate as the base service," stated alongside an explicit "free static site
+previews are free" that doesn't extend the same explicit guarantee to compute services. Given how central
+$0/month is to this whole project, a single extra free web service (`libsync-backend-dev`, auto-deploy
+turned off, redeployed via its [deploy hook](https://render.com/docs/deploy-hooks)'s `ref` query param to
+each PR's exact commit) is a known-$0 tradeoff for one real limitation: only the most-recently-pushed open
+PR's code is actually live on it. The PR-preview workflow posts this caveat directly in its comment so it's
+never a silent surprise mid-review.
 
 **Streamed replies over SSE, plus structured book output (Tier 1 baseline).** `POST /chat/stream` opens the
 connection and starts emitting `event: text` / `event: books` / `event: done` frames as soon as the agent
@@ -258,7 +283,9 @@ today. See the pin's comment in [`server/pyproject.toml`](server/pyproject.toml)
 | Structured output types (`Book`, `BookResult`, `ScholarlyWork`, `ResearchResult`, `Citation`) | [`server/app/schemas.py`](server/app/schemas.py) |
 | `/api/query` endpoint (direct Pinecone search) | [`server/app/routers/pinecone_query.py`](server/app/routers/pinecone_query.py) |
 | Frontend source, incl. the AG-UI SSE event router | [`client/src/script.js`](client/src/script.js) |
-| GitHub Pages copy (generated, do not hand-edit) | [`docs/`](docs/) |
+| Frontend build (prod, and PR previews with an `API_BASE_URL` override) | [`scripts/build-site.js`](scripts/build-site.js) |
+| Production Pages publish (`gh-pages` branch root, on push to `main`) | [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) |
+| PR preview publish + shared dev backend redeploy + PR comment | [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml) |
 | Pinecone IaC (index creation, seed data, smoke test) | [`pinecone-scripts/`](pinecone-scripts/) |
 
 ## What's next

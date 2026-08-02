@@ -38,6 +38,7 @@
 - [Demo Script](DEMO_SCRIPT.md)
 - [Project Structure](#-project-structure)
 - [Cloud Deployment](#-cloud-deployment-render)
+- [PR Previews and Deployment](#-pr-previews-and-deployment)
 - [Future Enhancements](#-future-enhancements)
 - [Featured Deployment](#-featured-deployment)
 
@@ -71,15 +72,16 @@ The project is currently in **active development**, focusing on technical experi
 - **Session continuity:** In-process, TTL-bounded session store keyed by the AG-UI thread id
 - **Observability:** [Logfire](https://logfire.pydantic.dev/) (free Hobby tier), opt-in via `LOGFIRE_TOKEN`
 - **Package Management:** [uv](https://docs.astral.sh/uv/) for the Python backend and IaC scripts
-- **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), a docs/client drift check, and a weekly free-tier keep-alive ping
+- **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), automated GitHub Pages publishing with per-PR previews, and a weekly free-tier keep-alive ping
 - **Cloud Deployment:** Render
 
 ---
 
 ## 🧩 Architecture Overview
 
-- **Frontend:** Chat UI in vanilla JavaScript, HTML, and CSS. `client/src/` is the source of truth; `docs/`
-  (GitHub Pages) is generated from it by `scripts/sync-docs.js`, with CI failing the build if they drift.
+- **Frontend:** Chat UI in vanilla JavaScript, HTML, and CSS. `client/src/` is the source of truth;
+  GitHub Pages is published from it automatically on every push to `main`, with every PR getting its own
+  live preview — see [PR Previews and Deployment](#-pr-previews-and-deployment).
 - **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — Groq
   primary / Hugging Face fallback — with four tools that ground replies in real data instead of guessing.
   `/agent` (AG-UI protocol) is the primary transport: it streams token deltas, live tool-call progress, and
@@ -98,8 +100,9 @@ The project is currently in **active development**, focusing on technical experi
 - **Session continuity:** A client-minted thread id (persisted in `localStorage`) threads conversation
   history through an in-process, TTL-bounded session store, keyed by the AG-UI thread id.
 - **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set.
-- **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), verifies `docs/` stays in sync
-  with `client/src/`, and pings Pinecone/Render weekly so the free tiers don't silently auto-pause.
+- **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), publishes `client/src/` to
+  GitHub Pages (production on push to `main`, isolated previews per open PR), and pings Pinecone/Render
+  weekly so the free tiers don't silently auto-pause.
 - **Deployment:** Hosted on Render (backend) and GitHub Pages (frontend).
 
 ```mermaid
@@ -380,7 +383,8 @@ Open `client/src/index.html` in your browser. By default it points at the deploy
 const API_BASE_URL = "http://localhost:3000";
 ```
 
-After editing anything under `client/src/`, run `npm run sync-docs` (from `client/src/`) to regenerate `docs/` — CI fails the build if the two drift out of sync.
+Nothing to sync manually — pushing to `main` publishes `client/src/` to GitHub Pages automatically (see
+[PR Previews and Deployment](#-pr-previews-and-deployment) below).
 
 ### 6. Start chatting! 💬
 
@@ -397,9 +401,9 @@ LibSync/
 ├── client/src/          # Frontend source of truth (vanilla JS/HTML/CSS)
 │   ├── config.js            # API_BASE_URL — the one place that changes per environment
 │   └── script.js
-├── docs/                # GitHub Pages copy, generated from client/src/ by scripts/sync-docs.js
 ├── scripts/
-│   └── sync-docs.js         # client/src/ -> docs/, CI fails the build if they drift
+│   └── build-site.js        # client/src/ -> an output dir, with an optional API_BASE_URL override —
+│                             # used by both the prod publish and PR-preview workflows (see below)
 ├── server/              # Python/FastAPI + PydanticAI backend (uv-managed)
 │   ├── app/
 │   │   ├── main.py          # FastAPI app, lifespan (shared httpx client), CORS, rate limiting, Logfire
@@ -417,6 +421,11 @@ LibSync/
     └── assets/           # mockups and charts embedded in the plans and this README
 ```
 
+GitHub Pages content itself lives on a separate `gh-pages` branch (production at its root, PR previews under
+`pr-preview/pr-<number>/`), published by [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+and [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml) — not hand-committed, so it
+doesn't show up in the tree above.
+
 ---
 
 ## ☁️ Cloud Deployment (Render)
@@ -429,12 +438,56 @@ LibSync/
 
 > **Migrating an existing Render service from before this refactor?** The service was originally configured for the Node backend at `server/src` and won't update itself just because the code changed — Render settings are dashboard state, not something a `git push` touches. In the Render dashboard, open the service → **Settings** → **Build & Deploy** and update all four fields above (Runtime, Root Directory, Build Command, Start Command) to match this table, then trigger a manual deploy. If your plan doesn't let you change **Runtime** on an existing service, create a new Python web service pointed at this repo instead and delete the old Node one.
 
-Once deployed, update `API_BASE_URL` in `client/src/config.js` to point to your Render URL, then run
-`npm run sync-docs` (from `client/src/`) so `docs/` picks up the change:
+Once deployed, update `API_BASE_URL` in `client/src/config.js` to point to your Render URL and push to
+`main` — [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) publishes the change automatically, no
+manual sync step needed:
 
 ```JavaScript
 const API_BASE_URL = "https://<your-render-app>.onrender.com";
 ```
+
+---
+
+## 🔍 PR Previews and Deployment
+
+Every PR opened against `main` gets a live preview — a frontend build published to its own URL, and the
+shared dev backend redeployed to that PR's exact commit — so a reviewer can click through the actual change
+instead of reading a diff. Built with plain `git`/`rsync`/`gh` in
+[`pr-preview.yml`](.github/workflows/pr-preview.yml), no third-party GitHub Action.
+
+**How it works:**
+- **Frontend:** `scripts/build-site.js` builds `client/src/` with `API_BASE_URL` pointed at the dev backend,
+  and the workflow publishes it to the `gh-pages` branch at `pr-preview/pr-<number>/` — isolated per PR, so
+  multiple open PRs each keep their own working frontend preview.
+- **Backend:** a single shared Render free web service, `libsync-backend-dev`, redeployed via its
+  [deploy hook](https://render.com/docs/deploy-hooks)'s `ref` parameter to the PR's head commit — **not**
+  per-PR. If two PRs are open, whichever one pushed most recently "owns" the backend; the workflow posts this
+  caveat directly in its PR comment so it's never a surprise mid-review. A dedicated per-PR backend (Render's
+  native Preview Environments) was considered and deliberately not used — see
+  [ARCHITECTURE.md](ARCHITECTURE.md#why-these-choices) for why.
+- **Cleanup:** closing or merging the PR removes its `pr-preview/pr-<number>/` folder from `gh-pages`.
+
+Production publishing works the same way, minus the PR-scoping: [`deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+publishes `client/src/` (with its committed, real `API_BASE_URL`) to the `gh-pages` branch root on every
+push to `main`.
+
+**One-time setup** (not automated — these are dashboard/account actions):
+
+1. **Render:** create a second free web service named exactly `libsync-backend-dev`, same repo/Root
+   Directory/Build Command/Start Command as the [production service](#-cloud-deployment-render) above, same
+   environment variables (or your own — see [Environment variables at a glance](#-local-setup)). In its
+   **Settings**, turn **off** Auto-Deploy — this service should only deploy when the PR-preview workflow
+   tells it to, not on every push to whatever branch it's configured with. Copy its **Deploy Hook** URL from
+   Settings.
+2. **GitHub repo secrets** (**Settings → Secrets and variables → Actions → Secrets**): add
+   `RENDER_DEV_DEPLOY_HOOK_URL` with the deploy hook URL from step 1.
+3. **GitHub repo variables** (same page, **Variables** tab) — optional: add `DEV_BACKEND_URL` if your dev
+   service's URL isn't `https://libsync-backend-dev.onrender.com` (i.e. you named it something else).
+4. **GitHub Pages source:** push once to `main` (or open any PR) so `deploy-pages.yml`/`pr-preview.yml`
+   create the `gh-pages` branch, then go to **Settings → Pages** and set **Source** to "Deploy from a
+   branch," branch `gh-pages`, folder `/ (root)`.
+
+After that, every PR against `main` gets a preview automatically — nothing to run by hand per PR.
 
 ---
 

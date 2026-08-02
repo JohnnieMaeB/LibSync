@@ -1,0 +1,69 @@
+name: Deploy Pages (production)
+
+# Publishes client/src/ to the gh-pages branch root on every push to main,
+# replacing the old manual "npm run sync-docs && commit docs/" step. Pushes
+# to gh-pages never touch pr-preview/ (see pr-preview.yml), so this and PR
+# previews can publish independently without clobbering each other.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/src/**"
+      - "scripts/build-site.js"
+  workflow_dispatch:
+
+concurrency:
+  group: gh-pages-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site
+        run: node scripts/build-site.js --out "$RUNNER_TEMP/site"
+
+      - name: Publish to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/gh-pages"
+            if git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages" 2>/dev/null; then
+              :
+            else
+              mkdir -p "$RUNNER_TEMP/gh-pages"
+              cd "$RUNNER_TEMP/gh-pages"
+              git init -q -b gh-pages
+              git remote add origin "$REPO_URL"
+              cd - > /dev/null
+            fi
+            cd "$RUNNER_TEMP/gh-pages"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            rsync -a --delete --exclude=.git --exclude=pr-preview --exclude=.nojekyll "$RUNNER_TEMP/site/" ./
+            touch .nojekyll
+
+            git add -A
+            if git diff --cached --quiet; then
+              echo "Nothing to publish."
+              exit 0
+            fi
+            git commit -q -m "Publish production site (${GITHUB_SHA:0:7})"
+            if git push -q origin HEAD:gh-pages; then
+              echo "Published."
+              exit 0
+            fi
+            echo "Push race on gh-pages, retrying ($attempt)..."
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "::error::Failed to publish to gh-pages after 5 attempts."
+          exit 1

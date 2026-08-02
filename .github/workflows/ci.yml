@@ -27,11 +27,6 @@ jobs:
         run: npm test
         working-directory: ./client/src
 
-      - name: Verify docs/ is in sync with client/src
-        run: |
-          node scripts/sync-docs.js
-          git diff --exit-code -- docs || (echo "::error::docs/ is out of sync with client/src — run 'npm run sync-docs' in client/src and commit the result." && exit 1)
-
   server-tests:
     runs-on: ubuntu-latest
     steps:
