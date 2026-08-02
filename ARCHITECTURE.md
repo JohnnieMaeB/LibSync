@@ -170,10 +170,28 @@ publishing each PR's build to a subpath (`pr-preview/pr-<number>/`) of a dedicat
 is why production also moved onto that branch rather than staying on `main`/`docs/` (Pages can only serve one
 committed tree; subpaths need to coexist in it without a bot committing preview content directly onto the
 protected trunk branch). [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml) implements
-this directly with `git`/`rsync`/`gh api` — clone-or-init the `gh-pages` branch, rsync the PR's build into its
+this directly with `git`/`rsync`/`gh api` — clone the `gh-pages` branch, rsync the PR's build into its
 subfolder, commit, push with a short retry-on-race loop (concurrent PR activity can conflict on a shared
 branch), and use `gh api` to post or update a single tracked PR comment with the preview link, rather than
 pulling in a marketplace dependency for something this mechanical.
+
+**Only `deploy-pages.yml` is allowed to originate the `gh-pages` branch — `pr-preview.yml` never does.**
+Caused a real (if brief) production outage the first time this pipeline actually ran: `deploy-pages.yml`
+can only trigger on a push to `main`, and since these workflow files hadn't been merged there yet, it had
+never run. When a PR opened, `pr-preview.yml`'s original fallback — "clone `gh-pages`, and if that fails,
+`git init` a fresh one" — couldn't tell "the branch doesn't exist yet" apart from any other clone failure,
+so it silently created `gh-pages` from scratch containing *only* `pr-preview/pr-<N>/`, no root content at
+all. Pointing GitHub Pages at that branch's root then 404'd production — not because anything was deleted
+(`main`'s `docs/` was untouched throughout), but because `gh-pages` had never actually been seeded with real
+content in the first place. Fixed by checking existence explicitly with `git ls-remote --exit-code --heads`
+before doing anything: `deploy-pages.yml` (the only workflow allowed to create the branch) re-checks this on
+every retry attempt rather than once up front, since a concurrent run could create it mid-loop; `pr-preview.yml`
+now hard-fails with a clear error instead of ever creating the branch itself. Hardened past just the one
+specific failure mode with a direct invariant check in both workflows — `[ -f index.html ]` — rather than
+only re-checking how it broke last time: `pr-preview.yml` refuses to publish a preview on top of a root
+that's already broken (instead of silently succeeding while production stays 404), and `deploy-pages.yml`
+refuses to commit a production publish that didn't produce a root `index.html` (catching a bad build or a
+misconfigured `rsync --exclude` before it ever reaches production, not after).
 
 **One shared dev backend for PR previews, not a per-PR ephemeral one.** Render's native "Preview
 Environments" would give true per-PR backend isolation, but the preview URL is only known after Render
