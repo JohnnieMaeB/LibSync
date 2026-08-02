@@ -35,10 +35,14 @@
 - [Skills Demonstrated](#-skills-demonstrated)
 - [Features](#-features)
 - [Local Setup](#-local-setup)
+- [Demo Script](DEMO_SCRIPT.md)
 - [Project Structure](#-project-structure)
 - [Cloud Deployment](#-cloud-deployment-render)
 - [Future Enhancements](#-future-enhancements)
 - [Featured Deployment](#-featured-deployment)
+
+For the full request-flow diagrams and the reasoning behind each infrastructure choice, see
+[ARCHITECTURE.md](ARCHITECTURE.md). Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -53,43 +57,74 @@ The project is currently in **active development**, focusing on technical experi
 
 - **Frontend:** Vanilla JavaScript, HTML, CSS
 - **Backend:** Python, FastAPI
-- **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent calling the Hugging Face Inference API (novita provider, `deepseek-ai/DeepSeek-V3.2-Exp`)
-- **Vector Database:** Pinecone (for semantic search and retrieval)
+- **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V3.2-Exp`) wired as an automatic fallback via `FallbackModel`
+- **Tool-using agent:** Two PydanticAI tools ground replies in real data — `search_library_policies` (Pinecone) and `search_catalog` (Open Library)
+- **Structured output:** `output_type=str | BookResult` — book answers come back as real data (title, author, availability) for the frontend to render as cards, not prose the UI has to parse
+- **Streaming:** `/chat/stream` (SSE via `agent.run_stream`) opens the connection and starts showing activity immediately, hiding Render's cold-start latency instead of a blank spinner
+- **Vector Database:** Pinecone, integrated-embedding `search()`, for policy RAG
+- **Real catalog data:** [Open Library API](https://openlibrary.org/developers/api) (free, keyless) for book/author lookups and lending availability
+- **Session continuity:** In-process, TTL-bounded session store keyed by a client-minted `session_id`
+- **Observability:** [Logfire](https://logfire.pydantic.dev/) (free Hobby tier), opt-in via `LOGFIRE_TOKEN`
 - **Package Management:** [uv](https://docs.astral.sh/uv/) for the Python backend and IaC scripts
-- **Automation & DevOps:** GitHub Actions for CI/CD and Infrastructure as Code (IaC)
+- **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), a docs/client drift check, and a weekly free-tier keep-alive ping
 - **Cloud Deployment:** Render
 
 ---
 
 ## 🧩 Architecture Overview
 
-- **Frontend:** Simple chat UI built with JavaScript, HTML, and CSS (`client/src`, mirrored to `docs/` for GitHub Pages)
-- **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent that calls Hugging Face models
-- **Vector Layer:** Pinecone stores library policy content; retrieval isn't wired into the chat agent yet — see [TIER1_PLAN.md](TIER1_PLAN.md)
-- **Automation:** GitHub Actions workflow provisions and updates Pinecone vectors (IaC), via Python scripts in `pinecone-scripts/`
-- **Deployment:** Hosted on Render (backend) and GitHub Pages (frontend)
+- **Frontend:** Chat UI in vanilla JavaScript, HTML, and CSS. `client/src/` is the source of truth; `docs/`
+  (GitHub Pages) is generated from it by `scripts/sync-docs.js`, with CI failing the build if they drift.
+- **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — Groq
+  primary / Hugging Face fallback — with two tools that ground replies in real data instead of guessing.
+  `/chat` returns a single JSON reply; `/chat/stream` streams the same turn over SSE and returns book
+  answers as structured `BookResult` data instead of prose.
+- **Vector Layer:** Pinecone's integrated-embedding `search()` powers `search_library_policies`, called by
+  the agent whenever a patron asks about a concrete policy (fines, lending periods, etc.).
+- **Real catalog data:** `search_catalog` calls the free, keyless Open Library API for book/author lookups
+  and real lending/availability status.
+- **Session continuity:** A client-minted `session_id` (persisted in `localStorage`) threads conversation
+  history through an in-process, TTL-bounded session store.
+- **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set.
+- **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), verifies `docs/` stays in sync
+  with `client/src/`, and pings Pinecone/Render weekly so the free tiers don't silently auto-pause.
+- **Deployment:** Hosted on Render (backend) and GitHub Pages (frontend).
 
 ```mermaid
 flowchart LR
-    U["Patron"] -->|loads UI, once| GH["GitHub Pages<br/>static frontend"]
-    U -->|"POST /chat"| API["Render — FastAPI"]
-    API --> AGT["PydanticAI Agent"]
-    AGT --> HF["Hugging Face Inference API<br/>novita · DeepSeek-V3.2-Exp"]
-    API -.->|"/api/query — not yet<br/>wired into chat"| PC[("Pinecone index")]
-    GHA["GitHub Actions"] -.->|manual dispatch| PC
+    U["Patron<br/>(browser)"] -->|POST /chat| FE["Static frontend<br/>GitHub Pages"]
+    FE -->|fetch, session_id| API["FastAPI<br/>Render free web service"]
+    API --> AGT["PydanticAI Agent<br/>(deps: http client, session store)"]
+    AGT -->|primary| GROQ["Groq<br/>free tier LLM"]
+    AGT -.fallback.-> HF["HF Inference Providers<br/>(novita) — budget-limited"]
+    AGT -->|tool call| POL["search_library_policies<br/>tool"]
+    AGT -->|tool call| CAT["search_catalog<br/>tool"]
+    POL --> PC["Pinecone serverless index<br/>integrated embedding, free tier"]
+    CAT --> OL["Open Library API<br/>free, no key"]
+    AGT --> LOG["Logfire<br/>free tier tracing"]
+    AGT -->|reply + session_id| API --> FE --> U
 ```
 
-This is today's actual wiring, not the target — the tiered plans linked under
-[Future Enhancements](#-future-enhancements) close the gap between this and a fully-grounded assistant.
+This is today's actual wiring (Tier 1, complete) — see [ARCHITECTURE.md](ARCHITECTURE.md) for the per-turn
+sequence diagram and the reasoning behind each choice. The tiered plans linked under
+[Future Enhancements](#-future-enhancements) pick up from here.
+
+<p align="center">
+  <img src="planning/assets/tier1-live-demo.svg" alt="Screenshot of the live LibSync chat widget: a policy question answered with a grounded reply citing the real $0.25/day late fee cap from Pinecone, followed by a book availability question answered with a real structured result card for Project Hail Mary by Andy Weir, sourced from Open Library, showing a green 'lendable' availability badge." width="380" />
+</p>
+
+<p align="center"><sub>Both replies stream in over SSE and are grounded in real data — the fee amount comes
+from the Pinecone policy index, and the book card is real Open Library data rendered from structured
+output, not parsed out of prose.</sub></p>
 
 ---
 
 ## 🎨 Target Experience
 
-LibSync's live demo today is a straightforward chat widget. The mockup below is the **design target** from the
-[Tier 3 UI/UX plan](TIER3_PLAN.md) — capability chips, live tool-call status, card-based book and citation
-results, and grounded replies with numbered source citations — built entirely in LibSync's existing
-black-and-amber brand.
+The screenshot above is today's real, working demo. The mockup below goes further — it's the **design
+target** from the [Tier 3 UI/UX plan](TIER3_PLAN.md): capability chips, live tool-call status, card-based
+research/citation results alongside the book cards already live today, and grounded replies with numbered
+source citations — built entirely in LibSync's existing black-and-amber brand.
 
 <p align="center">
   <img src="planning/assets/tier3-target-experience.svg" alt="Mockup of the target LibSync chat experience: suggested prompt chips, a live tool-status pill, an interactive book result card with an availability badge, a citation card with an APA/MLA/Chicago style switcher, a grounded reply with a numbered source citation, and a distinct error state with a retry button." width="420" />
@@ -111,22 +146,36 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 ## 🏆 Skills Demonstrated
 
 - **Full-Stack Development:** Building and connecting frontend (JS/HTML/CSS) with backend (Python/FastAPI)
-- **Agentic AI Integration:** Using PydanticAI to define a typed, testable agent around the Hugging Face Inference API
-- **Vector Search & Retrieval:** Implementing Pinecone for RAG workflows and policy-based query retrieval
+- **Agentic AI Integration:** A typed, testable PydanticAI agent with tool calling, a `deps_type` for shared
+  resources (HTTP client, session store), and a `FallbackModel` for provider resilience
+- **Retrieval-Augmented Generation:** Pinecone integrated-embedding search wired as an agent tool, verified
+  by tests that assert the tool actually fires — not just that the endpoint returns 200
+- **Third-Party API Integration:** Open Library (search, availability, covers) with in-process caching and
+  a User-Agent identifying the app, per the API's courtesy rate-limit guidance
 - **Infrastructure as Code (IaC):** Automating Pinecone vector DB setup and data upserts with GitHub Actions
 - **Cloud Deployment:** Deploying backend on Render, frontend on GitHub Pages
-- **Environment Configuration & Security:** Managing environment variables and securing API tokens
-- **Debugging & Logging:** Implementing request/response logging for monitoring and troubleshooting
-- **Project Workflow:** Version control with Git, branching, and automated build/test pipelines
-- **UI/UX Design:** Real-time chat interface, responsive and interactive frontend design
+- **Environment Configuration & Security:** Managing environment variables and securing API tokens across
+  four external services, each gated to fail safe (opt-in tracing, fallback LLM) rather than fail loud
+- **Observability:** Logfire tracing of agent runs, tool calls, and model usage
+- **Testing Strategy:** `FunctionModel`/`FallbackModel` overrides for deterministic agent tests,
+  `httpx.MockTransport` for a third-party API client with zero live calls in CI
+- **Project Workflow:** Version control with Git, branching, and automated build/test pipelines — including
+  a CI check that fails the build if two copies of the frontend drift apart
+- **UI/UX Design:** Real-time chat interface with session persistence, retry/backoff, and distinct
+  rate-limited vs. service-down error states
 - **Technical Roadmapping:** A nine-tier, dependency-mapped growth plan from prototype to multi-tenant SaaS — each tier budget-audited, cross-referenced, and mocked up before a line of new code, not just described
 
 ---
 
 ## ✨ Features
 
-- Real-time chat interface
-- PydanticAI-powered responses via Hugging Face
+- Streamed replies with persistent, multi-turn conversation history per session
+- Answers grounded in a real Pinecone-backed policy knowledge base and the real Open Library catalog —
+  not just system-prompt text or hallucinated availability
+- Book answers render as real result cards (title, author, availability badge) from structured agent
+  output, not prose the frontend has to pattern-match
+- Groq-primary, Hugging Face-fallback LLM routing, so a single provider outage doesn't take the demo down
+- Retry-with-backoff and distinct error states (rate-limited vs. service-down) on the frontend
 - Cloud deployment for remote access
 
 ---
@@ -183,17 +232,59 @@ cd LibSync
 Create a `.env` file inside `server/` (see `server/.env.example`):
 
 ```
+GROQ_API_KEY=your_groq_api_key_here
 HUGGINGFACE_TOKEN=your_huggingface_api_token_here
 PINECONE_API_KEY=your_pinecone_api_key_here
 PORT=3000
+LOGFIRE_TOKEN=your_logfire_write_token_here
 ```
 
-**Getting a Hugging Face token:** the Inference Providers API (used here to call `deepseek-ai/DeepSeek-V3.2-Exp` via novita) requires a token even on the free tier, since usage is tracked against your HF account.
+`GROQ_API_KEY` and `PINECONE_API_KEY` are required for the chat agent to actually answer anything —
+without them, `/chat` returns a clean error rather than crashing, but every reply will be the fallback
+error message. `HUGGINGFACE_TOKEN` and `LOGFIRE_TOKEN` are optional (fallback LLM and tracing,
+respectively); the app runs fine without either.
+
+**Getting a Groq key (primary LLM, required):**
+
+1. Create a free account at [console.groq.com](https://console.groq.com/).
+2. Go to **API Keys** and create a new key — no billing setup required for the free tier (30 requests/min,
+   14,400/day).
+3. Copy it into `GROQ_API_KEY` in your `.env` file.
+
+**Getting a Pinecone key (policy RAG, required):**
+
+1. Create a free account at [pinecone.io](https://www.pinecone.io/).
+2. Copy an API key from the dashboard into `PINECONE_API_KEY`.
+3. Run the IaC scripts once to create and seed the index:
+   ```bash
+   cd pinecone-scripts
+   uv sync
+   PINECONE_API_KEY=... uv run python check_pinecone_index.py
+   PINECONE_API_KEY=... uv run python upsert_pinecone_records.py
+   ```
+
+**Getting a Hugging Face token (fallback LLM, optional):** the Inference Providers API (used here to call
+`deepseek-ai/DeepSeek-V3.2-Exp` via novita) requires a token even on the free tier, since usage is tracked
+against your HF account. Free-tier HF accounts only get $0.10/month in Inference Provider credit, which is
+why this is fallback-only, not primary.
 
 1. Create a free account at [huggingface.co/join](https://huggingface.co/join).
 2. Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) and click **New token**.
 3. A **Read** token is sufficient for inference calls — no billing setup required for free-tier model usage.
 4. Copy the generated token into `HUGGINGFACE_TOKEN` in your `.env` file.
+
+**Getting a Logfire token (tracing, optional):**
+
+1. Create a free account at [logfire.pydantic.dev](https://logfire.pydantic.dev/) (Hobby tier is enough for
+   a low-traffic demo).
+2. Create a project from the dashboard.
+3. Open the project, go to **Settings → Write tokens**, and create a new one.
+4. Copy it into `LOGFIRE_TOKEN` in your `.env` file.
+
+It must be a **write** token, not a read/query token — using the wrong type is a common gotcha and causes
+requests to fail with `401 Unauthorized` (visible as a `Failed to export span batch` warning in the server
+logs; it doesn't crash the app, but no traces get recorded). Leave `LOGFIRE_TOKEN` unset entirely to skip
+tracing — the app checks for it at startup and no-ops if it's missing.
 
 ### 3. Install backend dependencies and run the server
 
@@ -216,13 +307,19 @@ uv run pytest
 
 ### 5. Run the frontend locally
 
-Open `client/src/index.html` in your browser. By default it points at the deployed Render backend — to test against your local server, update the `fetch` URL in `client/src/script.js`:
+Open `client/src/index.html` in your browser. By default it points at the deployed Render backend — to test against your local server, update `API_BASE_URL` in `client/src/config.js`:
 
 ```JavaScript
-const response = await fetch("http://localhost:3000/chat", { ... });
+const API_BASE_URL = "http://localhost:3000";
 ```
 
+After editing anything under `client/src/`, run `npm run sync-docs` (from `client/src/`) to regenerate `docs/` — CI fails the build if the two drift out of sync.
+
 ### 6. Start chatting! 💬
+
+For a scripted, repeatable walkthrough that exercises every capability (grounded policy Q&A, real book
+lookups, multi-turn continuity, honesty boundaries) with expected answers to check against, see
+[DEMO_SCRIPT.md](DEMO_SCRIPT.md).
 
 ---
 
@@ -230,16 +327,22 @@ const response = await fetch("http://localhost:3000/chat", { ... });
 
 ```
 LibSync/
-├── client/src/          # Static frontend (vanilla JS/HTML/CSS)
-├── docs/                # GitHub Pages mirror of client/src
+├── client/src/          # Frontend source of truth (vanilla JS/HTML/CSS)
+│   ├── config.js            # API_BASE_URL — the one place that changes per environment
+│   └── script.js
+├── docs/                # GitHub Pages copy, generated from client/src/ by scripts/sync-docs.js
+├── scripts/
+│   └── sync-docs.js         # client/src/ -> docs/, CI fails the build if they drift
 ├── server/              # Python/FastAPI + PydanticAI backend (uv-managed)
 │   ├── app/
-│   │   ├── main.py          # FastAPI app, CORS, rate limiting, routers
-│   │   ├── agent.py         # PydanticAI agent + system prompt
+│   │   ├── main.py          # FastAPI app, lifespan (shared httpx client), CORS, rate limiting, Logfire
+│   │   ├── agent.py         # PydanticAI agent, system prompt, tool registration
+│   │   ├── deps.py          # LibSyncDeps — shared resources injected into tools
+│   │   ├── session_store.py # In-process, TTL-bounded conversation history store
 │   │   ├── bot_context/     # Persona and library-policy knowledge sources
 │   │   ├── routers/         # /chat and /api/query endpoints
-│   │   └── services/        # Pinecone client wrapper
-│   ├── tests/            # pytest suite
+│   │   └── services/        # Pinecone and Open Library clients
+│   ├── tests/            # pytest suite (no live external calls)
 │   └── pyproject.toml
 ├── pinecone-scripts/     # Python IaC scripts (uv-managed) for the Pinecone index
 └── planning/             # Tier 1-9 roadmap: durable source for Future Enhancements below
@@ -255,20 +358,15 @@ LibSync/
 - **Root Directory:** `server`
 - **Build Command:** `pip install uv && uv sync --frozen`
 - **Start Command:** `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **Environment Variables:** Set `HUGGINGFACE_TOKEN` and `PINECONE_API_KEY` on Render
+- **Environment Variables:** Set `GROQ_API_KEY` and `PINECONE_API_KEY` on Render (required); `HUGGINGFACE_TOKEN` and `LOGFIRE_TOKEN` optional (fallback LLM, tracing)
 
 > **Migrating an existing Render service from before this refactor?** The service was originally configured for the Node backend at `server/src` and won't update itself just because the code changed — Render settings are dashboard state, not something a `git push` touches. In the Render dashboard, open the service → **Settings** → **Build & Deploy** and update all four fields above (Runtime, Root Directory, Build Command, Start Command) to match this table, then trigger a manual deploy. If your plan doesn't let you change **Runtime** on an existing service, create a new Python web service pointed at this repo instead and delete the old Node one.
 
-Once deployed, update the frontend `fetch` URL to point to your Render URL:
+Once deployed, update `API_BASE_URL` in `client/src/config.js` to point to your Render URL, then run
+`npm run sync-docs` (from `client/src/`) so `docs/` picks up the change:
 
 ```JavaScript
-const response = await fetch("https://<your-render-app>.onrender.com/chat", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ message: question }),
-});
+const API_BASE_URL = "https://<your-render-app>.onrender.com";
 ```
 
 ---
@@ -319,7 +417,7 @@ embeddable widget:
 
 | Tier | Focus | Doc | Visual plan (local) | Visual plan (rendered) |
 |---|---|---|---|---|
-| 1 | Foundation — real RAG, real catalog data (Open Library), a $0-safe LLM provider (Groq), session continuity, observability | [TIER1_PLAN.md](TIER1_PLAN.md) | [planning/TIER1_PLAN.html](planning/TIER1_PLAN.html) | [rendered](https://claude.ai/code/artifact/6d36123a-b07b-471b-b792-fa2f72f70222) |
+| 1 | **✅ Complete** — Foundation: real RAG, real catalog data (Open Library), a $0-safe LLM provider (Groq), session continuity, observability | [TIER1_PLAN.md](TIER1_PLAN.md) | [planning/TIER1_PLAN.html](planning/TIER1_PLAN.html) | [rendered](https://claude.ai/code/artifact/6d36123a-b07b-471b-b792-fa2f72f70222) |
 | 2 | Interactive & research — AG-UI streaming, interactive book/research/citation cards, OpenAlex + Crossref/citeproc tooling | [TIER2_PLAN.md](TIER2_PLAN.md) | [planning/TIER2_PLAN.html](planning/TIER2_PLAN.html) | [rendered](https://claude.ai/code/artifact/6a4601ca-c629-478a-818f-fc6134221838) |
 | 3 | UI/UX — grounded-citation UI, accessibility pass, a real design-token system on top of the current brand | [TIER3_PLAN.md](TIER3_PLAN.md) | [planning/TIER3_PLAN.html](planning/TIER3_PLAN.html) | [rendered](https://claude.ai/code/artifact/e444be53-8ca6-4813-8e07-2c6c92653448) |
 | 4 | React migration — behavior-preserving move to React + CopilotKit/AG-UI, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |

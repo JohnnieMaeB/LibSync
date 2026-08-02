@@ -1,0 +1,41 @@
+name: Keep-Alive Ping
+
+# Free-tier watchdog, not a functional requirement: Pinecone Starter indexes
+# pause after 3 weeks idle, and Render's free instance sleeps after 15 min
+# idle (a weekly ping can't prevent that, but it does surface if the service
+# is unreachable). Runs weekly so both stay within the budget ledger in
+# TIER1_PLAN.md without manual checking.
+on:
+  schedule:
+    - cron: "0 12 * * 1" # Every Monday at 12:00 UTC
+  workflow_dispatch:
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render backend
+        run: |
+          curl -sf --max-time 60 https://libsync.onrender.com/docs > /dev/null \
+            && echo "Render backend is reachable." \
+            || echo "::warning::Render backend did not respond within 60s (may be cold-starting, or may be down — check the Render dashboard)."
+
+  ping-pinecone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --locked
+        working-directory: ./pinecone-scripts
+
+      - name: Query Pinecone index to keep it alive
+        env:
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+        run: uv run python test_pinecone_records.py
+        working-directory: ./pinecone-scripts

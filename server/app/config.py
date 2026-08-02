@@ -1,17 +1,23 @@
 """Environment configuration for the LibSync backend."""
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load environment variables from a .env file into the process environment.
+# Load environment variables from server/.env into the process environment.
 # This must happen before any client is initialized so tokens are available.
-load_dotenv()
+# The path is pinned relative to this file (not left to the default
+# CWD-search behavior of a bare load_dotenv()) so it's found regardless of
+# where the process is launched from.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-# Falls back to a placeholder so the HuggingFace provider can be constructed
-# (e.g. for tests, or before a real token is configured); real chat calls will
-# fail with an auth error until a valid token is set.
+# Falls back to a placeholder so the providers can be constructed (e.g. for
+# tests, or before a real token is configured); real chat calls will fail with
+# an auth error until a valid token is set.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "unset"
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN") or "unset"
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PORT = int(os.getenv("PORT", "3000"))
 IS_TEST_ENV = os.getenv("NODE_ENV") == "test" or os.getenv("ENV") == "test"
+LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")

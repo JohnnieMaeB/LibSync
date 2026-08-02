@@ -1,10 +1,17 @@
-"""Handles interactions with the Pinecone vector database."""
+"""Handles interactions with the Pinecone vector database.
+
+The index was provisioned via `create_index_for_model` (see
+pinecone-scripts/check_pinecone_index.py), which enables integrated
+embedding: Pinecone embeds the query text server-side, so callers pass plain
+text rather than a precomputed vector.
+"""
 
 from pinecone import Pinecone
 
 from app.config import PINECONE_API_KEY
 
 INDEX_NAME = "libsync-policy-index"
+NAMESPACE = "ns1"
 
 _pinecone_client: Pinecone | None = None
 
@@ -16,27 +23,37 @@ def _get_index():
     return _pinecone_client.Index(INDEX_NAME)
 
 
-def query_pinecone(vector: list[float], top_k: int = 5) -> dict:
-    """Query the Pinecone index with a given vector to find the most similar items.
+def search_pinecone(text: str, top_k: int = 5) -> dict:
+    """Search the Pinecone index for policy chunks matching a natural-language query.
 
     Raises:
-        ValueError: If the query vector is not provided.
-        RuntimeError: If the query fails.
+        ValueError: If the query text is not provided.
+        RuntimeError: If the search fails.
     """
-    if not vector:
-        raise ValueError("Query vector is required.")
+    if not text or not text.strip():
+        raise ValueError("Query text is required.")
 
     try:
         index = _get_index()
-        response = index.query(
-            vector=vector,
+        response = index.search(
+            namespace=NAMESPACE,
             top_k=top_k,
-            include_values=True,
-            include_metadata=True,
+            inputs={"text": text},
+            fields=["chunk_text", "category"],
         )
-        return response.to_dict() if hasattr(response, "to_dict") else dict(response)
+        return {
+            "matches": [
+                {
+                    "id": hit.id,
+                    "score": hit.score,
+                    "text": hit.fields.get("chunk_text"),
+                    "category": hit.fields.get("category"),
+                }
+                for hit in response.result.hits
+            ]
+        }
     except ValueError:
         raise
     except Exception as error:
-        print("Error querying Pinecone:", error)
-        raise RuntimeError("Failed to query Pinecone index.") from error
+        print("Error searching Pinecone:", error)
+        raise RuntimeError("Failed to search Pinecone index.") from error

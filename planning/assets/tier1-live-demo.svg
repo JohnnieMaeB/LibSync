@@ -1,0 +1,59 @@
+<svg viewBox="0 0 440 800" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#ffd166" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="440" height="800" fill="#121212"/>
+
+  <!-- App container -->
+  <rect x="20" y="20" width="400" height="760" rx="16" fill="#000000" filter="url(#glow)"/>
+
+  <!-- Header -->
+  <circle cx="60" cy="62" r="20" fill="#1d1c19" stroke="#ffd166" stroke-width="1.5"/>
+  <path d="M52 68 h16 M52 62 h16 M52 56 h10" stroke="#ffd166" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <text x="92" y="60" fill="#ffd166" font-size="20" font-weight="700">LibSync</text>
+  <text x="92" y="78" fill="#aaaaaa" font-size="12">Your personal AI library assistant.</text>
+  <line x1="20" y1="98" x2="420" y2="98" stroke="#333333" stroke-width="1"/>
+
+  <!-- Intro bubble -->
+  <rect x="36" y="114" width="300" height="52" rx="10" fill="#2a2a2a"/>
+  <text x="52" y="134" fill="#f0f0f0" font-size="13">👋 Hi! I'm your AI Library Assistant. How</text>
+  <text x="52" y="152" fill="#f0f0f0" font-size="13">can I help you today?</text>
+
+  <!-- User: late fees question -->
+  <rect x="200" y="180" width="204" height="34" rx="10" fill="#3b3b3b"/>
+  <text x="216" y="202" fill="#f0f0f0" font-size="13">How much are late fees?</text>
+
+  <!-- Bot: policy answer -->
+  <rect x="36" y="228" width="300" height="102" rx="10" fill="#2a2a2a"/>
+  <text x="52" y="250" fill="#f0f0f0" font-size="13">Late fees are $0.25 per day for overdue</text>
+  <text x="52" y="268" fill="#f0f0f0" font-size="13">items, capped at $5.00 per item — so it</text>
+  <text x="52" y="286" fill="#f0f0f0" font-size="13">won't keep climbing forever. 📚 You can</text>
+  <text x="52" y="304" fill="#f0f0f0" font-size="13">pay online, at a kiosk, or at the desk.</text>
+
+  <!-- User: book question -->
+  <rect x="140" y="346" width="264" height="34" rx="10" fill="#3b3b3b"/>
+  <text x="156" y="368" fill="#f0f0f0" font-size="13">Is Project Hail Mary available?</text>
+
+  <!-- Bot: structured book result -->
+  <rect x="36" y="394" width="300" height="182" rx="10" fill="#2a2a2a"/>
+  <text x="52" y="416" fill="#f0f0f0" font-size="13">Good news — I found it! Here's what</text>
+  <text x="52" y="434" fill="#f0f0f0" font-size="13">Open Library has:</text>
+
+  <!-- Book card -->
+  <rect x="52" y="448" width="268" height="108" rx="8" fill="#1e1e1e" stroke="#333333" stroke-width="1"/>
+  <rect x="52" y="448" width="3" height="108" fill="#ffd166"/>
+  <text x="68" y="474" fill="#f0f0f0" font-size="14" font-weight="600">Project Hail Mary (2021)</text>
+  <text x="68" y="494" fill="#aaaaaa" font-size="12">by Andy Weir</text>
+  <rect x="68" y="506" width="70" height="22" rx="11" fill="#2e5e3e"/>
+  <text x="103" y="521" fill="#b7f0c8" font-size="11" font-weight="600" text-anchor="middle">lendable</text>
+
+  <!-- Footer -->
+  <line x1="20" y1="700" x2="420" y2="700" stroke="#333333" stroke-width="1"/>
+  <rect x="20" y="700" width="400" height="80" rx="0" fill="#252525"/>
+  <text x="40" y="746" fill="#777777" font-size="13">Type your question here...</text>
+  <rect x="330" y="722" width="72" height="36" rx="10" fill="#ffd166"/>
+  <text x="366" y="745" fill="#222222" font-size="13" font-weight="700" text-anchor="middle">Send</text>
+</svg>
