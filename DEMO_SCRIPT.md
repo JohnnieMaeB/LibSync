@@ -1,13 +1,15 @@
 # LibSync — Demo Script
 
-A scripted conversation flow that exercises every working Tier 1 capability, in order, so you can
+A scripted conversation flow that exercises every working Tier 1 + Tier 2 capability, in order, so you can
 recreate the full demo reliably (for yourself, in an interview, or on a call). Each turn says what to
 type, what it's testing, and what a correct answer looks like so you can tell "working" from "broken" at
 a glance.
 
 This assumes the seed policy data from [`pinecone-scripts/upsert_pinecone_records.py`](pinecone-scripts/upsert_pinecone_records.py)
 is already loaded (see [README §2](README.md#-local-setup)) and the server is running with real
-`GROQ_API_KEY` / `PINECONE_API_KEY` values.
+`GROQ_API_KEY` / `PINECONE_API_KEY` values. `OPENALEX_MAILTO` / `CROSSREF_MAILTO` are optional but
+recommended for Turns 6–7 (see [README's env var section](README.md#-local-setup)) — the research and
+citation tools work without them, just in each API's slower anonymous rate-limit pool.
 
 ---
 
@@ -18,10 +20,12 @@ is already loaded (see [README §2](README.md#-local-setup)) and the server is r
   [README §5](README.md#-local-setup)) — or the [live GitHub Pages demo](https://johnniemaeb.github.io/LibSync/)
   against the deployed Render backend.
 - **Optional but recommended:** [Logfire](https://logfire.pydantic.dev/) dashboard open in another tab if
-  `LOGFIRE_TOKEN` is set — you can watch each `search_library_policies` / `search_catalog` tool call fire
-  in real time as you go through the script, which is a good visual for a demo.
+  `LOGFIRE_TOKEN` is set — you can watch each tool call (`search_library_policies`, `search_catalog`,
+  `search_scholarly_works`, `lookup_and_cite`) fire in real time as you go through the script, which is a
+  good visual for a demo. You'll also see it live in the chat itself: the bot bubble shows a "Searching…"
+  state the moment a tool call starts, streamed over the AG-UI transport (`POST /agent`) — no blank spinner.
 - **Fresh session:** clear the site's `localStorage` (or open a private/incognito window) so turn 1 starts
-  a brand-new `session_id` and the continuity turns later actually prove something.
+  a brand-new thread id and the continuity turns later actually prove something.
 
 ---
 
@@ -34,7 +38,7 @@ is already loaded (see [README §2](README.md#-local-setup)) and the server is r
 Expect a friendly, in-character greeting — enthusiastic "digital navigator" persona, no policy or book
 data involved. This one should stream in fast since it's plain text with no tool call round trip.
 
-**Confirms:** the agent, system prompt, and streaming pipe all work before anything data-dependent is
+**Confirms:** the agent, system prompt, and AG-UI streaming pipe all work before anything data-dependent is
 tested.
 
 ---
@@ -73,38 +77,74 @@ request at any public computer station.
 
 ---
 
-### Turn 5 — Book question, real Open Library data + structured output
+### Turn 5 — Book question, real Open Library data + a live card
 
 > **Type:** `Is Project Hail Mary by Andy Weir available?`
 
-Expect either:
-- A **structured book result card** — title "Project Hail Mary (2021)", author "Andy Weir", an availability
-  badge (often `unknown`, which is a real, honest status from Open Library's Availability API, not a bug —
-  see [ARCHITECTURE.md](ARCHITECTURE.md)), or
-- The same information as well-formatted prose (the model doesn't *always* choose the structured path —
-  both are correct, grounded answers; see the "known quirks" note below).
+Watch the bot bubble show **"Searching…"** the moment `search_catalog` fires, then expect a real **book
+card** — cover thumbnail (when Open Library has one), the title linked out to the book's Open Library page,
+author, and an availability badge (often `unknown`, which is a real, honest status from Open Library's
+Availability API — not every edition is in the Internet Archive lending program — see
+[ARCHITECTURE.md](ARCHITECTURE.md)). The card renders live, as soon as the tool call resolves, and any
+narration the model adds appears alongside it, not replacing it.
 
 If Logfire is open, you should see a `search_catalog` tool call, followed by an HTTP call out to
 `openlibrary.org`.
 
-**Confirms:** the catalog tool hits the real Open Library API and the reply is grounded in what it
-returned, not invented.
+**Confirms:** the catalog tool hits the real Open Library API, the card renders from a live `CUSTOM`
+event on the AG-UI stream (not parsed out of prose), and text/cards coexist correctly regardless of which
+arrives first.
 
 ---
 
-### Turn 6 — Multi-turn continuity (no title repeated)
+### Turn 6 — Research question, real OpenAlex data (new in Tier 2)
+
+> **Type:** `Find recent papers on large language models in education`
+
+Expect a **research result card**: real paper titles, authors, publication year, a citation-count badge,
+and an open-access badge — for example "ChatGPT for good? On opportunities and challenges of large language
+models for education" (Kasneci et al., 2023, thousands of citations, open access). Click **"▸ Abstract"** on
+any entry to expand a real abstract reconstructed from OpenAlex's data.
+
+If Logfire is open, you should see a `search_scholarly_works` tool call, followed by an HTTP call out to
+`api.openalex.org`.
+
+**Confirms:** the research assistant hits the real OpenAlex API and never invents a paper, author, or
+citation count — everything in the card is traceable to a live API response.
+
+---
+
+### Turn 7 — Citation request, real Crossref + citeproc-py formatting (new in Tier 2)
+
+> **Type:** `Give me an MLA citation for DOI 10.1016/j.lindif.2023.102274`
+
+Expect a **citation card**: a real MLA-formatted citation (author, title, journal, volume, date, DOI link),
+a **Copy** button, and a style switcher (APA/MLA/Chicago). Switch the dropdown to a different style — the
+citation text updates **instantly**, without a new "thinking" round trip, because the switcher calls
+`GET /citation/{doi}` directly rather than re-running the whole tool.
+
+If Logfire is open, you should see a `lookup_and_cite` tool call, followed by an HTTP call out to
+`api.crossref.org`.
+
+**Confirms:** the citation is grounded in a real Crossref bibliographic record and formatted by the actual
+CSL 1.0.1 processor (`citeproc-py`), not a model recalling style rules from memory — and the style switcher
+doesn't re-resolve Crossref for every click.
+
+---
+
+### Turn 8 — Multi-turn continuity (no title repeated)
 
 > **Type:** `What's it about?`
 
 Don't restate the title — the agent should still know you mean *Project Hail Mary* from the conversation
 history.
 
-**Confirms:** `session_id` + the server-side message history store are threading conversation context
-correctly across turns.
+**Confirms:** the thread id + the server-side session store are threading conversation context correctly
+across turns, over the AG-UI transport.
 
 ---
 
-### Turn 7 — Honesty boundary (a platform the agent can't actually check)
+### Turn 9 — Honesty boundary (a platform the agent can't actually check)
 
 > **Type:** `Can you check if it's available on Libby right now?`
 
@@ -118,7 +158,7 @@ is the exact failure mode Tier 1 was built to eliminate (see
 
 ---
 
-### Turn 8 — No-match question (honest "I don't know")
+### Turn 10 — No-match question (honest "I don't know")
 
 > **Type:** `Do you offer piano lessons?`
 
@@ -129,13 +169,13 @@ seed data covers piano lessons, so `search_library_policies` should come back em
 
 ---
 
-### Turn 9 — Session reset (proves the $0-cost tradeoff, not a bug)
+### Turn 11 — Session reset (proves the $0-cost tradeoff, not a bug)
 
-Open a **new private/incognito window** (fresh `localStorage`, so a new `session_id` is minted) and type:
+Open a **new private/incognito window** (fresh `localStorage`, so a new thread id is minted) and type:
 
 > **Type:** `What did I just ask you?`
 
-Expect the agent to have **no memory** of turns 1–8 — this is a fresh session. This is the documented,
+Expect the agent to have **no memory** of turns 1–10 — this is a fresh session. This is the documented,
 intentional tradeoff from not running a database (see
 [README's live-demo note](README.md#-featured-deployment) and
 [TIER1_PLAN.md §2.4](TIER1_PLAN.md#24-session-continuity-without-a-database)), not something to "fix."
@@ -146,7 +186,64 @@ intentional tradeoff from not running a database (see
 
 ## Verifying at the wire level (no browser needed)
 
-To sanity-check the backend directly, or capture raw SSE output for a demo:
+To sanity-check the backend directly, or capture raw AG-UI SSE output for a demo, `POST /agent` with a
+minimal [`RunAgentInput`](https://docs.ag-ui.com/) body — `threadId`/`runId` can be any string you mint
+yourself (e.g. `uuidgen` or just a fixed test value):
+
+```bash
+curl -sN -X POST http://localhost:3000/agent \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "threadId": "demo-thread-1",
+    "runId": "demo-run-1",
+    "state": null,
+    "messages": [{"id": "m1", "role": "user", "content": "How much are late fees?"}],
+    "tools": [], "context": [], "forwardedProps": null
+  }'
+```
+
+You should see, in order: `RUN_STARTED`, one or more `TEXT_MESSAGE_START`/`TEXT_MESSAGE_CONTENT` frames
+(cumulative text deltas), possibly `TOOL_CALL_START`/`TOOL_CALL_ARGS`/`TOOL_CALL_END`/`TOOL_CALL_RESULT`
+around a tool call, a `CUSTOM` event for any card (book/research/citation), then `RUN_FINISHED`. A
+`RUN_ERROR` event instead means the turn failed — see Troubleshooting below.
+
+To continue the same conversation from the command line, reuse the same `threadId` — the server threads
+history through its session store keyed by thread id, so you only need to send the new turn:
+
+```bash
+curl -sN -X POST http://localhost:3000/agent \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "threadId": "demo-thread-1",
+    "runId": "demo-run-2",
+    "state": null,
+    "messages": [{"id": "m2", "role": "user", "content": "What about the audiobook?"}],
+    "tools": [], "context": [], "forwardedProps": null
+  }'
+```
+
+To exercise the research and citation tools directly:
+
+```bash
+curl -sN -X POST http://localhost:3000/agent \
+  -H "Content-Type: application/json" -H "Accept: text/event-stream" \
+  -d '{"threadId":"demo-research","runId":"r1","state":null,"messages":[{"id":"m1","role":"user","content":"Find recent papers on large language models in education"}],"tools":[],"context":[],"forwardedProps":null}'
+
+curl -sN -X POST http://localhost:3000/agent \
+  -H "Content-Type: application/json" -H "Accept: text/event-stream" \
+  -d '{"threadId":"demo-citation","runId":"r1","state":null,"messages":[{"id":"m1","role":"user","content":"Cite DOI 10.1016/j.lindif.2023.102274 in APA"}],"tools":[],"context":[],"forwardedProps":null}'
+```
+
+And the citation style switcher directly (no tool call, no LLM round trip — just Crossref + citeproc-py):
+
+```bash
+curl -s "http://localhost:3000/citation/10.1016/j.lindif.2023.102274?style=chicago"
+```
+
+The older `/chat` and `/chat/stream` endpoints (plain JSON / a bespoke `event: text` / `event: books` /
+`event: done` SSE contract) still work exactly as in Tier 1, if you want to verify the fallback transport:
 
 ```bash
 curl -sN -X POST http://localhost:3000/chat/stream \
@@ -154,31 +251,25 @@ curl -sN -X POST http://localhost:3000/chat/stream \
   -d '{"message":"How much are late fees?"}'
 ```
 
-You should see, in order: `event: session` (with a minted `session_id`), one or more `event: text` frames
-with growing cumulative text (or a single `event: books` frame for a structured catalog answer), then
-`event: done`. An `event: error` frame instead of `done` means the turn failed — see Troubleshooting below.
-
-To continue the same session from the command line, pass the `session_id` from the first response back in:
-
-```bash
-curl -sN -X POST http://localhost:3000/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What about the audiobook?","session_id":"<paste session_id here>"}'
-```
-
 ---
 
 ## Known quirks (not bugs)
 
-- **Book answers sometimes come back as prose instead of a structured card.** The system prompt asks the
-  model to prefer structured output for concrete book results, but it doesn't always comply — both forms
-  are grounded and correct, the frontend just renders one as cards and the other as text. See
-  [ARCHITECTURE.md](ARCHITECTURE.md).
-- **A retry pause, or occasionally a full `event: error`, if you run through this script very quickly
-  several times in a row.** Groq's free tier is 30 requests/minute — rapid-fire demo re-runs can trip it.
-  Space out repeated full run-throughs by a minute or so.
+- **Book answers sometimes come back as prose instead of a card, especially in a continued conversation.**
+  If the model answers a follow-up from context instead of re-calling `search_catalog` (e.g. repeating a
+  question already answered earlier in the same session), no new `book_card` event fires — you'll get a
+  grounded text answer instead of a live card. Both are correct, grounded answers; only the presentation
+  differs. Ask a fresh, specific book question in a new session to reliably see the card.
+- **A retry pause, or occasionally a `RUN_ERROR` event, if you run through this script very quickly several
+  times in a row.** Groq's free tier is 30 requests/minute — rapid-fire demo re-runs can trip it. Space out
+  repeated full run-throughs by a minute or so.
 - **`availability: "unknown"`** on a book card is a real status from Open Library's Availability API (not
   every edition is in the Internet Archive lending program), not a broken lookup.
+- **Citation formatting has minor real quirks of its own** (e.g. `citeproc-py`'s APA output can render
+  `"Author, A.& Author, B.."` — a double period, missing a space before `&`). This is the actual CSL
+  processor's real output, not a LibSync bug — see the golden-file tests in
+  [`server/tests/test_citation_service.py`](server/tests/test_citation_service.py) for what's pinned as
+  expected today.
 
 ## Troubleshooting
 
@@ -187,5 +278,8 @@ curl -sN -X POST http://localhost:3000/chat/stream \
 | Every reply is the generic "Unable to reach AI service" error | `GROQ_API_KEY` or `PINECONE_API_KEY` missing/invalid | Check `server/.env` against `server/.env.example`; see [README §2](README.md#-local-setup) |
 | Server crashes on startup | Set `LOGFIRE_TOKEN` without the matching extra installed | Run `uv sync` in `server/` — `pyproject.toml` pins `logfire[fastapi]` |
 | Logfire shows `401 Unauthorized` / `Failed to export span batch` in logs | Used a Logfire read token instead of a write token | Regenerate under **Settings → Write tokens**; see [README's Logfire setup steps](README.md#-local-setup) |
+| Every request to `/agent` (or `/chat`) returns a CORS/network error in the browser console, even though `curl` against it works | `LOGFIRE_TOKEN` set with a `fastapi` version `>=0.137` — a known upstream `opentelemetry-instrumentation-fastapi` incompatibility 500s every CORS preflight | Confirm `fastapi<0.137` is pinned in `server/pyproject.toml` (it is, by default) and re-run `uv sync`; see [ARCHITECTURE.md's `fastapi<0.137` entry](ARCHITECTURE.md#why-these-choices) |
 | Policy answers cite the wrong number or say "no information found" | Seed data not upserted yet | Run `pinecone-scripts/upsert_pinecone_records.py` (see [README §2](README.md#-local-setup)) |
-| Book question never calls `search_catalog`, or an `event: error` right after a stalling "Let me check..." text | A transient Groq tool-calling quirk, mitigated in code (`ModelRetry` + `run_stream_events()`, see [ARCHITECTURE.md](ARCHITECTURE.md)) | Retry the same question — if it fails consistently across many attempts, check the server logs for the real exception |
+| Book question never calls `search_catalog`, or a `RUN_ERROR` right after a stalling "Let me check..." text | A transient Groq tool-calling quirk, mitigated in code (`ModelRetry` + `run_stream_events()`, see [ARCHITECTURE.md](ARCHITECTURE.md)) | Retry the same question — if it fails consistently across many attempts, check the server logs for the real exception |
+| Research/citation questions reply "temporarily unavailable" | OpenAlex or Crossref transiently unreachable, or rate-limited (more likely without `OPENALEX_MAILTO`/`CROSSREF_MAILTO` set) | Retry after a moment; set the polite-pool env vars (see [README §2](README.md#-local-setup)) if it happens often |
+| Citation style switcher does nothing when you change the dropdown | Network hiccup on the `GET /citation/{doi}` call — the frontend intentionally leaves the previous text in place rather than showing an error for this low-stakes action | Retry the style switch; check the browser Network tab for the actual response if it persists |

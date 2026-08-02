@@ -7,11 +7,13 @@ its free-tier credit ($0.10/mo) is too small to serve as a primary provider.
 
 import re
 from collections.abc import AsyncIterator
+from typing import Any
 
 import anyio
 import httpx
+from ag_ui.core import CustomEvent
 from pydantic_ai import Agent, AgentRunResultEvent, ModelRetry, RunContext
-from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta
+from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta, ToolReturn
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.groq import GroqModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
@@ -24,8 +26,8 @@ from app.bot_context.identity import PERSONA_PROMPT
 from app.bot_context.rusa_guidelines import RUSA_GUIDELINES
 from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
-from app.schemas import BookResult
-from app.services import open_library_service
+from app.schemas import BookResult, Citation, ResearchResult, ScholarlyWork
+from app.services import citation_service, crossref_service, open_library_service, openalex_service
 from app.services.pinecone_service import search_pinecone
 from app.session_store import session_store
 
@@ -74,6 +76,25 @@ author, year if known, availability) instead of writing it out as prose —
 this lets the UI render real result cards. Use plain text for everything
 else: policy answers, general conversation, or when `search_catalog` found
 nothing.
+
+For research questions — "find papers on X", "who has written about X",
+"what's been cited by/citing this work" — call `search_scholarly_works`
+and ground your answer in what it returns. It's backed by the real OpenAlex
+scholarly index, not a live citation-analysis tool, so never invent a paper,
+author, or citation count it didn't return. A "works that cite this" or
+"works this cites" follow-up is the same tool with a query built from the
+paper's title/author, since OpenAlex doesn't need a separate lookup step for
+that. Summarize what it found in plain text — the result cards render from
+the tool's own structured event, not from your reply.
+
+For citation requests — "cite this in APA", "give me an MLA citation for
+X" — call `lookup_and_cite` with the style the patron asked for (default to
+APA if they didn't say) and a DOI if they gave one, else the title/author.
+It resolves the real bibliographic record via Crossref and formats it with
+the actual CSL style file, so never hand-format a citation yourself from
+memory — citation style rules (et al. thresholds, punctuation, page-range
+dashes) are exactly the kind of detail that's wrong more often than it
+looks right.
 </tool_use>
 """
 
@@ -98,10 +119,21 @@ chat_agent = Agent(
 # `{"type": "function", "name": "search_catalog", ...}` JSON. Since `str` is
 # a valid final output on its own, the agent would otherwise accept any of
 # these as the reply. Retry instead of showing garbled syntax to a patron.
-_TOOL_NAMES = ("search_library_policies", "search_catalog")
+_TOOL_NAMES = ("search_library_policies", "search_catalog", "search_scholarly_works", "lookup_and_cite")
 _LEAKED_TOOL_CALL_PATTERN = re.compile(
     r"<function=" r"|<(?:" + "|".join(_TOOL_NAMES) + r")\b" r'|"name"\s*:\s*"(?:' + "|".join(_TOOL_NAMES) + r')"'
 )
+
+
+def _custom_event(name: str, value: dict[str, Any]) -> CustomEvent:
+    """Build an AG-UI CUSTOM event for a tool to attach as `ToolReturn.metadata`.
+
+    `AGUIEventStream._handle_tool_result` yields any `BaseEvent` found on
+    `ToolReturnPart.metadata` straight into the SSE stream, so this is how a
+    tool call turns into a real UI card (book/research/citation) on the
+    `/agent` transport instead of prose the model has to narrate.
+    """
+    return CustomEvent(name=name, value=value)
 
 
 @chat_agent.output_validator
@@ -138,7 +170,7 @@ async def search_library_policies(query: str) -> str:
 
 
 @chat_agent.tool
-async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> str:
+async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn:
     """Search the real Open Library catalog for a book or author, including
     its lending/full-text availability via Internet Archive.
 
@@ -149,16 +181,105 @@ async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> str:
         results = await open_library_service.search_catalog(ctx.deps.http_client, query, limit=3)
     except Exception as error:
         print("Catalog search error:", error)
-        return "Catalog lookup is temporarily unavailable."
+        return ToolReturn(return_value="Catalog lookup is temporarily unavailable.")
 
     if not results:
-        return "No matching titles were found in Open Library."
+        return ToolReturn(return_value="No matching titles were found in Open Library.")
 
     lines = []
     for book in results:
         year = f" ({book['first_publish_year']})" if book.get("first_publish_year") else ""
         lines.append(f'- "{book["title"]}" by {book["author"]}{year} — availability: {book["availability"]}')
-    return "\n".join(lines)
+
+    # One CUSTOM event per book (metadata accepts an iterable of BaseEvent,
+    # not just one) so cards render live on the AG-UI transport as each
+    # result resolves, on top of — not instead of — the structured
+    # `BookResult` final-output path that /chat and /chat/stream still use.
+    return ToolReturn(
+        return_value="\n".join(lines),
+        metadata=[_custom_event("book_card", book) for book in results],
+    )
+
+
+@chat_agent.tool
+async def search_scholarly_works(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn:
+    """Search the real OpenAlex scholarly index for papers matching a topic
+    or title, including citation counts and open-access status.
+
+    Args:
+        query: A research topic or paper title, in plain language.
+    """
+    try:
+        results = await openalex_service.search_scholarly_works(ctx.deps.http_client, query, limit=5)
+    except Exception as error:
+        print("OpenAlex search error:", error)
+        return ToolReturn(return_value="Scholarly search is temporarily unavailable.")
+
+    if not results:
+        return ToolReturn(return_value="No matching scholarly works were found on OpenAlex.")
+
+    lines = []
+    for work in results:
+        year = f" ({work['year']})" if work.get("year") else ""
+        oa = "open access" if work["is_oa"] else "not open access"
+        lines.append(f'- "{work["title"]}" by {work["authors"]}{year} — {work["citation_count"]} citations, {oa}')
+
+    payload = ResearchResult(
+        intro=f'Found {len(results)} work(s) for "{query}":',
+        works=[ScholarlyWork(**work) for work in results],
+    )
+    return ToolReturn(
+        return_value="\n".join(lines),
+        metadata=_custom_event("research_results", payload.model_dump()),
+    )
+
+
+@chat_agent.tool
+async def lookup_and_cite(
+    ctx: RunContext[LibSyncDeps], style: str, doi: str | None = None, title: str | None = None
+) -> ToolReturn:
+    """Look up a work's real bibliographic record — via DOI if the patron
+    has one, else a title/author search — and format it as a citation in
+    the requested style, using the real CSL style file rather than
+    hand-formatting from memory.
+
+    Args:
+        style: Citation style — one of "apa", "mla", "chicago".
+        doi: The work's DOI, if the patron provided one.
+        title: The work's title (and author, if known), if no DOI was given.
+    """
+    style = style.strip().lower()
+    if style not in citation_service.STYLE_FILES:
+        supported = ", ".join(sorted(citation_service.STYLE_FILES))
+        return ToolReturn(return_value=f"Unsupported citation style '{style}'. Supported styles: {supported}.")
+    if not doi and not title:
+        return ToolReturn(return_value="I need either a DOI or a title to look up a citation.")
+
+    try:
+        work = await crossref_service.lookup_work(ctx.deps.http_client, doi=doi, title=title)
+    except Exception as error:
+        print("Crossref lookup error:", error)
+        return ToolReturn(return_value="Citation lookup is temporarily unavailable.")
+
+    if work is None:
+        return ToolReturn(return_value="No matching work was found on Crossref for that citation request.")
+
+    try:
+        formatted = citation_service.format_citation(work, style)
+    except Exception as error:
+        print("Citation formatting error:", error)
+        return ToolReturn(return_value="Found the work on Crossref, but formatting the citation failed.")
+
+    payload = Citation(
+        formatted=formatted,
+        style=style,
+        doi=work.get("DOI"),
+        available_styles=sorted(citation_service.STYLE_FILES),
+    )
+    return ToolReturn(
+        return_value=formatted,
+        metadata=_custom_event("citation", payload.model_dump()),
+    )
 
 
 async def get_chat_reply(message: str, http_client: httpx.AsyncClient, session_id: str) -> str | BookResult:

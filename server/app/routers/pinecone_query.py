@@ -1,5 +1,6 @@
 """Routes for querying the Pinecone index."""
 
+import anyio
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -18,7 +19,9 @@ async def query(request: Request, payload: QueryRequest):
 
     try:
         top_k = payload.topK if payload.topK is not None else 5
-        results = search_pinecone(payload.text, top_k)
+        # Offloaded to a thread — search_pinecone() is a blocking call, same
+        # as the search_library_policies agent tool does for the same call.
+        results = await anyio.to_thread.run_sync(search_pinecone, payload.text, top_k)
         return results
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to search Pinecone index."})

@@ -17,6 +17,12 @@ _pinecone_client: Pinecone | None = None
 
 
 def _get_index():
+    # Deliberately lazy, not just deferred-for-convenience: unlike
+    # GROQ_API_KEY/HUGGINGFACE_TOKEN (which fall back to a placeholder
+    # string), PINECONE_API_KEY has no safe default — Pinecone(api_key=None)
+    # raises immediately. Constructing this at import time would break
+    # importing app.main (and therefore every test) in any environment
+    # without a real Pinecone key configured.
     global _pinecone_client
     if _pinecone_client is None:
         _pinecone_client = Pinecone(api_key=PINECONE_API_KEY)

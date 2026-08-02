@@ -1,0 +1,88 @@
+<svg viewBox="0 0 1500 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, -apple-system, Helvetica Neue, Arial, sans-serif" role="img" aria-label="Diagram of the LibSync backend's import-time boot sequence: config.py loads .env, rate_limit.py builds the limiter, bot_context files feed agent.py which builds the Groq/HF fallback model and registers four tools, then session_store and services load, routers load, main.py assembles the FastAPI app and mounts routers, and finally at serve time lifespan opens the shared httpx client.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#666666"/>
+    </marker>
+  </defs>
+  <rect width="1500" height="260" fill="#121212"/>
+
+  <text x="24" y="30" fill="#f0f0f0" font-size="16" font-weight="700">Boot sequence — import-time, in order</text>
+  <text x="24" y="48" fill="#797979" font-size="10.5">`uv run uvicorn app.main:app` imports app/main.py, which pulls in everything below, top to bottom, once each</text>
+
+  <!-- Row of 7 boxes -->
+  <!-- box template: x, w=170, y=76, h=56 -->
+
+  <g>
+    <rect x="24" y="76" width="170" height="56" rx="8" fill="#1e1e1e" stroke="#333333"/>
+    <rect x="24" y="76" width="3" height="56" fill="#ffd166"/>
+    <text x="40" y="98" fill="#f0f0f0" font-size="12" font-weight="600">① config.py</text>
+    <text x="40" y="116" fill="#aaaaaa" font-size="10">load_dotenv + read env vars</text>
+  </g>
+  <line x1="194" y1="104" x2="222" y2="104" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="224" y="76" width="170" height="56" rx="8" fill="#1e1e1e" stroke="#333333"/>
+    <rect x="224" y="76" width="3" height="56" fill="#ffd166"/>
+    <text x="240" y="98" fill="#f0f0f0" font-size="12" font-weight="600">② rate_limit.py</text>
+    <text x="240" y="116" fill="#aaaaaa" font-size="10">builds shared limiter</text>
+  </g>
+  <line x1="394" y1="104" x2="422" y2="104" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- bot_context feeding into agent.py -->
+  <g>
+    <rect x="424" y="20" width="170" height="46" rx="8" fill="#1e1e1e" stroke="#333333"/>
+    <text x="440" y="40" fill="#f0f0f0" font-size="12" font-weight="600">bot_context/*.py</text>
+    <text x="440" y="56" fill="#aaaaaa" font-size="10">4 persona/policy text constants</text>
+  </g>
+  <line x1="509" y1="66" x2="509" y2="76" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="424" y="76" width="170" height="56" rx="8" fill="#1e1e1e" stroke="#ffd166" stroke-width="1.5"/>
+    <rect x="424" y="76" width="3" height="56" fill="#ffd166"/>
+    <text x="440" y="96" fill="#f0f0f0" font-size="12" font-weight="600">③ agent.py</text>
+    <text x="440" y="112" fill="#aaaaaa" font-size="9.5">builds chat_agent (Groq→HF),</text>
+    <text x="440" y="124" fill="#aaaaaa" font-size="9.5">registers 4 tools + validator</text>
+  </g>
+  <line x1="594" y1="104" x2="622" y2="104" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="624" y="76" width="200" height="56" rx="8" fill="#1e1e1e" stroke="#333333"/>
+    <rect x="624" y="76" width="3" height="56" fill="#ffd166"/>
+    <text x="640" y="96" fill="#f0f0f0" font-size="12" font-weight="600">④ deps.py, session_store.py,</text>
+    <text x="640" y="110" fill="#f0f0f0" font-size="12" font-weight="600">citation/crossref services</text>
+    <text x="640" y="126" fill="#aaaaaa" font-size="9.5">imported by routers/agent.py</text>
+  </g>
+  <line x1="824" y1="104" x2="852" y2="104" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="854" y="76" width="230" height="56" rx="8" fill="#1e1e1e" stroke="#333333"/>
+    <rect x="854" y="76" width="3" height="56" fill="#ffd166"/>
+    <text x="870" y="96" fill="#f0f0f0" font-size="12" font-weight="600">⑤ routers/agent.py, chat.py,</text>
+    <text x="870" y="110" fill="#f0f0f0" font-size="12" font-weight="600">pinecone_query.py</text>
+    <text x="870" y="126" fill="#aaaaaa" font-size="9.5">+ schemas.py, pinecone_service.py</text>
+  </g>
+  <line x1="1084" y1="104" x2="1112" y2="104" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="1114" y="76" width="180" height="56" rx="8" fill="#1e1e1e" stroke="#333333"/>
+    <rect x="1114" y="76" width="3" height="56" fill="#ffd166"/>
+    <text x="1130" y="96" fill="#f0f0f0" font-size="12" font-weight="600">⑥ main.py</text>
+    <text x="1130" y="112" fill="#aaaaaa" font-size="9.5">builds FastAPI app, CORS,</text>
+    <text x="1130" y="124" fill="#aaaaaa" font-size="9.5">Logfire, mounts 3 routers</text>
+  </g>
+  <line x1="1294" y1="104" x2="1322" y2="104" stroke="#666666" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="1324" y="76" width="152" height="56" rx="8" fill="#1e1e1e" stroke="#7cc48f" stroke-width="1.5"/>
+    <rect x="1324" y="76" width="3" height="56" fill="#7cc48f"/>
+    <text x="1340" y="96" fill="#f0f0f0" font-size="12" font-weight="600">⑦ lifespan()</text>
+    <text x="1340" y="112" fill="#7cc48f" font-size="9.5">at serve time,</text>
+    <text x="1340" y="124" fill="#7cc48f" font-size="9.5">not import time</text>
+  </g>
+
+  <text x="24" y="168" fill="#797979" font-size="10.5">⑦ opens the one shared httpx.AsyncClient on app.state.http_client, held open for the process lifetime — every</text>
+  <text x="24" y="184" fill="#797979" font-size="10.5">tool that makes an outbound HTTP call reuses this same client instead of constructing its own.</text>
+  <text x="24" y="210" fill="#797979" font-size="10.5">Importing agent.py does real work, not just def statements: constructs GroqModel + HuggingFaceModel, wraps</text>
+  <text x="24" y="226" fill="#797979" font-size="10.5">them in FallbackModel, instantiates the one shared chat_agent, then four @chat_agent.tool decorators run</text>
+  <text x="24" y="242" fill="#797979" font-size="10.5">immediately — PydanticAI builds each tool's JSON schema from its signature/docstring right then.</text>
+</svg>

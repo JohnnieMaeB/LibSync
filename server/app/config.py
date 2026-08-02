@@ -21,3 +21,12 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PORT = int(os.getenv("PORT", "3000"))
 IS_TEST_ENV = os.getenv("NODE_ENV") == "test" or os.getenv("ENV") == "test"
 LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
+
+# OpenAlex (Tier 2 research assistant) and Crossref (Tier 2 citation
+# assistant) are free and keyless, but both ask callers to identify
+# themselves via a contact email for their "polite pool" of higher, more
+# reliable rate limits. OPENALEX_API_KEY is optional — OpenAlex's premium
+# tier — and unused unless set.
+OPENALEX_MAILTO = os.getenv("OPENALEX_MAILTO")
+OPENALEX_API_KEY = os.getenv("OPENALEX_API_KEY")
+CROSSREF_MAILTO = os.getenv("CROSSREF_MAILTO")

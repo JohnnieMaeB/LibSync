@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--directory", "server", "uvicorn", "app.main:app", "--reload", "--port", "3000"],
+      "port": 3000
+    },
+    {
+      "name": "client",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "client/src", "-p", "5503", "-c-1"],
+      "port": 5503
+    }
+  ]
+}

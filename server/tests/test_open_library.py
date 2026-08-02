@@ -57,6 +57,7 @@ async def test_search_catalog_returns_title_author_and_availability():
     assert book["first_publish_year"] == 2021
     assert book["availability"] == "lendable"
     assert book["cover_url"] == "https://covers.openlibrary.org/b/id/12345-M.jpg"
+    assert book["url"] == "https://openlibrary.org/works/OL123W"
 
 
 async def test_search_catalog_falls_back_to_ebook_access_without_edition():
@@ -74,6 +75,7 @@ async def test_search_catalog_falls_back_to_ebook_access_without_edition():
 
     assert results[0]["availability"] == "public"
     assert results[0]["cover_url"] is None
+    assert results[0]["url"] is None
 
 
 async def test_search_catalog_returns_empty_list_for_no_matches():
