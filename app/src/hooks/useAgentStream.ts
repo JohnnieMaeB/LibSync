@@ -97,10 +97,15 @@ export function useAgentStream({
   conversationId,
   initialEntries,
   onEntriesChange,
+  libraryId = null,
 }: {
   conversationId: string;
   initialEntries: ChatEntry[];
   onEntriesChange: (conversationId: string, entries: ChatEntry[]) => void;
+  // Set only in widget mode (see App.tsx's WidgetApp / widget.ts) — lets the
+  // backend key per-origin rate limiting and the registration allowlist off
+  // which embedding library sent the request (TIER6_PLAN.md §4).
+  libraryId?: string | null;
 }) {
   const [entries, setEntriesState] = useState<ChatEntry[]>(initialEntries);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -311,7 +316,11 @@ export function useAgentStream({
       const outcome: TurnOutcome = { aborted: false, errorMessage: null };
 
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        const agent = new HttpAgent({ url: `${API_BASE_URL}/agent`, threadId: input.threadId });
+        const agent = new HttpAgent({
+          url: `${API_BASE_URL}/agent`,
+          threadId: input.threadId,
+          headers: libraryId ? { "X-LibSync-Library": libraryId } : undefined,
+        });
         agentRef.current = agent;
         const result = await runAgentOnce(agent, input, onEvent);
 
@@ -357,7 +366,7 @@ export function useAgentStream({
 
       setIsStreaming(false);
     },
-    [commitEntries, conversationId, patchBot],
+    [commitEntries, conversationId, patchBot, libraryId],
   );
 
   const sendMessage = useCallback(

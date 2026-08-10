@@ -52,3 +52,7 @@ class Citation(BaseModel):
 class QueryRequest(BaseModel):
     text: str | None = None
     topK: int | None = None
+
+
+class WidgetRegisterRequest(BaseModel):
+    library_id: str | None = None

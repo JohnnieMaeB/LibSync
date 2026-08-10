@@ -7,14 +7,22 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agent import get_chat_reply, stream_chat_reply
-from app.rate_limit import RATE_LIMIT, limiter
+from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
+from app.widget_registry import check_widget_registration
 
 router = APIRouter()
 
 
 @router.post("/chat")
 @limiter.limit(RATE_LIMIT)
+@limiter.limit(WIDGET_ORIGIN_RATE_LIMIT, key_func=get_origin_or_ip)
 async def chat(request: Request):
+    registration_error = check_widget_registration(
+        request.headers.get("x-libsync-library"), request.headers.get("origin")
+    )
+    if registration_error:
+        return JSONResponse(status_code=403, content={"error": registration_error})
+
     message, session_id = await _parse_chat_request(request)
     if not message:
         return JSONResponse(status_code=400, content={"error": "No message provided"})
@@ -31,7 +39,14 @@ async def chat(request: Request):
 
 @router.post("/chat/stream")
 @limiter.limit(RATE_LIMIT)
+@limiter.limit(WIDGET_ORIGIN_RATE_LIMIT, key_func=get_origin_or_ip)
 async def chat_stream(request: Request):
+    registration_error = check_widget_registration(
+        request.headers.get("x-libsync-library"), request.headers.get("origin")
+    )
+    if registration_error:
+        return JSONResponse(status_code=403, content={"error": registration_error})
+
     message, session_id = await _parse_chat_request(request)
     if not message:
         return JSONResponse(status_code=400, content={"error": "No message provided"})
