@@ -2,7 +2,7 @@
 // script.js via a <script> tag, so script.js can reference API_BASE_URL
 // directly (classic scripts share one global scope) — this file also
 // exports it for Node/Jest, where each require()'d file gets its own scope.
-const API_BASE_URL = "https://libsync-backend-dev.onrender.com";
+const API_BASE_URL = "https://libsync-1.onrender.com";
 
 if (typeof globalThis !== "undefined") {
   globalThis.API_BASE_URL = API_BASE_URL;
