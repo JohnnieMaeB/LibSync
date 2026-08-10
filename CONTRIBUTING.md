@@ -21,10 +21,14 @@ server/         Python/FastAPI + PydanticAI backend (uv-managed)
   app/routers/     /agent (AG-UI, primary), /chat + /chat/stream (fallback), /citation, /api/query
   app/services/    Pinecone, Open Library, OpenAlex, Crossref, citeproc-py clients
 client/src/     Frontend source of truth (vanilla JS/HTML/CSS)
-docs/           GitHub Pages copy, generated from client/src/ — never hand-edit
 pinecone-scripts/  IaC scripts for the Pinecone policy index
-scripts/        Repo-level tooling (currently just sync-docs.js)
+scripts/        build-site.js — client/src/ -> a build dir, with an optional API_BASE_URL override,
+                used by the prod-publish and PR-preview workflows (see below)
 ```
+
+GitHub Pages content itself lives on the `gh-pages` branch (production at its root, PR previews under
+`pr-preview/pr-<number>/`), published by CI rather than hand-committed — see
+[README § PR Previews and Deployment](README.md#-pr-previews-and-deployment).
 
 ## Making a backend change
 
@@ -61,14 +65,10 @@ npm install
 npm test
 ```
 
-After editing anything under `client/src/`, resync `docs/` before committing:
-
-```bash
-npm run sync-docs
-```
-
-CI fails the build if `docs/` doesn't match what `sync-docs` produces, so this isn't optional — it's what
-keeps the two from drifting the way they did before Tier 1.
+Nothing to sync manually — merging to `main` publishes `client/src/` automatically
+([`deploy-pages.yml`](.github/workflows/deploy-pages.yml)), and every PR gets its own live preview at
+`pr-preview/pr-<number>/` ([`pr-preview.yml`](.github/workflows/pr-preview.yml); see
+[README § PR Previews and Deployment](README.md#-pr-previews-and-deployment) for how it's wired up).
 
 `script.js` speaks two wire protocols to the backend: `POST /agent` (AG-UI, primary — `sendMessage()` /
 `consumeAgentStream()` / `handleAgentEvent()`) and the older `/chat`/`/chat/stream` (kept as a fallback, not
@@ -96,6 +96,7 @@ onerror>` in model output never becomes live markup — add a case there if you 
   it's there to avoid a real CORS-preflight-breaking bug (`opentelemetry-instrumentation-fastapi` 0.63b1
   can't handle FastAPI 0.137+'s `_IncludedRouter`), not an arbitrary version freeze. See
   [ARCHITECTURE.md](ARCHITECTURE.md) for the full explanation.
-- Run the relevant test suite(s) before opening a PR. CI runs both (`server-tests`, `client-tests`) plus
-  the docs-sync check on every PR.
+- Run the relevant test suite(s) before opening a PR. CI runs both (`server-tests`, `client-tests`) on every
+  PR, and a preview deploy kicks off separately — see
+  [README § PR Previews and Deployment](README.md#-pr-previews-and-deployment).
 - Prefer a small, focused PR over a large one spanning multiple tiers of the roadmap.

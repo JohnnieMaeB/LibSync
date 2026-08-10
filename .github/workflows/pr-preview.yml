@@ -1,0 +1,181 @@
+name: PR Preview
+
+# Frontend: publishes each PR's client/src/ to gh-pages at
+# pr-preview/pr-<number>/, isolated per PR.
+# Backend: redeploys the single shared "libsync-backend-dev" Render service
+# to this PR's exact commit via its deploy hook's `ref` param. Shared, not
+# per-PR - see the PR comment this posts for the tradeoff.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PREVIEW_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.pull_request.number }}/
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Trigger dev backend deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEV_DEPLOY_HOOK_URL }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "::warning::RENDER_DEV_DEPLOY_HOOK_URL secret is not set - skipping backend deploy. The preview frontend will still publish, but the shared dev backend will keep serving whatever it was last deployed with."
+          else
+            curl -sf -X POST "${DEPLOY_HOOK_URL}&ref=${HEAD_SHA}" > /dev/null \
+              && echo "Triggered dev backend deploy at ${HEAD_SHA}." \
+              || echo "::warning::Render deploy hook request failed - check RENDER_DEV_DEPLOY_HOOK_URL and the libsync-backend-dev service in the Render dashboard."
+          fi
+
+      - name: Build preview site
+        run: |
+          node scripts/build-site.js --out "$RUNNER_TEMP/site" \
+            --api-base-url "${{ vars.DEV_BACKEND_URL || 'https://libsync-backend-dev.onrender.com' }}"
+
+      - name: Publish preview to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # This job must NEVER originate the gh-pages branch — only
+          # deploy-pages.yml (the production publisher) is allowed to create
+          # it, so that gh-pages always has real content at its root before
+          # any pr-preview/ subfolder exists. A previous version of this
+          # workflow fell back to `git init -b gh-pages` whenever the clone
+          # failed for *any* reason (including transient failures, not just
+          # "branch doesn't exist"), which once produced a gh-pages branch
+          # containing only pr-preview/pr-<N>/ and no root index.html —
+          # a real production outage once GitHub Pages was pointed at it.
+          if ! git ls-remote --exit-code --heads "$REPO_URL" gh-pages > /dev/null 2>&1; then
+            echo "::error::gh-pages branch doesn't exist yet. PR previews require production to have published at least once first — push to main (or run deploy-pages.yml via workflow_dispatch) so it can create gh-pages with real root content, then re-run this check."
+            exit 1
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/gh-pages"
+            git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages"
+            cd "$RUNNER_TEMP/gh-pages"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Refuse to publish a preview on top of a broken production
+            # root — this is a direct invariant check ("root must have
+            # index.html"), not just re-checking the one specific failure
+            # mode that broke it before. A preview publishing fine while
+            # prod is silently 404ing would hide exactly the kind of
+            # problem this check exists to catch.
+            if [ ! -f index.html ]; then
+              echo "::error::gh-pages exists but has no root index.html — production is already broken. Not publishing a preview on top of it. Fix the production deploy first (see deploy-pages.yml)."
+              exit 1
+            fi
+
+            mkdir -p "pr-preview/pr-${PR_NUMBER}"
+            rsync -a --delete "$RUNNER_TEMP/site/" "pr-preview/pr-${PR_NUMBER}/"
+            touch .nojekyll
+
+            git add -A
+            if git diff --cached --quiet; then
+              echo "Nothing to publish."
+              break
+            fi
+            git commit -q -m "Publish preview for PR #${PR_NUMBER}"
+            if git push -q origin HEAD:gh-pages; then
+              echo "Published."
+              break
+            fi
+            echo "Push race on gh-pages, retrying ($attempt)..."
+            sleep $((RANDOM % 5 + 2))
+          done
+
+      - name: Comment on PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -e
+          BODY="<!-- pr-preview-bot -->
+          ### Preview deployed
+          - **Frontend:** ${PREVIEW_URL}
+          - **Backend:** shared dev service, redeployed to \`${HEAD_SHA:0:7}\`. Allow ~1 min to build, plus up to ~50s to wake from cold start on the first request.
+
+          The backend is a single shared dev instance, not per-PR - if another open PR pushes after this one, its deploy overwrites this one's."
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --jq '.[] | select(.body | contains("pr-preview-bot")) | .id' | head -n1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$BODY" > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$BODY" > /dev/null
+          fi
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove preview from gh-pages
+        id: cleanup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if ! git ls-remote --exit-code --heads "$REPO_URL" gh-pages > /dev/null 2>&1; then
+            echo "gh-pages branch doesn't exist, nothing to clean up."
+            exit 0
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/gh-pages"
+            git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages"
+            cd "$RUNNER_TEMP/gh-pages"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            if [ ! -d "pr-preview/pr-${PR_NUMBER}" ]; then
+              echo "No preview directory to remove."
+              exit 0
+            fi
+            git rm -rq "pr-preview/pr-${PR_NUMBER}"
+            git commit -q -m "Remove preview for PR #${PR_NUMBER}"
+            if git push -q origin HEAD:gh-pages; then
+              echo "Cleaned up."
+              exit 0
+            fi
+            echo "Push race on gh-pages, retrying ($attempt)..."
+            sleep $((RANDOM % 5 + 2))
+          done
+
+      - name: Comment on PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          BODY="<!-- pr-preview-bot -->
+          Preview removed."
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --jq '.[] | select(.body | contains("pr-preview-bot")) | .id' | head -n1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$BODY" > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$BODY" > /dev/null
+          fi
