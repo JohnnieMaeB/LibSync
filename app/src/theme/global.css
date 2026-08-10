@@ -20,6 +20,27 @@ body {
     overflow: hidden;
 }
 
+/* On mobile the sidebar is a fixed-position drawer overlaying the full
+   viewport, so the shell stays edge-to-edge there. At >=640px the sidebar
+   sits in normal flex flow (see the .sidebar media query below) — from
+   that point on, inset the whole shell as one floating rounded panel
+   against the body backdrop. This is the only way header/sidebar/content's
+   *outer* corners can actually show as rounded: they're internal bars with
+   no background behind their own corners to reveal a curve, but clipped as
+   a group inside this rounded, overflow-hidden panel, the panel's corner
+   radius shows through regardless of what's flush against it inside. */
+@media (min-width: 640px) {
+    .app-shell:not(.compact) {
+        margin: var(--ls-space-4);
+        width: calc(100% - var(--ls-space-4) * 2);
+        height: calc(100vh - var(--ls-space-4) * 2);
+        height: calc(100dvh - var(--ls-space-4) * 2);
+        border-radius: var(--ls-radius-xl);
+        border: 1px solid var(--ls-border);
+        box-shadow: var(--ls-shadow-lg);
+    }
+}
+
 .main-column {
     flex: 1;
     min-width: 0;
@@ -416,7 +437,7 @@ h1 {
     background-color: #1e1e1e;
     color: var(--ls-text);
     border: 1px solid var(--ls-border);
-    border-radius: var(--ls-radius-pill);
+    border-radius: var(--ls-radius-lg);
     padding: 6px 12px;
     font-size: 0.8rem;
     cursor: pointer;
@@ -436,7 +457,7 @@ h1 {
     gap: 6px;
     background-color: #1e1e1e;
     border: 1px solid var(--ls-border);
-    border-radius: var(--ls-radius-pill);
+    border-radius: var(--ls-radius-lg);
     padding: 4px 10px;
     font-size: 0.8rem;
     color: var(--ls-text-muted);
@@ -462,8 +483,8 @@ h1 {
     background: none;
     border: 1px solid var(--ls-border);
     color: var(--ls-text-muted);
-    border-radius: var(--ls-radius-pill);
-    padding: 2px 10px;
+    border-radius: var(--ls-radius-sm);
+    padding: 2px 8px;
     font-size: 0.75rem;
     cursor: pointer;
 }
@@ -478,7 +499,7 @@ h1 {
     display: inline-block;
     margin-bottom: 6px;
     padding: 2px 8px;
-    border-radius: var(--ls-radius-pill);
+    border-radius: var(--ls-radius-sm);
     font-size: 0.72rem;
     font-weight: 600;
     background-color: rgba(127, 179, 217, 0.15);
@@ -511,7 +532,7 @@ h1 {
     background-color: var(--ls-accent);
     color: #222;
     border: none;
-    border-radius: var(--ls-radius-pill);
+    border-radius: var(--ls-radius-lg);
     padding: 6px 14px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -545,17 +566,17 @@ footer {
   width: 100%;
   max-width: var(--ls-content-max-width);
   background-color: #1e1e1e;
-  border: 1px solid var(--ls-border);
+  border: 1px solid rgba(255, 209, 102, 0.35);
   border-radius: var(--ls-radius-xl);
   padding: var(--ls-space-2);
   padding-left: var(--ls-space-4);
-  box-shadow: var(--ls-shadow-md);
+  box-shadow: var(--ls-shadow-md), 0 0 0 1px rgba(255, 209, 102, 0.06) inset;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .composer-bar:focus-within {
   border-color: var(--ls-accent);
-  box-shadow: var(--ls-shadow-md), 0 0 0 3px rgba(255, 209, 102, 0.15);
+  box-shadow: var(--ls-shadow-md), 0 0 0 3px rgba(255, 209, 102, 0.2);
 }
 
 #userInput {
@@ -679,7 +700,7 @@ summary:focus-visible,
     background-color: #1e1e1e;
     border: 1px solid var(--ls-border);
     border-left: 3px solid var(--ls-accent);
-    border-radius: var(--ls-radius-md);
+    border-radius: var(--ls-radius-lg);
     padding: 10px 14px;
     margin-bottom: 6px;
     box-shadow: var(--ls-shadow-sm);
@@ -741,7 +762,7 @@ a.work-card-title:hover {
     display: inline-block;
     margin-top: 6px;
     padding: 2px 8px;
-    border-radius: var(--ls-radius-pill);
+    border-radius: var(--ls-radius-sm);
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #333;
@@ -782,7 +803,7 @@ a.work-card-title:hover {
 .work-card-oa {
     display: inline-block;
     padding: 2px 8px;
-    border-radius: var(--ls-radius-pill);
+    border-radius: var(--ls-radius-sm);
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #333;
@@ -832,8 +853,8 @@ a.work-card-title:hover {
     background-color: #333;
     color: #ddd;
     border: none;
-    border-radius: var(--ls-radius-pill);
-    padding: 4px 12px;
+    border-radius: var(--ls-radius-sm);
+    padding: 4px 10px;
     font-size: 0.8rem;
     cursor: pointer;
 }
