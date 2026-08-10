@@ -33,6 +33,21 @@
   --ls-z-sidebar: 10;
   --ls-z-overlay: 20;
   --ls-z-scroll-btn: 5;
+
+  /* radius scale */
+  --ls-radius-sm: 8px;
+  --ls-radius-md: 12px;
+  --ls-radius-lg: 18px;
+  --ls-radius-xl: 24px;
+  --ls-radius-pill: 999px;
+
+  /* elevation */
+  --ls-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --ls-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --ls-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.45);
+
+  /* comfortable max reading width for chat content on wide viewports */
+  --ls-content-max-width: 780px;
 }
 
 /*

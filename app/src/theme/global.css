@@ -79,12 +79,23 @@ body {
     top: var(--ls-space-3);
     left: var(--ls-space-3);
     z-index: var(--ls-z-sidebar);
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--ls-surface);
     border: 1px solid var(--ls-border);
     color: var(--ls-text);
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: var(--ls-radius-pill);
+    box-shadow: var(--ls-shadow-sm);
     cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-open-toggle:hover {
+    border-color: var(--ls-accent);
+    color: var(--ls-accent);
 }
 
 @media (min-width: 640px) {
@@ -121,7 +132,7 @@ body {
     background: var(--ls-accent);
     color: #1a1204;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--ls-radius-md);
     padding: 8px 12px;
     font-weight: 600;
     cursor: pointer;
@@ -139,13 +150,24 @@ body {
 
 .sidebar-collapse-toggle,
 .sidebar-close {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: 1px solid var(--ls-border);
     color: var(--ls-text-muted);
-    border-radius: 6px;
-    padding: 4px 8px;
+    border-radius: var(--ls-radius-pill);
     cursor: pointer;
     flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-collapse-toggle:hover,
+.sidebar-close:hover {
+    border-color: var(--ls-accent);
+    color: var(--ls-accent);
 }
 
 .sidebar-close {
@@ -180,7 +202,7 @@ body {
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--ls-radius-md);
     color: var(--ls-text-muted);
 }
 
@@ -211,7 +233,7 @@ li.active .sidebar-conversation {
     flex: 1;
     background: #1e1e1e;
     border: 1px solid var(--ls-accent);
-    border-radius: 4px;
+    border-radius: var(--ls-radius-sm);
     color: var(--ls-text);
     padding: 2px 6px;
     font: inherit;
@@ -251,11 +273,12 @@ li.active .sidebar-conversation {
 
 .app-shell.compact .container {
     background-color: var(--ls-surface);
-    border-radius: 15px;
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-xl);
     max-width: 420px;
     height: 90vh;
     max-height: 700px;
-    box-shadow: 0 0 15px var(--ls-accent);
+    box-shadow: var(--ls-shadow-lg);
     position: relative;
 }
 
@@ -312,7 +335,7 @@ h1 {
     line-height: 1;
     cursor: pointer;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--ls-radius-sm);
     flex-shrink: 0;
 }
 
@@ -323,29 +346,34 @@ h1 {
 #chatBox {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 15px;
+  /* Comfortable centered reading width on wide viewports, while the
+     scrollbar itself still tracks the true container edge (not the
+     content's edge) — see --ls-content-max-width. */
+  padding: var(--ls-space-4) max(15px, calc((100% - var(--ls-content-max-width)) / 2));
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ls-space-3);
   position: relative;
 }
 
 .bot, .user {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: var(--ls-radius-lg);
   max-width: 80%;
-  line-height: 1.4;
+  line-height: 1.5;
   word-wrap: break-word;
 }
 
 .bot {
   background-color: var(--ls-bubble-bot);
   align-self: flex-start;
+  border-bottom-left-radius: var(--ls-radius-sm);
 }
 
 .user {
   background-color: var(--ls-bubble-user);
   align-self: flex-end;
+  border-bottom-right-radius: var(--ls-radius-sm);
 }
 
 .bot.error {
@@ -360,7 +388,7 @@ h1 {
     background-color: var(--ls-danger);
     color: #1a0d0a;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--ls-radius-sm);
     padding: 4px 10px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -388,7 +416,7 @@ h1 {
     background-color: #1e1e1e;
     color: var(--ls-text);
     border: 1px solid var(--ls-border);
-    border-radius: 16px;
+    border-radius: var(--ls-radius-pill);
     padding: 6px 12px;
     font-size: 0.8rem;
     cursor: pointer;
@@ -408,7 +436,7 @@ h1 {
     gap: 6px;
     background-color: #1e1e1e;
     border: 1px solid var(--ls-border);
-    border-radius: 14px;
+    border-radius: var(--ls-radius-pill);
     padding: 4px 10px;
     font-size: 0.8rem;
     color: var(--ls-text-muted);
@@ -434,8 +462,8 @@ h1 {
     background: none;
     border: 1px solid var(--ls-border);
     color: var(--ls-text-muted);
-    border-radius: 6px;
-    padding: 2px 8px;
+    border-radius: var(--ls-radius-pill);
+    padding: 2px 10px;
     font-size: 0.75rem;
     cursor: pointer;
 }
@@ -450,7 +478,7 @@ h1 {
     display: inline-block;
     margin-bottom: 6px;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--ls-radius-pill);
     font-size: 0.72rem;
     font-weight: 600;
     background-color: rgba(127, 179, 217, 0.15);
@@ -477,18 +505,18 @@ h1 {
 /* Scroll-to-latest floating button */
 .scroll-to-latest {
     position: absolute;
-    bottom: 78px;
+    bottom: 88px;
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--ls-accent);
     color: #222;
     border: none;
-    border-radius: 16px;
+    border-radius: var(--ls-radius-pill);
     padding: 6px 14px;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--ls-shadow-md);
     z-index: 2;
 }
 
@@ -502,20 +530,48 @@ h1 {
 
 footer {
   display: flex;
-  background: #252525;
-  border-top: 1px solid var(--ls-border);
-  padding: 5px;
+  justify-content: center;
+  background: transparent;
+  border-top: none;
+  padding: var(--ls-space-2) var(--ls-space-4) var(--ls-space-4);
+}
+
+/* Floating pill-shaped input bar, detached from the edge rather than a flat
+   toolbar — the visual weight lives on this bar, not on `footer` itself. */
+.composer-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ls-space-2);
+  width: 100%;
+  max-width: var(--ls-content-max-width);
+  background-color: #1e1e1e;
+  border: 1px solid var(--ls-border);
+  border-radius: var(--ls-radius-xl);
+  padding: var(--ls-space-2);
+  padding-left: var(--ls-space-4);
+  box-shadow: var(--ls-shadow-md);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.composer-bar:focus-within {
+  border-color: var(--ls-accent);
+  box-shadow: var(--ls-shadow-md), 0 0 0 3px rgba(255, 209, 102, 0.15);
 }
 
 #userInput {
   flex: 1;
   background: none;
   border: none;
-  color: #fff;
-  padding: 12px;
+  color: var(--ls-text);
+  padding: 10px 0;
   font-size: 1rem;
+  line-height: 1.4;
   resize: none;
   font-family: var(--ls-font);
+}
+
+#userInput::placeholder {
+  color: var(--ls-text-muted);
 }
 
 #userInput:focus {
@@ -523,22 +579,42 @@ footer {
 }
 
 #sendBtn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background-color: var(--ls-accent);
-  color: #222;
+  color: #1a1204;
   border: none;
-  padding: 12px 20px;
-  font-weight: bold;
+  border-radius: var(--ls-radius-pill);
   cursor: pointer;
-  transition: background 0.3s;
-  border-radius: 10px;
+  transition: background-color 0.15s, transform 0.1s;
 }
 
-#sendBtn:hover {
+#sendBtn:hover:not(:disabled) {
   background-color: var(--ls-accent-hover);
+}
+
+#sendBtn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+#sendBtn:disabled {
+  background-color: #3a3a3a;
+  color: var(--ls-text-muted);
+  cursor: not-allowed;
+}
+
+#sendBtn svg {
+  width: 18px;
+  height: 18px;
 }
 
 #sendBtn.stopping {
     background-color: var(--ls-danger);
+    color: #1a0d0a;
 }
 
 #sendBtn.stopping:hover {
@@ -603,10 +679,11 @@ summary:focus-visible,
     background-color: #1e1e1e;
     border: 1px solid var(--ls-border);
     border-left: 3px solid var(--ls-accent);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: var(--ls-radius-md);
+    padding: 10px 14px;
     margin-bottom: 6px;
-    transition: box-shadow 0.2s, border-color 0.2s;
+    box-shadow: var(--ls-shadow-sm);
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
 }
 
 .work-card,
@@ -617,8 +694,9 @@ summary:focus-visible,
 .book-card:hover,
 .work-card:hover,
 .citation-card:hover {
-    box-shadow: 0 0 10px rgba(255, 209, 102, 0.35);
+    box-shadow: var(--ls-shadow-md), 0 0 0 1px rgba(255, 209, 102, 0.25);
     border-color: var(--ls-accent);
+    transform: translateY(-1px);
 }
 
 .book-card:last-child,
@@ -630,7 +708,7 @@ summary:focus-visible,
     width: 40px;
     height: 60px;
     object-fit: cover;
-    border-radius: 4px;
+    border-radius: var(--ls-radius-sm);
     flex-shrink: 0;
 }
 
@@ -663,7 +741,7 @@ a.work-card-title:hover {
     display: inline-block;
     margin-top: 6px;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--ls-radius-pill);
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #333;
@@ -704,7 +782,7 @@ a.work-card-title:hover {
 .work-card-oa {
     display: inline-block;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--ls-radius-pill);
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #333;
@@ -754,8 +832,8 @@ a.work-card-title:hover {
     background-color: #333;
     color: #ddd;
     border: none;
-    border-radius: 6px;
-    padding: 4px 10px;
+    border-radius: var(--ls-radius-pill);
+    padding: 4px 12px;
     font-size: 0.8rem;
     cursor: pointer;
 }
@@ -768,7 +846,7 @@ a.work-card-title:hover {
     background-color: #333;
     color: #ddd;
     border: 1px solid #444;
-    border-radius: 6px;
+    border-radius: var(--ls-radius-sm);
     padding: 4px 8px;
     font-size: 0.8rem;
 }
