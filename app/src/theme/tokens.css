@@ -15,4 +15,45 @@
   --ls-info: #7fb3d9;
 
   --ls-font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* spacing scale */
+  --ls-space-1: 4px;
+  --ls-space-2: 8px;
+  --ls-space-3: 12px;
+  --ls-space-4: 16px;
+  --ls-space-5: 24px;
+  --ls-space-6: 32px;
+
+  /* dynamic layout shell (Tier 5) */
+  --ls-sidebar-width: 260px;
+  --ls-sidebar-width-tablet: 220px;
+  --ls-sidebar-width-collapsed: 64px;
+
+  /* z-index scale */
+  --ls-z-sidebar: 10;
+  --ls-z-overlay: 20;
+  --ls-z-scroll-btn: 5;
+
+  /* radius scale */
+  --ls-radius-sm: 8px;
+  --ls-radius-md: 12px;
+  --ls-radius-lg: 18px;
+  --ls-radius-xl: 24px;
+  --ls-radius-pill: 999px;
+
+  /* elevation */
+  --ls-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --ls-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --ls-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.45);
+
+  /* comfortable max reading width for chat content on wide viewports */
+  --ls-content-max-width: 780px;
 }
+
+/*
+ * Breakpoints (documented here since media queries can't consume custom
+ * properties for the query condition itself):
+ *   mobile:  <640px   — drawer sidebar
+ *   tablet:  640-1024px — narrower fixed sidebar
+ *   desktop: >=1024px — full layout, collapsible sidebar
+ */

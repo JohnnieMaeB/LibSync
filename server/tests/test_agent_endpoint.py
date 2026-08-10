@@ -25,6 +25,18 @@ def _run_agent_input(*, thread_id: str, content: str) -> dict:
     }
 
 
+def _run_agent_input_with_messages(*, thread_id: str, messages: list[dict]) -> dict:
+    return {
+        "threadId": thread_id,
+        "runId": str(uuid.uuid4()),
+        "state": None,
+        "messages": [{"id": str(uuid.uuid4()), **message} for message in messages],
+        "tools": [],
+        "context": [],
+        "forwardedProps": None,
+    }
+
+
 def _parse_sse_events(text: str) -> list[dict]:
     events = []
     for line in text.splitlines():
@@ -205,6 +217,53 @@ class TestAgentEndpoint:
         for response in (first, other):
             deltas = "".join(e["delta"] for e in _parse_sse_events(response.text) if e["type"] == "TEXT_MESSAGE_CONTENT")
             assert deltas == "message_count=1"
+
+    def test_client_supplied_full_history_is_used_without_any_prior_request(self, client):
+        # Tier 5: the client itself resends every prior turn (see
+        # app/src/hooks/useAgentStream.ts's entriesToMessages) instead of
+        # relying on SessionStore across requests. A brand-new thread that's
+        # never hit `/agent` before should still see the full history the
+        # client sent in a *single* request.
+        with chat_agent.override(model=FunctionModel(stream_function=history_counting_stream_function)):
+            response = client.post(
+                "/agent",
+                json=_run_agent_input_with_messages(
+                    thread_id="thread-stateless",
+                    messages=[
+                        {"role": "user", "content": "turn one"},
+                        {"role": "assistant", "content": "reply one"},
+                        {"role": "user", "content": "turn two"},
+                    ],
+                ),
+            )
+
+        deltas = "".join(e["delta"] for e in _parse_sse_events(response.text) if e["type"] == "TEXT_MESSAGE_CONTENT")
+        assert deltas == "message_count=3"
+
+    def test_multi_message_request_does_not_double_count_history_from_an_earlier_single_message_turn(self, client):
+        # A thread starts with the old single-message shape (populating
+        # SessionStore), then the client switches to sending its own full
+        # history on the next turn. The server must not also prepend
+        # SessionStore's copy on top, or the shared turns get counted twice.
+        with chat_agent.override(model=FunctionModel(stream_function=history_counting_stream_function)):
+            first = client.post("/agent", json=_run_agent_input(thread_id="thread-mixed", content="turn one"))
+            assert "".join(
+                e["delta"] for e in _parse_sse_events(first.text) if e["type"] == "TEXT_MESSAGE_CONTENT"
+            ) == "message_count=1"
+
+            second = client.post(
+                "/agent",
+                json=_run_agent_input_with_messages(
+                    thread_id="thread-mixed",
+                    messages=[
+                        {"role": "user", "content": "turn one"},
+                        {"role": "assistant", "content": "reply one"},
+                        {"role": "user", "content": "turn two"},
+                    ],
+                ),
+            )
+        deltas = "".join(e["delta"] for e in _parse_sse_events(second.text) if e["type"] == "TEXT_MESSAGE_CONTENT")
+        assert deltas == "message_count=3"
 
     def test_tool_call_shows_start_and_result_events(self, client, monkeypatch):
         # Phase 6 only covers the transport: proves a tool call surfaces as a

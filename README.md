@@ -227,6 +227,14 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
   the answer
 - Copy and regenerate actions on bot replies; a floating scroll-to-latest control while streaming
 - Accessible by default: `aria-live` chat log, visible keyboard focus rings, `prefers-reduced-motion` support
+- A dynamic, responsive layout — persistent sidebar on desktop, narrower fixed sidebar on tablet, a slide-over
+  drawer on mobile — with `Cmd/Ctrl+K` for a new chat and `Esc` to close the mobile drawer
+- Multi-conversation chat history, stored client-side in IndexedDB (no accounts, no server-side storage):
+  named, renamable, deletable conversations that survive a page reload
+- Installable as a PWA on desktop and Android (a manifest + service worker cache static assets for the
+  "Add to Home Screen"/desktop-install experience). **iOS note:** Safari has no automatic install prompt —
+  installing requires the user to manually choose "Add to Home Screen" from the share sheet, and iOS has
+  historically lagged Android on PWA feature parity (e.g. push notifications, background sync)
 - Cloud deployment for remote access
 
 ---
@@ -422,12 +430,17 @@ lookups, multi-turn continuity, honesty boundaries) with expected answers to che
 ```
 LibSync/
 ├── app/                  # Frontend source of truth (React + TypeScript, Vite)
+│   ├── public/                # PWA icons (icon-192/512/512-maskable.png) — copied into app/dist as-is
 │   ├── src/
 │   │   ├── config.ts         # API_BASE_URL — the one place that changes per environment
-│   │   ├── hooks/             # useAgentStream (AG-UI transport via @ag-ui/client's HttpAgent)
-│   │   ├── components/        # Chat UI, book/research/citation cards
-│   │   └── lib/                # Safe markdown renderer, session id, plain-text extraction
-│   └── vite.config.ts        # outDir: 'dist' (gitignored) — published by scripts/build-site.js, not hand-committed
+│   │   ├── hooks/             # useAgentStream (AG-UI transport), useConversations (IndexedDB-backed
+│   │   │                        multi-conversation state), useKeyboardShortcuts (Cmd/Ctrl+K, Esc)
+│   │   ├── components/        # Chat UI, book/research/citation cards, AppShell/Sidebar (Tier 5 layout)
+│   │   └── lib/                # Safe markdown renderer, id generation, plain-text extraction,
+│   │                             db.ts (IndexedDB conversation store, via `idb`)
+│   └── vite.config.ts        # outDir: 'dist' (gitignored); also configures vite-plugin-pwa
+│                                (manifest + service worker) — published by scripts/build-site.js,
+│                                not hand-committed
 ├── scripts/
 │   └── build-site.js        # runs `vite build` in app/ into an output dir, with an optional
 │                             # VITE_API_BASE_URL override — used by both the prod publish and
@@ -568,8 +581,8 @@ embeddable widget:
 | 1 | **✅ Complete** — Foundation: real RAG, real catalog data (Open Library), a $0-safe LLM provider (Groq), session continuity, observability | [TIER1_PLAN.md](TIER1_PLAN.md) | [planning/TIER1_PLAN.html](planning/TIER1_PLAN.html) | [rendered](https://claude.ai/code/artifact/6d36123a-b07b-471b-b792-fa2f72f70222) |
 | 2 | **✅ Complete** — Interactive & research: AG-UI streaming transport, interactive book/research/citation cards, OpenAlex + Crossref/citeproc tooling | [TIER2_PLAN.md](TIER2_PLAN.md) | [planning/TIER2_PLAN.html](planning/TIER2_PLAN.html) | [rendered](https://claude.ai/code/artifact/6a4601ca-c629-478a-818f-fc6134221838) |
 | 3 | **✅ Complete** — UI/UX: an escape-by-default safe markdown renderer (closes the raw-`innerHTML` XSS gap), an accessibility baseline (`aria-live` chat log, focus rings, reduced-motion), suggestion chips, per-tool status pills, stop/regenerate/copy actions, grounded-citation UI (numbered source badges + tag), and a real design-token system on top of the current brand | [TIER3_PLAN.md](TIER3_PLAN.md) | [planning/TIER3_PLAN.html](planning/TIER3_PLAN.html) | [rendered](https://claude.ai/code/artifact/e444be53-8ca6-4813-8e07-2c6c92653448) |
-| 4 | React migration — behavior-preserving move to React + CopilotKit/AG-UI, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |
-| 5 | Standalone web app — dynamic responsive layout, PWA installability, and **multi-conversation chat history** | [TIER5_PLAN.md](TIER5_PLAN.md) | [planning/TIER5_PLAN.html](planning/TIER5_PLAN.html) | [rendered](https://claude.ai/code/artifact/501ca3cc-b4c9-4f9a-a233-54a43134eb5a) |
+| 4 | **✅ Complete** — React migration — behavior-preserving move to React + AG-UI transport, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |
+| 5 | **✅ Complete** — Standalone web app — dynamic responsive layout, PWA installability, and **multi-conversation chat history** (client-side, IndexedDB) | [TIER5_PLAN.md](TIER5_PLAN.md) | [planning/TIER5_PLAN.html](planning/TIER5_PLAN.html) | [rendered](https://claude.ai/code/artifact/501ca3cc-b4c9-4f9a-a233-54a43134eb5a) |
 | 6 | Embeddable widget — a two-line snippet for library websites, iframe-isolated, reusing the Tier 4 components | [TIER6_PLAN.md](TIER6_PLAN.md) | [planning/TIER6_PLAN.html](planning/TIER6_PLAN.html) | [rendered](https://claude.ai/code/artifact/bdb8c64e-4019-4c39-bf6f-7d05538e3b30) |
 | 7 | Mobile apps — Capacitor wraps the Tier 5 app for iOS/Android; $0-complete via sideload, store publication marked as an explicit paid exception | [TIER7_PLAN.md](TIER7_PLAN.md) | [planning/TIER7_PLAN.html](planning/TIER7_PLAN.html) | [rendered](https://claude.ai/code/artifact/807f868c-4dda-4507-8960-84c4c93ea233) |
 | 8 | Developer/manager/statistics dashboard — real multi-tenancy (Supabase + Pinecone namespaces), Koha catalog integration, Logfire-powered usage stats, for library staff — **with dashboard/connector mockups** | [TIER8_PLAN.md](TIER8_PLAN.md) | [planning/TIER8_PLAN.html](planning/TIER8_PLAN.html) | [rendered](https://claude.ai/code/artifact/79654d95-bdfa-44df-af27-c9a46e41fc1b) |

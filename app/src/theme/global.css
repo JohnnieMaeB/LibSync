@@ -6,24 +6,317 @@ body {
   background-color: var(--ls-bg);
   color: var(--ls-text);
   font-family: var(--ls-font);
-  display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
   margin: 0;
+  overflow: hidden;
+}
+
+/* Dynamic layout shell (Tier 5): sidebar + full-height main column */
+.app-shell {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* On mobile the sidebar is a fixed-position drawer overlaying the full
+   viewport, so the shell stays edge-to-edge there. At >=640px the sidebar
+   sits in normal flex flow (see the .sidebar media query below) — from
+   that point on, inset the whole shell against the body backdrop and treat
+   the sidebar and main column as two independent rounded panels with a
+   real gap between them, rather than one flush divider line. A shared
+   outer radius alone doesn't round *that* seam — the divider is an
+   internal border with no background behind its own corner to reveal a
+   curve — so each panel needs its own corners and something visible
+   (the shell's own --ls-bg fill) showing through the gap between them. */
+@media (min-width: 640px) {
+    .app-shell:not(.compact) {
+        margin: var(--ls-space-4);
+        width: calc(100% - var(--ls-space-4) * 2);
+        height: calc(100vh - var(--ls-space-4) * 2);
+        height: calc(100dvh - var(--ls-space-4) * 2);
+        border-radius: var(--ls-radius-xl);
+        background-color: var(--ls-bg);
+        box-shadow: var(--ls-shadow-lg);
+        overflow: hidden;
+    }
+
+    .app-shell:not(.compact) .sidebar {
+        height: auto;
+        align-self: stretch;
+        margin: var(--ls-space-2) 0 var(--ls-space-2) var(--ls-space-2);
+        border: 1px solid var(--ls-border);
+        border-radius: var(--ls-radius-lg);
+    }
+
+    .app-shell:not(.compact) .main-column {
+        margin: var(--ls-space-2);
+        border: 1px solid var(--ls-border);
+        border-radius: var(--ls-radius-lg);
+        overflow: hidden;
+    }
+}
+
+.main-column {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .container {
-    background-color: var(--ls-surface);
-    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Sidebar: drawer on mobile (<640px), narrower fixed on tablet
+   (640-1024px), full-width and collapsible on desktop (>=1024px) */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    width: var(--ls-sidebar-width);
+    height: 100%;
+    background-color: var(--ls-surface);
+    border-right: 1px solid var(--ls-border);
+    flex-shrink: 0;
+    transition: width 0.2s, transform 0.2s;
+    position: fixed;
+    inset: 0 auto 0 0;
+    transform: translateX(-100%);
+    z-index: var(--ls-z-sidebar);
+}
+
+.sidebar.open {
+    transform: translateX(0);
+}
+
+.sidebar.collapsed {
+    width: var(--ls-sidebar-width-collapsed);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: var(--ls-z-overlay);
+}
+
+.sidebar-overlay.open {
+    display: block;
+}
+
+.sidebar-open-toggle {
+    position: fixed;
+    top: var(--ls-space-3);
+    left: var(--ls-space-3);
+    z-index: var(--ls-z-sidebar);
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ls-surface);
+    border: 1px solid var(--ls-border);
+    color: var(--ls-text);
+    border-radius: var(--ls-radius-pill);
+    box-shadow: var(--ls-shadow-sm);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-open-toggle:hover {
+    border-color: var(--ls-accent);
+    color: var(--ls-accent);
+}
+
+@media (min-width: 640px) {
+    .sidebar {
+        position: relative;
+        transform: none;
+        width: var(--ls-sidebar-width-tablet);
+    }
+    .sidebar-overlay,
+    .sidebar-open-toggle {
+        display: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .sidebar {
+        width: var(--ls-sidebar-width);
+    }
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: var(--ls-space-2);
+    padding: var(--ls-space-3);
+    border-bottom: 1px solid var(--ls-border);
+}
+
+.sidebar-new-chat {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--ls-space-2);
+    background: var(--ls-accent);
+    color: #1a1204;
+    border: none;
+    border-radius: var(--ls-radius-md);
+    padding: 8px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sidebar-new-chat:hover {
+    background: var(--ls-accent-hover);
+}
+
+.sidebar.collapsed .sidebar-label,
+.sidebar.collapsed .sidebar-conversation-title,
+.sidebar.collapsed .sidebar-conversation-actions {
+    display: none;
+}
+
+.sidebar-collapse-toggle,
+.sidebar-close {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--ls-border);
+    color: var(--ls-text-muted);
+    border-radius: var(--ls-radius-pill);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-collapse-toggle:hover,
+.sidebar-close:hover {
+    border-color: var(--ls-accent);
+    color: var(--ls-accent);
+}
+
+.sidebar-close {
+    display: none;
+}
+
+@media (max-width: 639px) {
+    .sidebar-close {
+        display: inline-block;
+    }
+    .sidebar-collapse-toggle {
+        display: none;
+    }
+}
+
+.sidebar-conversations {
+    list-style: none;
+    margin: 0;
+    padding: var(--ls-space-2);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sidebar-empty {
+    padding: var(--ls-space-3);
+    color: var(--ls-text-muted);
+    font-size: 0.85rem;
+}
+
+.sidebar-conversation {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: var(--ls-radius-md);
+    color: var(--ls-text-muted);
+}
+
+.sidebar-conversation:hover {
+    background: var(--ls-bubble-bot);
+}
+
+li.active .sidebar-conversation {
+    background: var(--ls-bubble-bot);
+    color: var(--ls-text);
+}
+
+.sidebar-conversation-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: 0;
+}
+
+.sidebar-conversation-rename-input {
+    flex: 1;
+    background: #1e1e1e;
+    border: 1px solid var(--ls-accent);
+    border-radius: var(--ls-radius-sm);
+    color: var(--ls-text);
+    padding: 2px 6px;
+    font: inherit;
+    min-width: 0;
+}
+
+.sidebar-conversation-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+}
+
+.sidebar-conversation:hover .sidebar-conversation-actions,
+.sidebar-conversation:focus-within .sidebar-conversation-actions {
+    opacity: 1;
+}
+
+.sidebar-conversation-action-btn {
+    background: none;
+    border: none;
+    color: var(--ls-text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 0.85rem;
+}
+
+.sidebar-conversation-action-btn:hover {
+    color: var(--ls-accent);
+}
+
+/* Compact mode: the original fixed 420px widget card, kept for Tier 6's
+   embeddable widget to reuse directly (see TIER5_PLAN.md §3) */
+.app-shell.compact {
+    justify-content: center;
+    align-items: center;
+}
+
+.app-shell.compact .container {
+    background-color: var(--ls-surface);
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-xl);
     max-width: 420px;
     height: 90vh;
     max-height: 700px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 0 15px var(--ls-accent);
-    overflow: hidden;
+    box-shadow: var(--ls-shadow-lg);
     position: relative;
 }
 
@@ -80,7 +373,7 @@ h1 {
     line-height: 1;
     cursor: pointer;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--ls-radius-sm);
     flex-shrink: 0;
 }
 
@@ -91,29 +384,34 @@ h1 {
 #chatBox {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 15px;
+  /* Comfortable centered reading width on wide viewports, while the
+     scrollbar itself still tracks the true container edge (not the
+     content's edge) — see --ls-content-max-width. */
+  padding: var(--ls-space-4) max(15px, calc((100% - var(--ls-content-max-width)) / 2));
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ls-space-3);
   position: relative;
 }
 
 .bot, .user {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: var(--ls-radius-lg);
   max-width: 80%;
-  line-height: 1.4;
+  line-height: 1.5;
   word-wrap: break-word;
 }
 
 .bot {
   background-color: var(--ls-bubble-bot);
   align-self: flex-start;
+  border-bottom-left-radius: var(--ls-radius-sm);
 }
 
 .user {
   background-color: var(--ls-bubble-user);
   align-self: flex-end;
+  border-bottom-right-radius: var(--ls-radius-sm);
 }
 
 .bot.error {
@@ -128,7 +426,7 @@ h1 {
     background-color: var(--ls-danger);
     color: #1a0d0a;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--ls-radius-sm);
     padding: 4px 10px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -156,7 +454,7 @@ h1 {
     background-color: #1e1e1e;
     color: var(--ls-text);
     border: 1px solid var(--ls-border);
-    border-radius: 16px;
+    border-radius: var(--ls-radius-lg);
     padding: 6px 12px;
     font-size: 0.8rem;
     cursor: pointer;
@@ -176,7 +474,7 @@ h1 {
     gap: 6px;
     background-color: #1e1e1e;
     border: 1px solid var(--ls-border);
-    border-radius: 14px;
+    border-radius: var(--ls-radius-lg);
     padding: 4px 10px;
     font-size: 0.8rem;
     color: var(--ls-text-muted);
@@ -202,7 +500,7 @@ h1 {
     background: none;
     border: 1px solid var(--ls-border);
     color: var(--ls-text-muted);
-    border-radius: 6px;
+    border-radius: var(--ls-radius-sm);
     padding: 2px 8px;
     font-size: 0.75rem;
     cursor: pointer;
@@ -218,7 +516,7 @@ h1 {
     display: inline-block;
     margin-bottom: 6px;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--ls-radius-sm);
     font-size: 0.72rem;
     font-weight: 600;
     background-color: rgba(127, 179, 217, 0.15);
@@ -245,18 +543,18 @@ h1 {
 /* Scroll-to-latest floating button */
 .scroll-to-latest {
     position: absolute;
-    bottom: 78px;
+    bottom: 88px;
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--ls-accent);
     color: #222;
     border: none;
-    border-radius: 16px;
+    border-radius: var(--ls-radius-lg);
     padding: 6px 14px;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--ls-shadow-md);
     z-index: 2;
 }
 
@@ -270,20 +568,51 @@ h1 {
 
 footer {
   display: flex;
-  background: #252525;
-  border-top: 1px solid var(--ls-border);
-  padding: 5px;
+  justify-content: center;
+  background: transparent;
+  border-top: none;
+  padding: var(--ls-space-2) var(--ls-space-4) var(--ls-space-4);
+}
+
+/* Floating pill-shaped input bar, detached from the edge rather than a flat
+   toolbar — the visual weight lives on this bar, not on `footer` itself. */
+.composer-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ls-space-2);
+  width: 100%;
+  max-width: var(--ls-content-max-width);
+  /* Warm-tinted surface (not neutral gray) so the bar reads as branded at
+     rest, not just on focus. */
+  background-color: #241d12;
+  border: 1.5px solid rgba(255, 209, 102, 0.55);
+  border-radius: var(--ls-radius-xl);
+  padding: var(--ls-space-2);
+  padding-left: var(--ls-space-4);
+  box-shadow: var(--ls-shadow-md), 0 0 0 1px rgba(255, 209, 102, 0.1) inset;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.composer-bar:focus-within {
+  background-color: #2a2114;
+  border-color: var(--ls-accent);
+  box-shadow: var(--ls-shadow-md), 0 0 0 3px rgba(255, 209, 102, 0.25);
 }
 
 #userInput {
   flex: 1;
   background: none;
   border: none;
-  color: #fff;
-  padding: 12px;
+  color: var(--ls-text);
+  padding: 10px 0;
   font-size: 1rem;
+  line-height: 1.4;
   resize: none;
   font-family: var(--ls-font);
+}
+
+#userInput::placeholder {
+  color: var(--ls-text-muted);
 }
 
 #userInput:focus {
@@ -291,22 +620,42 @@ footer {
 }
 
 #sendBtn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background-color: var(--ls-accent);
-  color: #222;
+  color: #1a1204;
   border: none;
-  padding: 12px 20px;
-  font-weight: bold;
+  border-radius: var(--ls-radius-pill);
   cursor: pointer;
-  transition: background 0.3s;
-  border-radius: 10px;
+  transition: background-color 0.15s, transform 0.1s;
 }
 
-#sendBtn:hover {
+#sendBtn:hover:not(:disabled) {
   background-color: var(--ls-accent-hover);
+}
+
+#sendBtn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+#sendBtn:disabled {
+  background-color: #3a3a3a;
+  color: var(--ls-text-muted);
+  cursor: not-allowed;
+}
+
+#sendBtn svg {
+  width: 18px;
+  height: 18px;
 }
 
 #sendBtn.stopping {
     background-color: var(--ls-danger);
+    color: #1a0d0a;
 }
 
 #sendBtn.stopping:hover {
@@ -371,10 +720,11 @@ summary:focus-visible,
     background-color: #1e1e1e;
     border: 1px solid var(--ls-border);
     border-left: 3px solid var(--ls-accent);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: var(--ls-radius-lg);
+    padding: 10px 14px;
     margin-bottom: 6px;
-    transition: box-shadow 0.2s, border-color 0.2s;
+    box-shadow: var(--ls-shadow-sm);
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
 }
 
 .work-card,
@@ -385,8 +735,9 @@ summary:focus-visible,
 .book-card:hover,
 .work-card:hover,
 .citation-card:hover {
-    box-shadow: 0 0 10px rgba(255, 209, 102, 0.35);
+    box-shadow: var(--ls-shadow-md), 0 0 0 1px rgba(255, 209, 102, 0.25);
     border-color: var(--ls-accent);
+    transform: translateY(-1px);
 }
 
 .book-card:last-child,
@@ -398,7 +749,7 @@ summary:focus-visible,
     width: 40px;
     height: 60px;
     object-fit: cover;
-    border-radius: 4px;
+    border-radius: var(--ls-radius-sm);
     flex-shrink: 0;
 }
 
@@ -431,7 +782,7 @@ a.work-card-title:hover {
     display: inline-block;
     margin-top: 6px;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--ls-radius-sm);
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #333;
@@ -472,7 +823,7 @@ a.work-card-title:hover {
 .work-card-oa {
     display: inline-block;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--ls-radius-sm);
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #333;
@@ -522,7 +873,7 @@ a.work-card-title:hover {
     background-color: #333;
     color: #ddd;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--ls-radius-sm);
     padding: 4px 10px;
     font-size: 0.8rem;
     cursor: pointer;
@@ -536,7 +887,7 @@ a.work-card-title:hover {
     background-color: #333;
     color: #ddd;
     border: 1px solid #444;
-    border-radius: 6px;
+    border-radius: var(--ls-radius-sm);
     padding: 4px 8px;
     font-size: 0.8rem;
 }

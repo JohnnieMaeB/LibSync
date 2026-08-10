@@ -37,28 +37,47 @@ export function Composer({
     }
   };
 
+  const canSend = isStreaming || value.trim().length > 0;
+
   return (
     <footer>
-      <textarea
-        ref={textareaRef}
-        id="userInput"
-        placeholder="Type your question here..."
-        aria-label="Type your question"
-        value={value}
-        onChange={(e) => {
-          setValue(e.target.value);
-          resize();
-        }}
-        onKeyDown={handleKeyDown}
-      />
-      <button
-        id="sendBtn"
-        className={isStreaming ? "stopping" : ""}
-        aria-label={isStreaming ? "Stop generating" : "Send message"}
-        onClick={() => (isStreaming ? onStop() : submit())}
-      >
-        {isStreaming ? "Stop" : "Send"}
-      </button>
+      <div className="composer-bar">
+        <textarea
+          ref={textareaRef}
+          id="userInput"
+          placeholder="Type your question here..."
+          aria-label="Type your question"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            resize();
+          }}
+          onKeyDown={handleKeyDown}
+        />
+        <button
+          id="sendBtn"
+          className={isStreaming ? "stopping" : ""}
+          aria-label={isStreaming ? "Stop generating" : "Send message"}
+          disabled={!canSend}
+          onClick={() => (isStreaming ? onStop() : submit())}
+        >
+          {isStreaming ? (
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 19V5M12 5l-6 6M12 5l6 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </button>
+      </div>
     </footer>
   );
 }

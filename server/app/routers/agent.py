@@ -6,6 +6,13 @@ classmethod, so conversation history keeps coming from the existing
 `SessionStore`, keyed by the AG-UI thread id instead of a bespoke session id.
 `/chat` and `/chat/stream` (see chat.py) are untouched and stay available as
 a fallback transport.
+
+Tier 5 clients (see app/src/hooks/useAgentStream.ts's `entriesToMessages`)
+resend the whole conversation's turns on every request instead of just the
+newest message — `SessionStore` then stops being load-bearing for those
+requests (see `_message_history_for` below), though it's still populated as
+a bounded fallback for callers that only ever send the latest message (older
+clients, and this endpoint's own tests).
 """
 
 import uuid
@@ -91,20 +98,31 @@ async def agent_endpoint(request: Request):
     adapter = await AGUIAdapter.from_request(request, agent=chat_agent)
     thread_id = adapter.conversation_id or str(uuid.uuid4())
     deps = LibSyncDeps(http_client=request.app.state.http_client)
-    history = session_store.get(thread_id)
+
+    # AGUIAdapter.run_stream_native folds the frontend's sent messages onto
+    # the end of whatever `message_history` we pass it. A single-message
+    # request (today's pre-Tier-5 shape) needs SessionStore's prior turns
+    # prepended, or the model only ever sees the latest question. A
+    # multi-message request already *is* the full history the client is
+    # tracking, so prepending SessionStore's copy on top would duplicate
+    # every earlier turn — pass no server-side history for those.
+    history = session_store.get(thread_id) if len(adapter.run_input.messages) <= 1 else []
 
     def _persist(result: AgentRunResult) -> None:
         # `result.new_messages()` only covers what the run generated *beyond*
         # the `message_history` it was given — and AGUIAdapter folds this
-        # request's frontend-sent turn (the new user message) into that same
-        # `message_history` before running, so it never shows up in
-        # `new_messages()`. Persist the frontend's turn alongside the run's
-        # new messages, or each saved turn loses its own user prompt and the
-        # next turn's model call sees a broken (response-only) transcript.
+        # request's frontend-sent turn(s) into that same `message_history`
+        # before running, so they never show up in `new_messages()`. Replace
+        # (not append to) the stored session with `history + this request's
+        # frontend messages + the run's new messages` — the full, correct
+        # transcript either way: for a single-message request this equals
+        # what the old `append`-based logic produced; for a multi-message
+        # request it avoids re-appending turns the client already included
+        # in `history` on some earlier request.
         frontend_messages = adapter.sanitize_messages(
             adapter.messages, deferred_tool_results=adapter.deferred_tool_results
         )
-        session_store.append(thread_id, [*frontend_messages, *result.new_messages()])
+        session_store.set(thread_id, [*history, *frontend_messages, *result.new_messages()])
 
     return adapter.streaming_response(
         _run_stream_with_retry(
