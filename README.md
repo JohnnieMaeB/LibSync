@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="client/src/assets/logo.png" alt="LibSync logo" width="112" />
+  <img src="app/src/assets/logo.png" alt="LibSync logo" width="112" />
 </p>
 
 <h1 align="center">LibSync</h1>
@@ -22,7 +22,7 @@
   <a href="#-future-enhancements">Roadmap</a>
 </p>
 
-**LibSync** is an AI-powered chatbot designed to assist users with library services. Built with a Python/PydanticAI backend and a vanilla JS frontend, LibSync demonstrates a full-stack workflow, cloud deployment, and AI integration.
+**LibSync** is an AI-powered chatbot designed to assist users with library services. Built with a Python/PydanticAI backend and a React/Vite frontend, LibSync demonstrates a full-stack workflow, cloud deployment, and AI integration.
 
 ---
 
@@ -58,8 +58,9 @@ The project is currently in **active development**, focusing on technical experi
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Vanilla JavaScript, HTML, CSS — with a hand-rolled AG-UI SSE event router (no framework), a
-  CSS custom-property design-token system, and a safe (escape-by-default) inline markdown renderer
+- **Frontend:** React + TypeScript on Vite, talking AG-UI directly via `@ag-ui/client`'s `HttpAgent` (no
+  CopilotKit runtime — see [TIER4_PLAN.md](TIER4_PLAN.md)), a CSS custom-property design-token system, and a
+  safe (escape-by-default) markdown renderer built from real React elements, never `dangerouslySetInnerHTML`
 - **Backend:** Python, FastAPI
 - **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V3.2-Exp`) wired as an automatic fallback via `FallbackModel`
 - **Interactive transport:** [AG-UI protocol](https://docs.ag-ui.com/) (`pydantic-ai-slim[ag-ui]`) at `POST /agent` — streams text deltas, live tool-call progress, and structured `CUSTOM` events the frontend renders as real cards; `/chat`/`/chat/stream` remain as a simpler fallback transport
@@ -80,9 +81,9 @@ The project is currently in **active development**, focusing on technical experi
 
 ## 🧩 Architecture Overview
 
-- **Frontend:** Chat UI in vanilla JavaScript, HTML, and CSS. `client/src/` is the source of truth;
-  GitHub Pages is published from it automatically on every push to `main`, with every PR getting its own
-  live preview — see [PR Previews and Deployment](#-pr-previews-and-deployment).
+- **Frontend:** Chat UI in React + TypeScript, on Vite. `app/` is the source of truth; GitHub Pages is
+  published from its `vite build` output automatically on every push to `main`, with every PR getting its
+  own live preview — see [PR Previews and Deployment](#-pr-previews-and-deployment).
 - **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — Groq
   primary / Hugging Face fallback — with four tools that ground replies in real data instead of guessing.
   `/agent` (AG-UI protocol) is the primary transport: it streams token deltas, live tool-call progress, and
@@ -101,7 +102,7 @@ The project is currently in **active development**, focusing on technical experi
 - **Session continuity:** A client-minted thread id (persisted in `localStorage`) threads conversation
   history through an in-process, TTL-bounded session store, keyed by the AG-UI thread id.
 - **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set.
-- **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), publishes `client/src/` to
+- **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), publishes `app/`'s build to
   GitHub Pages (production on push to `main`, isolated previews per open PR), and pings Pinecone/Render
   weekly so the free tiers don't silently auto-pause.
 - **Deployment:** Hosted on Render (backend) and GitHub Pages (frontend).
@@ -392,14 +393,21 @@ uv run pytest
 
 ### 5. Run the frontend locally
 
-Open `client/src/index.html` in your browser. By default it points at the deployed Render backend — to test against your local server, update `API_BASE_URL` in `client/src/config.js`:
-
-```JavaScript
-const API_BASE_URL = "http://localhost:3000";
+```bash
+cd app
+npm install
+npm run dev
 ```
 
-Nothing to sync manually — pushing to `main` publishes `client/src/` to GitHub Pages automatically (see
-[PR Previews and Deployment](#-pr-previews-and-deployment) below).
+By default it points at the deployed Render backend — to test against your local server, create
+`app/.env.local`:
+
+```
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+Nothing to sync manually — pushing to `main` builds `app/` and publishes it to GitHub Pages automatically
+(see [PR Previews and Deployment](#-pr-previews-and-deployment) below).
 
 ### 6. Start chatting! 💬
 
@@ -413,12 +421,17 @@ lookups, multi-turn continuity, honesty boundaries) with expected answers to che
 
 ```
 LibSync/
-├── client/src/          # Frontend source of truth (vanilla JS/HTML/CSS)
-│   ├── config.js            # API_BASE_URL — the one place that changes per environment
-│   └── script.js
+├── app/                  # Frontend source of truth (React + TypeScript, Vite)
+│   ├── src/
+│   │   ├── config.ts         # API_BASE_URL — the one place that changes per environment
+│   │   ├── hooks/             # useAgentStream (AG-UI transport via @ag-ui/client's HttpAgent)
+│   │   ├── components/        # Chat UI, book/research/citation cards
+│   │   └── lib/                # Safe markdown renderer, session id, plain-text extraction
+│   └── vite.config.ts        # outDir: 'dist' (gitignored) — published by scripts/build-site.js, not hand-committed
 ├── scripts/
-│   └── build-site.js        # client/src/ -> an output dir, with an optional API_BASE_URL override —
-│                             # used by both the prod publish and PR-preview workflows (see below)
+│   └── build-site.js        # runs `vite build` in app/ into an output dir, with an optional
+│                             # VITE_API_BASE_URL override — used by both the prod publish and
+│                             # PR-preview workflows (see below)
 ├── server/              # Python/FastAPI + PydanticAI backend (uv-managed)
 │   ├── app/
 │   │   ├── main.py          # FastAPI app, lifespan (shared httpx client), CORS, rate limiting, Logfire
@@ -453,12 +466,12 @@ doesn't show up in the tree above.
 
 > **Migrating an existing Render service from before this refactor?** The service was originally configured for the Node backend at `server/src` and won't update itself just because the code changed — Render settings are dashboard state, not something a `git push` touches. In the Render dashboard, open the service → **Settings** → **Build & Deploy** and update all four fields above (Runtime, Root Directory, Build Command, Start Command) to match this table, then trigger a manual deploy. If your plan doesn't let you change **Runtime** on an existing service, create a new Python web service pointed at this repo instead and delete the old Node one.
 
-Once deployed, update `API_BASE_URL` in `client/src/config.js` to point to your Render URL and push to
-`main` — [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) publishes the change automatically, no
-manual sync step needed:
+Once deployed, set `VITE_API_BASE_URL` in `app/.env.production` (or your CI environment) to your Render URL
+and push to `main` — [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) rebuilds `app/` and publishes
+the change automatically, no manual sync step needed:
 
-```JavaScript
-const API_BASE_URL = "https://<your-render-app>.onrender.com";
+```
+VITE_API_BASE_URL=https://<your-render-app>.onrender.com
 ```
 
 ---
@@ -471,9 +484,9 @@ instead of reading a diff. Built with plain `git`/`rsync`/`gh` in
 [`pr-preview.yml`](.github/workflows/pr-preview.yml), no third-party GitHub Action.
 
 **How it works:**
-- **Frontend:** `scripts/build-site.js` builds `client/src/` with `API_BASE_URL` pointed at the dev backend,
-  and the workflow publishes it to the `gh-pages` branch at `pr-preview/pr-<number>/` — isolated per PR, so
-  multiple open PRs each keep their own working frontend preview.
+- **Frontend:** `scripts/build-site.js` runs `vite build` on `app/` with `VITE_API_BASE_URL` pointed at the
+  dev backend, and the workflow publishes it to the `gh-pages` branch at `pr-preview/pr-<number>/` —
+  isolated per PR, so multiple open PRs each keep their own working frontend preview.
 - **Backend:** a single shared Render free web service, `libsync-backend-dev`, redeployed via its
   [deploy hook](https://render.com/docs/deploy-hooks)'s `ref` parameter to the PR's head commit — **not**
   per-PR. If two PRs are open, whichever one pushed most recently "owns" the backend; the workflow posts this
@@ -483,8 +496,8 @@ instead of reading a diff. Built with plain `git`/`rsync`/`gh` in
 - **Cleanup:** closing or merging the PR removes its `pr-preview/pr-<number>/` folder from `gh-pages`.
 
 Production publishing works the same way, minus the PR-scoping: [`deploy-pages.yml`](.github/workflows/deploy-pages.yml)
-publishes `client/src/` (with its committed, real `API_BASE_URL`) to the `gh-pages` branch root on every
-push to `main`.
+builds `app/` (with its real, deployed `VITE_API_BASE_URL`) and publishes it to the `gh-pages` branch root on
+every push to `main`.
 
 **One-time setup** (not automated — these are dashboard/account actions):
 

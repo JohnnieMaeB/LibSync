@@ -20,10 +20,10 @@ covers how the pieces fit together and why.
 server/         Python/FastAPI + PydanticAI backend (uv-managed)
   app/routers/     /agent (AG-UI, primary), /chat + /chat/stream (fallback), /citation, /api/query
   app/services/    Pinecone, Open Library, OpenAlex, Crossref, citeproc-py clients
-client/src/     Frontend source of truth (vanilla JS/HTML/CSS)
+app/             Frontend source of truth (React + TypeScript, Vite)
 pinecone-scripts/  IaC scripts for the Pinecone policy index
-scripts/        build-site.js — client/src/ -> a build dir, with an optional API_BASE_URL override,
-                used by the prod-publish and PR-preview workflows (see below)
+scripts/        build-site.js — runs `vite build` on app/ into a build dir, with an optional
+                VITE_API_BASE_URL override, used by the prod-publish and PR-preview workflows (see below)
 ```
 
 GitHub Pages content itself lives on the `gh-pages` branch (production at its root, PR previews under
@@ -60,32 +60,36 @@ uv run pytest
 ## Making a frontend change
 
 ```bash
-cd client/src
+cd app
 npm install
 npm test
 ```
 
-Nothing to sync manually — merging to `main` publishes `client/src/` automatically
+Nothing to sync manually — merging to `main` builds `app/` and publishes it automatically
 ([`deploy-pages.yml`](.github/workflows/deploy-pages.yml)), and every PR gets its own live preview at
 `pr-preview/pr-<number>/` ([`pr-preview.yml`](.github/workflows/pr-preview.yml); see
 [README § PR Previews and Deployment](README.md#-pr-previews-and-deployment) for how it's wired up).
+CI still runs a `vite build` of `app/` on every push/PR as a sanity check ([`ci.yml`](.github/workflows/ci.yml)),
+independent of the deploy workflows' own build.
 
-`script.js` speaks two wire protocols to the backend: `POST /agent` (AG-UI, primary — `sendMessage()` /
-`consumeAgentStream()` / `handleAgentEvent()`) and the older `/chat`/`/chat/stream` (kept as a fallback, not
-called by the current frontend). If you're adding a new card type, wire it into `renderCustomEvent()`'s
-dispatch-by-`event.name` switch, and make sure it appends via `ensureContentStarted()` rather than clearing
-`innerHTML` directly — text and cards can arrive in either order and must not clobber each other (see
-[ARCHITECTURE.md's "Frontend text and cards must coexist" entry](ARCHITECTURE.md#why-these-choices) for why
-that's a real, previously-shipped bug, not a hypothetical).
+The AG-UI transport lives in [`app/src/hooks/useAgentStream.ts`](app/src/hooks/useAgentStream.ts), built on
+`@ag-ui/client`'s `HttpAgent` talking to `POST /agent` (the older `/chat`/`/chat/stream` fallback transport
+isn't called by the current frontend). If you're adding a new card type, extend the `onEvent` switch's
+`CUSTOM` case in that hook and add a matching component under
+[`app/src/components/`](app/src/components/) — cards and streaming text are tracked as an ordered `blocks`
+array per bot message (see `BotEntry` in [`app/src/types.ts`](app/src/types.ts)) specifically because text
+and cards can arrive in either order and must not clobber each other (see ARCHITECTURE.md's "Frontend text
+and cards must coexist" entry for why that's a real, previously-shipped bug, not a hypothetical).
 
-**Never set `.innerHTML` (or any DOM property) from model output or other untrusted text.** Model output is
-untrusted — it can echo retrieved text or be steered via prompt injection. Any new bot-facing text must go
-through `renderInlineMarkdown()` / `setBotTextContent()` in `script.js`, which only ever insert
-`document.createTextNode`/`el.textContent` and a small fixed set of safe elements (`<strong>`, `<em>`, an
-`<a>` restricted to `http(s)` hrefs) — never raw markup. If you need a new inline format, extend
-`INLINE_MARKDOWN_PATTERN` and its handler in `renderInlineMarkdown()` rather than reaching for `innerHTML`.
-The `safe markdown rendering` block in `script.test.js` has a regression test asserting `<script>`/`<img
-onerror>` in model output never becomes live markup — add a case there if you touch this path.
+**Never use `dangerouslySetInnerHTML` (or any raw-HTML DOM API) on model output or other untrusted text.**
+Model output is untrusted — it can echo retrieved text or be steered via prompt injection. Any new bot-facing
+text must go through `renderInlineMarkdownNodes()` / `SafeMarkdown` in
+[`app/src/lib/markdown.tsx`](app/src/lib/markdown.tsx), which builds real React elements (`<strong>`, `<em>`,
+an `<a>` restricted to `http(s)` hrefs) and emits everything else as plain text nodes — never raw markup. If
+you need a new inline format, extend `INLINE_MARKDOWN_PATTERN` and its handler there rather than reaching for
+`dangerouslySetInnerHTML`. [`app/src/lib/markdown.test.tsx`](app/src/lib/markdown.test.tsx) has a regression
+test asserting `<script>`/`<img onerror>` in model output never becomes live markup — add a case there if you
+touch this path.
 
 ## Commit / PR expectations
 

@@ -178,13 +178,19 @@ of tool calls, retries, and token usage — replacing `print()` debugging — bu
 `LOGFIRE_TOKEN` is set (see [`server/app/main.py`](server/app/main.py)). Tests and CI never need a Logfire
 account.
 
-**A single frontend source, published automatically instead of hand-synced.** `client/src/` is the source
-of truth; [`scripts/build-site.js`](scripts/build-site.js) builds it (with an optional `API_BASE_URL`
-override) into an output directory, and [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
-publishes that to the `gh-pages` branch on every push to `main` — no manual sync step, and no drift possible
-between what's committed and what's live. This replaced an earlier Tier 1 design (`docs/` as a hand-committed
-copy of `client/src/`, checked for drift by CI rather than published automatically) once PR previews needed
-somewhere on the same Pages site to publish to that isn't the production root — see the next entry.
+**A single frontend source, published automatically instead of hand-synced.** [`app/`](app/) (React +
+TypeScript, Vite) is the source of truth as of [Tier 4](TIER4_PLAN.md);
+[`scripts/build-site.js`](scripts/build-site.js) runs `vite build` on it (with an optional
+`VITE_API_BASE_URL` override) into an output directory, and
+[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) publishes that to the `gh-pages`
+branch on every push to `main` — no manual sync step, and no drift possible between what's committed and
+what's live. This replaced two earlier designs in sequence: Tier 1's `docs/` as a hand-committed copy of
+`client/src/` (checked for drift by CI rather than published automatically), then briefly `docs/` as a
+`vite build` output committed straight to `main` once Tier 4 ported the frontend to React — both replaced by
+this workflow-published `gh-pages` branch once PR previews needed somewhere on the same Pages site to publish
+to that isn't the production root — see the next entry. The API base URL lives in one place,
+`app/src/config.ts` (`import.meta.env.VITE_API_BASE_URL`, falling back to the deployed Render URL), instead
+of being hardcoded per copy.
 
 **PR previews via a hand-rolled workflow, not a third-party GitHub Action.** GitHub Pages has no native
 per-PR preview mechanism — the standard pattern (used by actions like `rossjrw/pr-preview-action`) is
@@ -272,9 +278,9 @@ narration) — narration routinely arrives _after_ the card, not before it. An e
 frontend's event handler unconditionally cleared the bubble's `innerHTML` on every `TEXT_MESSAGE_CONTENT`
 event, which wiped out any card that had already rendered. This was caught live in a real browser (not by
 the unit tests, which had mocked event orderings that happened not to exercise this case) — see
-`ensureContentStarted()` in [`client/src/script.js`](client/src/script.js): the placeholder ("Thinking…"/
-"Searching…") is cleared exactly once, on whichever event (text or card) arrives first, and everything
-after that appends instead of replacing.
+`ensureContentStarted()`, now in [`app/src/hooks/useAgentStream.ts`](app/src/hooks/useAgentStream.ts) post-Tier
+4: the placeholder ("Thinking…"/"Searching…") is cleared exactly once, on whichever event (text or card)
+arrives first, and everything after that appends instead of replacing.
 
 **OpenAlex for research, Crossref + citeproc-py for citations — both free and keyless, chosen for what they
 add over Open Library alone.** OpenAlex is the actual "research help" data source: citation counts,
@@ -306,11 +312,13 @@ today. See the pin's comment in [`server/pyproject.toml`](server/pyproject.toml)
 
 **Tier 3's markdown renderer builds DOM nodes directly instead of ever touching `innerHTML` with interpolated
 text.** Model output is untrusted — it can echo retrieved text or be steered via prompt injection — so
-`renderInlineMarkdown` (see [`client/src/script.js`](client/src/script.js)) matches a small, fixed set of
-patterns (`**bold**`, `*italic*`, `[text](https://url)`) and inserts everything else, matched or not, as a
-plain text node via `document.createTextNode`/`el.textContent`. There is no code path where a string derived
-from the model can become live markup — closing the gap the [TIER3_PLAN.md §1](TIER3_PLAN.md#1-brand-audit--whats-actually-there-today)
-audit flagged, while finally rendering the bold/link formatting the model already tends to produce.
+`renderInlineMarkdownNodes` (originally `renderInlineMarkdown`, ported to real React elements in
+[`app/src/lib/markdown.tsx`](app/src/lib/markdown.tsx) post-Tier 4) matches a small, fixed set of patterns
+(`**bold**`, `*italic*`, `[text](https://url)`) and emits everything else, matched or not, as a plain text
+node — never `dangerouslySetInnerHTML`. There is no code path where a string derived from the model can
+become live markup — closing the gap the
+[TIER3_PLAN.md §1](TIER3_PLAN.md#1-brand-audit--whats-actually-there-today) audit flagged, while finally
+rendering the bold/link formatting the model already tends to produce.
 
 **"Grounded in N sources" and numbered card badges are computed client-side from the cards already
 rendered, not from new backend-supplied citation markers.** Tier 3's definition of done requires no backend
@@ -347,19 +355,31 @@ mid-stream (via `AbortController`, wired through `fetch`'s `signal`) reuses the 
 | `/chat` and `/chat/stream` endpoints (fallback transport)                                     | [`server/app/routers/chat.py`](server/app/routers/chat.py)                                   |
 | Structured output types (`Book`, `BookResult`, `ScholarlyWork`, `ResearchResult`, `Citation`) | [`server/app/schemas.py`](server/app/schemas.py)                                             |
 | `/api/query` endpoint (direct Pinecone search)                                                | [`server/app/routers/pinecone_query.py`](server/app/routers/pinecone_query.py)               |
-| Frontend source, incl. the AG-UI SSE event router                                             | [`client/src/script.js`](client/src/script.js)                                               |
-| Frontend build (prod, and PR previews with an `API_BASE_URL` override)                        | [`scripts/build-site.js`](scripts/build-site.js)                                             |
+| AG-UI transport hook (`HttpAgent`-backed streaming/retry/abort)                               | [`app/src/hooks/useAgentStream.ts`](app/src/hooks/useAgentStream.ts)                         |
+| Safe markdown renderer (real React elements, never `dangerouslySetInnerHTML`)                 | [`app/src/lib/markdown.tsx`](app/src/lib/markdown.tsx)                                       |
+| Chat UI components (bubbles, cards, chips, tool-status pills, message actions)                | [`app/src/components/`](app/src/components/)                                                 |
+| Design tokens (`--ls-*` custom properties) and component styles                               | [`app/src/theme/`](app/src/theme/)                                                           |
+| Frontend build (prod, and PR previews with a `VITE_API_BASE_URL` override)                    | [`scripts/build-site.js`](scripts/build-site.js)                                             |
 | Production Pages publish (`gh-pages` branch root, on push to `main`)                          | [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)                   |
 | PR preview publish + shared dev backend redeploy + PR comment                                 | [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml)                       |
 | Pinecone IaC (index creation, seed data, smoke test)                                          | [`pinecone-scripts/`](pinecone-scripts/)                                                     |
 
 ## What's next
 
-Tier 3 is built: a safe (escape-by-default) markdown renderer closing the raw-`innerHTML` XSS gap, an
+Tier 3 shipped a safe (escape-by-default) markdown renderer closing the raw-`innerHTML` XSS gap, an
 accessibility baseline (`role="log"`/`aria-live` on the chat region, visible focus rings, `prefers-reduced-motion`
 handling), suggestion chips and per-tool status pills, a stop/regenerate/copy action set, a scroll-to-latest
 control, numbered source badges with a "Grounded in N sources" tag, and a distinct error style with an
 inline Retry — all CSS and vanilla JS on the existing black-and-amber brand, no backend changes. See
-[TIER3_PLAN.md](TIER3_PLAN.md) for the full plan and rationale. [TIER4_PLAN.md](TIER4_PLAN.md) covers
-porting this component/token spec into a React codebase next; see the full
-[roadmap](README.md#-future-enhancements) for Tiers 4–9.
+[TIER3_PLAN.md](TIER3_PLAN.md) for the full plan and rationale.
+
+Tier 4 is built: that component/token spec, ported 1:1 into a React + TypeScript codebase on Vite
+(`app/`), with `docs/` now a build artifact instead of a hand-copied source tree — behavior-preserving, no
+visual redesign, no backend changes. It deviates from [TIER4_PLAN.md](TIER4_PLAN.md) §2.2 in one way: it
+uses `@ag-ui/client`'s `HttpAgent` directly rather than `@copilotkit/react-core`/`react-ui`, since
+CopilotKit's React hooks are built around a Node Copilot Runtime proxy that isn't officially supported to
+bypass, and standing one up just to relay to this repo's existing Python AG-UI endpoint would have added
+infrastructure Tier 4 was explicit about not needing. `@ag-ui/client` is still the same team's official,
+protocol-level SDK — it's what PydanticAI's own AG-UI reference frontend uses. See
+[TIER4_PLAN.md](TIER4_PLAN.md) for the full plan; see the full [roadmap](README.md#-future-enhancements) for
+Tiers 5–9.
