@@ -1,6 +1,10 @@
 const sendBtn = document.getElementById("sendBtn");
 const userInput = document.getElementById("userInput");
 const chatBox = document.getElementById("chatBox");
+const suggestionChips = document.getElementById("suggestionChips");
+const scrollToLatestBtn = document.getElementById("scrollToLatest");
+const capabilityLine = document.getElementById("capabilityLine");
+const capabilityDismiss = document.getElementById("capabilityDismiss");
 
 const SESSION_STORAGE_KEY = "libsync_session_id";
 const MAX_RETRIES = 2;
@@ -9,16 +13,100 @@ const RETRY_DELAY_MS = 600;
 class RateLimitedError extends Error {}
 class ServiceDownError extends Error {}
 
+// Teaches the assistant's range (Tier 1 policies, Tier 2 catalog/research/
+// citation) without a manual — clicking a chip fills the input and sends it.
+const SUGGESTED_PROMPTS = [
+  "Find me a sci-fi audiobook",
+  "How do I renew a book?",
+  "Cite this paper in APA",
+  "What are your library card policies?",
+];
+
+// Friendly, tool-specific status text shown while a Tier 2 tool call is in
+// flight, sourced from the AG-UI TOOL_CALL_START event's toolCallName.
+const TOOL_STATUS_MESSAGES = {
+  search_library_policies: "📚 Checking library policies",
+  search_catalog: "🔍 Searching the catalog",
+  search_scholarly_works: "🎓 Looking up research",
+  lookup_and_cite: "🎓 Looking up citation",
+};
+
+let lastUserQuestion = "";
+let latestBotMessageEl = null;
+let currentAbortController = null;
+let isStreaming = false;
+
 if (sendBtn) {
-  sendBtn.addEventListener("click", sendMessage);
+  sendBtn.addEventListener("click", () => {
+    if (isStreaming) {
+      stopGenerating();
+    } else {
+      sendMessage();
+    }
+  });
 }
 if (userInput) {
   userInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      if (!isStreaming) sendMessage();
     }
   });
+}
+if (capabilityDismiss) {
+  capabilityDismiss.addEventListener("click", () => {
+    if (capabilityLine) capabilityLine.classList.add("hidden");
+  });
+}
+if (chatBox && scrollToLatestBtn) {
+  chatBox.addEventListener("scroll", () => {
+    scrollToLatestBtn.hidden = isNearBottom();
+  });
+}
+if (scrollToLatestBtn) {
+  scrollToLatestBtn.addEventListener("click", () => {
+    chatBox.scrollTop = chatBox.scrollHeight;
+    scrollToLatestBtn.hidden = true;
+  });
+}
+
+renderSuggestionChips();
+
+function renderSuggestionChips() {
+  if (!suggestionChips) return;
+  SUGGESTED_PROMPTS.forEach((prompt) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "suggestion-chip";
+    chip.textContent = prompt;
+    chip.addEventListener("click", () => {
+      userInput.value = prompt;
+      sendMessage();
+    });
+    suggestionChips.appendChild(chip);
+  });
+}
+
+function hideSuggestionChips() {
+  if (suggestionChips) suggestionChips.classList.add("hidden");
+}
+
+function isNearBottom() {
+  if (!chatBox) return true;
+  return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 60;
+}
+
+// Streaming growth mustn't yank a scrolled-up reader back to the bottom —
+// only auto-follow if they were already near it, otherwise surface the
+// floating "scroll to latest" escape hatch.
+function scrollChatToBottomIfNear() {
+  if (!chatBox) return;
+  if (isNearBottom()) {
+    chatBox.scrollTop = chatBox.scrollHeight;
+    if (scrollToLatestBtn) scrollToLatestBtn.hidden = true;
+  } else if (scrollToLatestBtn) {
+    scrollToLatestBtn.hidden = false;
+  }
 }
 
 function getOrCreateSessionId() {
@@ -49,6 +137,9 @@ async function fetchWithRetry(url, options) {
     try {
       response = await fetch(url, options);
     } catch (networkError) {
+      if (networkError && networkError.name === "AbortError") {
+        throw networkError;
+      }
       lastNetworkError = networkError;
       if (attempt < MAX_RETRIES) {
         await sleep(RETRY_DELAY_MS * (attempt + 1));
@@ -74,16 +165,54 @@ async function fetchWithRetry(url, options) {
 
 const DEFAULT_ERROR_MSG = "⚠️ Error: Unable to reach AI service. Please try again later.";
 
+function setStreamingState(streaming) {
+  isStreaming = streaming;
+  if (!sendBtn) return;
+  if (streaming) {
+    sendBtn.textContent = "Stop";
+    sendBtn.classList.add("stopping");
+    sendBtn.setAttribute("aria-label", "Stop generating");
+  } else {
+    sendBtn.textContent = "Send";
+    sendBtn.classList.remove("stopping");
+    sendBtn.setAttribute("aria-label", "Send message");
+  }
+}
+
+function stopGenerating() {
+  if (currentAbortController) {
+    currentAbortController.abort();
+  }
+}
+
 async function sendMessage() {
   const question = userInput.value.trim();
   if (!question) return;
 
-  appendMessage("user", question);
   userInput.value = "";
   userInput.style.height = "auto"; // Reset height
+  appendMessage("user", question);
+
+  await runAgentTurn(question);
+}
+
+// Re-runs the agent for a question without appending a new user bubble —
+// used by both the citation-card-style "regenerate last reply" action and
+// the error bubble's "retry" action.
+async function regenerateLastReply() {
+  if (!lastUserQuestion) return;
+  await runAgentTurn(lastUserQuestion);
+}
+
+async function runAgentTurn(question) {
+  lastUserQuestion = question;
+  hideSuggestionChips();
 
   const loadingMsg = appendMessage("bot", "Thinking...");
   loadingMsg.classList.add("loading");
+
+  currentAbortController = new AbortController();
+  setStreamingState(true);
 
   try {
     // Streaming means the connection opens (and the "Thinking..." bubble
@@ -96,17 +225,31 @@ async function sendMessage() {
         Accept: "text/event-stream",
       },
       body: JSON.stringify(buildRunAgentInput(question)),
+      signal: currentAbortController.signal,
     });
 
-    await consumeAgentStream(response, loadingMsg);
-  } catch (err) {
-    let errorMsg = DEFAULT_ERROR_MSG;
-    if (err instanceof RateLimitedError) {
-      errorMsg = "⏳ You're sending messages a little too quickly. Please wait a moment and try again.";
+    const ctx = await consumeAgentStream(response, loadingMsg);
+    if (ctx.aborted) {
+      finalizeStoppedMessage(loadingMsg, ctx);
+    } else if (ctx.errorMessage) {
+      renderErrorMessage(loadingMsg, ctx.errorMessage);
+    } else {
+      finalizeCompletedTurn(loadingMsg, ctx);
     }
-    loadingMsg.textContent = errorMsg;
-    loadingMsg.classList.remove("loading");
-    console.error(err);
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      finalizeStoppedMessage(loadingMsg, { hasContent: false, cardCount: 0 });
+    } else {
+      let errorMsg = DEFAULT_ERROR_MSG;
+      if (err instanceof RateLimitedError) {
+        errorMsg = "⏳ You're sending messages a little too quickly. Please wait a moment and try again.";
+      }
+      renderErrorMessage(loadingMsg, errorMsg);
+      console.error(err);
+    }
+  } finally {
+    currentAbortController = null;
+    setStreamingState(false);
   }
 }
 
@@ -127,8 +270,10 @@ function buildRunAgentInput(question) {
 
 // Consumes the AG-UI SSE event stream from POST /agent and drives a single
 // bot message bubble: incremental text as TEXT_MESSAGE_CONTENT deltas arrive,
-// a "Searching..." state while a tool call is in flight, and CUSTOM events
-// dispatched by name to a card renderer (see renderCustomEvent).
+// a tool-status pill while a tool call is in flight, and CUSTOM events
+// dispatched by name to a card renderer (see renderCustomEvent). Returns the
+// per-turn context so the caller can add grounding/actions UI once the
+// stream ends, whether it finished normally, errored, or was aborted.
 async function consumeAgentStream(response, targetMsg) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -140,25 +285,37 @@ async function consumeAgentStream(response, targetMsg) {
     currentText: "",
     textEl: null,
     hasContent: false,
+    cardCount: 0,
+    errorMessage: null,
+    aborted: false,
   };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    let boundary;
-    while ((boundary = buffer.indexOf("\n\n")) !== -1) {
-      const rawEvent = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      const event = parseAgUiEvent(rawEvent);
-      if (!event || !event.type) continue;
+      let boundary;
+      while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const event = parseAgUiEvent(rawEvent);
+        if (!event || !event.type) continue;
 
-      if (handleAgentEvent(event, ctx) === "stop") {
-        return;
+        if (handleAgentEvent(event, ctx) === "stop") {
+          return ctx;
+        }
       }
     }
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      ctx.aborted = true;
+      return ctx;
+    }
+    throw err;
   }
+  return ctx;
 }
 
 function parseAgUiEvent(rawEvent) {
@@ -174,11 +331,11 @@ function parseAgUiEvent(rawEvent) {
   }
 }
 
-// Clears the "Thinking..."/"Searching..." placeholder exactly once, the
-// first time any real content (text or a card) arrives. Text and cards can
-// arrive in either order (a tool call's card typically resolves before the
-// model's trailing narration, but not always) and must coexist as siblings
-// in the bubble afterward — neither should wipe the other out.
+// Clears the "Thinking..."/tool-status placeholder exactly once, the first
+// time any real content (text or a card) arrives. Text and cards can arrive
+// in either order (a tool call's card typically resolves before the model's
+// trailing narration, but not always) and must coexist as siblings in the
+// bubble afterward — neither should wipe the other out.
 function ensureContentStarted(ctx) {
   if (!ctx.hasContent) {
     ctx.targetMsg.classList.remove("loading");
@@ -208,25 +365,32 @@ function handleAgentEvent(event, ctx) {
         ctx.textEl.className = "bot-text";
         ctx.targetMsg.appendChild(ctx.textEl);
       }
-      ctx.textEl.textContent = ctx.currentText;
+      ctx.textEl.textContent = "";
+      renderInlineMarkdown(ctx.textEl, ctx.currentText);
+      scrollChatToBottomIfNear();
       return;
     case "TOOL_CALL_START":
       if (!ctx.hasContent) {
-        ctx.targetMsg.textContent = "Searching...";
+        const label = TOOL_STATUS_MESSAGES[event.toolCallName] || "Working";
+        ctx.targetMsg.innerHTML = "";
+        const pill = document.createElement("span");
+        pill.className = "tool-status-pill";
+        pill.textContent = label;
+        ctx.targetMsg.appendChild(pill);
         ctx.targetMsg.classList.add("loading");
       }
       return;
     case "CUSTOM":
       renderCustomEvent(event, ctx);
+      scrollChatToBottomIfNear();
       return;
     case "RUN_ERROR":
-      ctx.targetMsg.classList.remove("loading");
-      ctx.targetMsg.textContent = event.message || DEFAULT_ERROR_MSG;
+      ctx.errorMessage = event.message || DEFAULT_ERROR_MSG;
       return "stop";
     case "RUN_FINISHED":
       ctx.targetMsg.classList.remove("loading");
       if (!ctx.hasContent) {
-        ctx.targetMsg.textContent = "Sorry, I couldn’t find an answer right now.";
+        setBotTextContent(ctx.targetMsg, "Sorry, I couldn’t find an answer right now.");
       }
       return "stop";
     default:
@@ -234,19 +398,173 @@ function handleAgentEvent(event, ctx) {
   }
 }
 
+// Escape-by-default inline renderer for a small markdown subset (**bold**,
+// *italic*, [text](url) links). Everything else is inserted as a text node,
+// never through innerHTML — model output is untrusted and can echo
+// retrieved text or be steered via prompt injection, so this is the only
+// safe path for rendering formatting richer than plain text.
+const INLINE_MARKDOWN_PATTERN = /\*\*(.+?)\*\*|\*(.+?)\*|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+
+function renderInlineMarkdown(container, text) {
+  let lastIndex = 0;
+  let match;
+  INLINE_MARKDOWN_PATTERN.lastIndex = 0;
+  while ((match = INLINE_MARKDOWN_PATTERN.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      container.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+    if (match[1] !== undefined) {
+      const strong = document.createElement("strong");
+      strong.textContent = match[1];
+      container.appendChild(strong);
+    } else if (match[2] !== undefined) {
+      const em = document.createElement("em");
+      em.textContent = match[2];
+      container.appendChild(em);
+    } else if (match[3] !== undefined) {
+      const a = document.createElement("a");
+      a.textContent = match[3];
+      a.href = match[4];
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      container.appendChild(a);
+    }
+    lastIndex = INLINE_MARKDOWN_PATTERN.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    container.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+}
+
+function setBotTextContent(msgEl, text) {
+  msgEl.textContent = "";
+  const textEl = document.createElement("div");
+  textEl.className = "bot-text";
+  renderInlineMarkdown(textEl, text);
+  msgEl.appendChild(textEl);
+  return textEl;
+}
+
+// Distinct error-bubble style (recovery pattern) with an inline retry button
+// that resubmits the last message via regenerateLastReply — no backend
+// change needed, the client just re-runs the same question.
+function renderErrorMessage(msgEl, text) {
+  msgEl.classList.remove("loading");
+  msgEl.classList.add("error");
+  setBotTextContent(msgEl, text);
+
+  const retryBtn = document.createElement("button");
+  retryBtn.type = "button";
+  retryBtn.className = "bot-retry";
+  retryBtn.textContent = "Retry";
+  retryBtn.addEventListener("click", () => {
+    msgEl.remove();
+    regenerateLastReply();
+  });
+  msgEl.appendChild(retryBtn);
+}
+
+function addGroundedTag(msgEl, count) {
+  const tag = document.createElement("div");
+  tag.className = "grounded-tag";
+  tag.textContent = `Grounded in ${count} source${count === 1 ? "" : "s"}`;
+  msgEl.insertBefore(tag, msgEl.firstChild);
+}
+
+function attachSourceBadge(card, number) {
+  const badge = document.createElement("span");
+  badge.className = "source-badge";
+  badge.textContent = String(number);
+  badge.setAttribute("aria-label", `Source ${number}`);
+  card.insertBefore(badge, card.firstChild);
+}
+
+function getMessagePlainText(msgEl) {
+  const clone = msgEl.cloneNode(true);
+  clone.querySelectorAll(".message-actions, .grounded-tag, .source-badge").forEach((el) => el.remove());
+  return clone.textContent.trim();
+}
+
+function demoteRegenerate(msgEl) {
+  if (!msgEl) return;
+  const regenBtn = msgEl.querySelector(".message-actions .message-action-btn--regenerate");
+  if (regenBtn) regenBtn.remove();
+}
+
+// Message actions row (copy always, regenerate only on the most recent bot
+// message) — revealed on hover/focus via CSS.
+function addMessageActions(msgEl) {
+  const actions = document.createElement("div");
+  actions.className = "message-actions";
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "message-action-btn";
+  copyBtn.textContent = "Copy";
+  copyBtn.setAttribute("aria-label", "Copy message");
+  copyBtn.addEventListener("click", () => {
+    const text = getMessagePlainText(msgEl);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    copyBtn.textContent = "Copied ✓";
+    setTimeout(() => {
+      copyBtn.textContent = "Copy";
+    }, 1500);
+  });
+  actions.appendChild(copyBtn);
+
+  const regenBtn = document.createElement("button");
+  regenBtn.type = "button";
+  regenBtn.className = "message-action-btn message-action-btn--regenerate";
+  regenBtn.textContent = "Regenerate";
+  regenBtn.setAttribute("aria-label", "Regenerate response");
+  regenBtn.addEventListener("click", () => {
+    msgEl.remove();
+    regenerateLastReply();
+  });
+  actions.appendChild(regenBtn);
+
+  msgEl.appendChild(actions);
+}
+
+function finalizeCompletedTurn(msgEl, ctx) {
+  if (ctx.cardCount > 0) addGroundedTag(msgEl, ctx.cardCount);
+  demoteRegenerate(latestBotMessageEl);
+  addMessageActions(msgEl);
+  latestBotMessageEl = msgEl;
+  scrollChatToBottomIfNear();
+}
+
+function finalizeStoppedMessage(msgEl, ctx) {
+  msgEl.classList.remove("loading");
+  if (!ctx.hasContent) {
+    setBotTextContent(msgEl, "Stopped.");
+  } else {
+    const note = document.createElement("div");
+    note.className = "bot-text";
+    note.textContent = "(Stopped)";
+    msgEl.appendChild(note);
+  }
+  finalizeCompletedTurn(msgEl, ctx);
+}
+
 // Dispatches a CUSTOM AG-UI event (see app/agent.py's _custom_event helper)
-// to the right card renderer by name.
+// to the right card renderer by name, numbering each card as a source for
+// the "grounded in N sources" tag and the card's own numbered badge.
 function renderCustomEvent(event, ctx) {
   ensureContentStarted(ctx);
   if (event.name === "book_card") {
     const book = event.value || {};
-    ctx.targetMsg.appendChild(
-      renderBookCard(book.title, book.author, book.first_publish_year, book.availability, book.cover_url, book.url),
-    );
+    const card = renderBookCard(book.title, book.author, book.first_publish_year, book.availability, book.cover_url, book.url);
+    attachSourceBadge(card, ++ctx.cardCount);
+    ctx.targetMsg.appendChild(card);
   } else if (event.name === "research_results") {
-    ctx.targetMsg.appendChild(renderResearchResult(event.value || {}));
+    ctx.targetMsg.appendChild(renderResearchResult(event.value || {}, ctx));
   } else if (event.name === "citation") {
-    ctx.targetMsg.appendChild(renderCitationCard(event.value || {}));
+    const card = renderCitationCard(event.value || {});
+    attachSourceBadge(card, ++ctx.cardCount);
+    ctx.targetMsg.appendChild(card);
   }
 }
 
@@ -312,7 +630,7 @@ function renderCitationCard(citation) {
 // Renders a research_results CUSTOM event payload (see app.schemas.ResearchResult
 // on the backend) as a result-list card: one entry per work, each with an
 // expandable abstract instead of dumping the full text inline.
-function renderResearchResult(result) {
+function renderResearchResult(result, ctx) {
   const container = document.createElement("div");
   container.className = "research-result";
 
@@ -324,7 +642,9 @@ function renderResearchResult(result) {
   }
 
   (result.works || []).forEach((work) => {
-    container.appendChild(renderScholarlyWorkCard(work));
+    const card = renderScholarlyWorkCard(work);
+    attachSourceBadge(card, ++ctx.cardCount);
+    container.appendChild(card);
   });
 
   return container;
@@ -387,9 +707,14 @@ const BOOK_LINE_PATTERN = /^-\s*"(.+)"\s*by\s*(.+?)(?:\s*\((\d{4})\))?\s*—\s*a
 function appendMessage(sender, text) {
   const msg = document.createElement("div");
   msg.className = sender;
-  renderPlainTextContent(msg, text);
+  if (sender === "user") {
+    msg.textContent = text;
+  } else {
+    renderPlainTextContent(msg, text);
+  }
   chatBox.appendChild(msg);
   chatBox.scrollTop = chatBox.scrollHeight;
+  if (scrollToLatestBtn) scrollToLatestBtn.hidden = true;
   return msg;
 }
 
@@ -403,7 +728,7 @@ function renderPlainTextContent(el, text) {
       el.appendChild(renderBookCard(match[1], match[2], match[3], match[4]));
     });
   } else {
-    el.textContent = text;
+    renderInlineMarkdown(el, text);
   }
 }
 
@@ -459,5 +784,5 @@ if (userInput) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { sendMessage, appendMessage };
+  module.exports = { sendMessage, appendMessage, regenerateLastReply };
 }
