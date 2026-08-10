@@ -9,7 +9,10 @@ a fallback transport.
 """
 
 import uuid
+from collections.abc import AsyncIterator
+from typing import Any
 
+from ag_ui.core import BaseEvent, EventType, RunErrorEvent
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic_ai.agent import AgentRunResult
@@ -22,6 +25,64 @@ from app.services import citation_service, crossref_service
 from app.session_store import session_store
 
 router = APIRouter()
+
+# Groq's `llama-3.3-70b-versatile` occasionally rejects its own tool-call
+# generation as `tool_use_failed` mid-stream (observed live at roughly a
+# 2-in-3 failure rate for some prompts, e.g. "Find me a sci-fi audiobook").
+# pydantic-ai's own recovery for this (GroqStreamedResponse._get_event_iterator
+# in pydantic_ai/models/groq.py) only covers the case where Groq's error body
+# matches its expected schema; when it doesn't, the raw provider exception
+# propagates past FallbackModel's boundary — which only guards stream *entry*,
+# not iteration of an already-entered stream — straight to the AG-UI
+# adapter's on_error handler, surfacing Groq's raw error text ("Failed to
+# call a function...") to the patron instead of a retry or an HF fallback.
+_MAX_AGENT_RUN_ATTEMPTS = 3
+# Events safe to discard and replay on retry — nothing has reached the
+# client yet. Once any other event type streams, the response is committed
+# and can no longer be silently retried.
+_PRE_COMMIT_EVENT_TYPES = frozenset({EventType.RUN_STARTED})
+
+
+async def _run_stream_with_retry(adapter: AGUIAdapter, **run_kwargs: Any) -> AsyncIterator[BaseEvent]:
+    """Retries a whole agent turn if it fails before any real content streamed.
+
+    Safe to retry specifically because this failure mode happens before any
+    TEXT_MESSAGE_*/TOOL_CALL_*/CUSTOM event — nothing has reached the client
+    yet to duplicate or contradict — and `on_complete` (session persistence)
+    only fires when a run completes successfully, so a discarded attempt is
+    never persisted twice, or at all.
+    """
+    last_error_event: RunErrorEvent | None = None
+    for attempt in range(1, _MAX_AGENT_RUN_ATTEMPTS + 1):
+        buffered: list[BaseEvent] = []
+        committed = False
+        try:
+            async for event in adapter.run_stream(**run_kwargs):
+                if not committed:
+                    if isinstance(event, RunErrorEvent):
+                        last_error_event = event
+                        break
+                    if event.type in _PRE_COMMIT_EVENT_TYPES:
+                        buffered.append(event)
+                        continue
+                    committed = True
+                    for buffered_event in buffered:
+                        yield buffered_event
+                    buffered.clear()
+                yield event
+            else:
+                return
+            if committed:
+                return
+        except Exception as error:  # defensive: on_error already converts run failures into RunErrorEvent
+            # Never retry once committed — real content already reached the
+            # client, and re-running would duplicate or contradict it.
+            if committed or attempt == _MAX_AGENT_RUN_ATTEMPTS:
+                raise
+            print(f"Agent run attempt {attempt} raised, retrying:", error)
+            continue
+    if last_error_event is not None:
+        yield last_error_event
 
 
 @router.post("/agent")
@@ -46,7 +107,8 @@ async def agent_endpoint(request: Request):
         session_store.append(thread_id, [*frontend_messages, *result.new_messages()])
 
     return adapter.streaming_response(
-        adapter.run_stream(
+        _run_stream_with_retry(
+            adapter,
             message_history=history,
             deps=deps,
             conversation_id=thread_id,

@@ -131,6 +131,25 @@ have that narration accepted as the final answer and the tool call silently drop
 `run_stream_events()` wraps `run()` and runs the full graph, so the tool call after the narration still
 executes.
 
+**Whole-turn retry on `/agent`, on top of (not instead of) the above.** Verified live against the deployed
+dev backend: Groq's `tool_use_failed` error — the API itself rejecting a tool-call generation, distinct from
+the leaked-syntax case above — occasionally escapes with its raw provider text ("Failed to call a
+function...") reaching the patron directly, at roughly a 2-in-3 rate for some prompts (e.g. "Find me a
+sci-fi audiobook"). Root cause, traced into `pydantic_ai/models/groq.py`: pydantic-ai's own recovery for this
+(`GroqStreamedResponse._get_event_iterator`) only fires when Groq's error body matches its expected schema;
+when it doesn't, the raw exception propagates past `FallbackModel`'s boundary — which only guards stream
+*entry* (`request_stream()`'s initial call), not iteration of a stream already handed back to the caller —
+so neither the existing `retries=5` (governs `ModelRetry`, not a raw provider exception) nor the Groq→HF
+fallback ever engage. `_run_stream_with_retry` in
+[`server/app/routers/agent.py`](server/app/routers/agent.py) wraps `adapter.run_stream()` at the router level:
+it buffers events until the first one that isn't `RUN_STARTED`, and if that turns out to be a `RUN_ERROR`
+with nothing else shown yet, discards the buffer and retries the whole turn (up to 3 attempts) instead of
+forwarding it. This is safe specifically because the failure is observed to happen before any
+`TEXT_MESSAGE_*`/`TOOL_CALL_*`/`CUSTOM` event ever streams — nothing has reached the client to duplicate or
+contradict — and `on_complete` (session persistence) only fires on a successful run, so a discarded attempt
+is never persisted. Once any real content streams, the wrapper commits and stops retrying, even if a later
+error arrives in the same turn.
+
 **Open Library, not Libby/OverDrive/Kanopy/Hoopla, for real catalog data.** Those platforms have no public
 developer API at any price for a hobby project — partnership-only. WorldCat needs an institutional key.
 Open Library is free, keyless, and has genuinely library-shaped data: Search, Availability (borrow/lending
