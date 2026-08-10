@@ -565,18 +565,21 @@ footer {
   gap: var(--ls-space-2);
   width: 100%;
   max-width: var(--ls-content-max-width);
-  background-color: #1e1e1e;
-  border: 1px solid rgba(255, 209, 102, 0.35);
+  /* Warm-tinted surface (not neutral gray) so the bar reads as branded at
+     rest, not just on focus. */
+  background-color: #241d12;
+  border: 1.5px solid rgba(255, 209, 102, 0.55);
   border-radius: var(--ls-radius-xl);
   padding: var(--ls-space-2);
   padding-left: var(--ls-space-4);
-  box-shadow: var(--ls-shadow-md), 0 0 0 1px rgba(255, 209, 102, 0.06) inset;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: var(--ls-shadow-md), 0 0 0 1px rgba(255, 209, 102, 0.1) inset;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
 }
 
 .composer-bar:focus-within {
+  background-color: #2a2114;
   border-color: var(--ls-accent);
-  box-shadow: var(--ls-shadow-md), 0 0 0 3px rgba(255, 209, 102, 0.2);
+  box-shadow: var(--ls-shadow-md), 0 0 0 3px rgba(255, 209, 102, 0.25);
 }
 
 #userInput {
