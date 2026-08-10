@@ -1,0 +1,103 @@
+name: Deploy Pages (production)
+
+# Builds app/ (React + Vite) and publishes it to the gh-pages branch root on
+# every push to main, replacing the old manual "npm run build && commit
+# docs/" step. Pushes to gh-pages never touch pr-preview/ (see
+# pr-preview.yml), so this and PR previews can publish independently without
+# clobbering each other.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "scripts/build-site.js"
+  workflow_dispatch:
+
+concurrency:
+  group: gh-pages-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./app
+
+      - name: Build site
+        run: node scripts/build-site.js --out "$RUNNER_TEMP/site"
+
+      - name: Publish to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          for attempt in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/gh-pages"
+
+            # Only create gh-pages fresh when it genuinely doesn't exist yet
+            # — checked explicitly via ls-remote (re-checked every attempt,
+            # in case a concurrent run creates it mid-retry), not inferred
+            # from a clone failure. A clone can fail for transient reasons
+            # (network blip) even when the branch exists; treating that the
+            # same as "doesn't exist" would re-init an empty orphan branch
+            # and silently wipe any pr-preview/ subfolders already
+            # published there (nothing to exclude-and-preserve in a
+            # brand-new empty tree).
+            if git ls-remote --exit-code --heads "$REPO_URL" gh-pages > /dev/null 2>&1; then
+              git clone -q --depth 1 --branch gh-pages "$REPO_URL" "$RUNNER_TEMP/gh-pages"
+            else
+              mkdir -p "$RUNNER_TEMP/gh-pages"
+              cd "$RUNNER_TEMP/gh-pages"
+              git init -q -b gh-pages
+              git remote add origin "$REPO_URL"
+              cd - > /dev/null
+            fi
+            cd "$RUNNER_TEMP/gh-pages"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            rsync -a --delete --exclude=.git --exclude=pr-preview --exclude=.nojekyll "$RUNNER_TEMP/site/" ./
+            touch .nojekyll
+
+            # Verify the build/rsync actually produced a working root before
+            # committing it as the new production state — this is the one
+            # workflow allowed to touch the root, so it's the one place a
+            # regression here (a bad exclude, a broken build-site.js, an
+            # empty $RUNNER_TEMP/site) would otherwise go straight to
+            # production undetected.
+            if [ ! -f index.html ]; then
+              echo "::error::Build produced no root index.html — refusing to publish. Check the 'Build site' step output above."
+              exit 1
+            fi
+
+            git add -A
+            if git diff --cached --quiet; then
+              echo "Nothing to publish."
+              exit 0
+            fi
+            git commit -q -m "Publish production site (${GITHUB_SHA:0:7})"
+            if git push -q origin HEAD:gh-pages; then
+              echo "Published."
+              exit 0
+            fi
+            echo "Push race on gh-pages, retrying ($attempt)..."
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "::error::Failed to publish to gh-pages after 5 attempts."
+          exit 1

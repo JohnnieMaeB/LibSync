@@ -27,12 +27,9 @@ jobs:
         run: npm test
         working-directory: ./app
 
-      - name: Build app/
+      - name: Build app/ (sanity check)
         run: npm run build
         working-directory: ./app
-
-      - name: Verify docs/ is in sync with app/'s build output
-        run: git diff --exit-code -- docs || (echo "::error::docs/ is out of sync with app/ — run 'npm run build' in app/ and commit the result." && exit 1)
 
   server-tests:
     runs-on: ubuntu-latest
