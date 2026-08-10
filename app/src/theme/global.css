@@ -23,12 +23,13 @@ body {
 /* On mobile the sidebar is a fixed-position drawer overlaying the full
    viewport, so the shell stays edge-to-edge there. At >=640px the sidebar
    sits in normal flex flow (see the .sidebar media query below) — from
-   that point on, inset the whole shell as one floating rounded panel
-   against the body backdrop. This is the only way header/sidebar/content's
-   *outer* corners can actually show as rounded: they're internal bars with
-   no background behind their own corners to reveal a curve, but clipped as
-   a group inside this rounded, overflow-hidden panel, the panel's corner
-   radius shows through regardless of what's flush against it inside. */
+   that point on, inset the whole shell against the body backdrop and treat
+   the sidebar and main column as two independent rounded panels with a
+   real gap between them, rather than one flush divider line. A shared
+   outer radius alone doesn't round *that* seam — the divider is an
+   internal border with no background behind its own corner to reveal a
+   curve — so each panel needs its own corners and something visible
+   (the shell's own --ls-bg fill) showing through the gap between them. */
 @media (min-width: 640px) {
     .app-shell:not(.compact) {
         margin: var(--ls-space-4);
@@ -36,8 +37,24 @@ body {
         height: calc(100vh - var(--ls-space-4) * 2);
         height: calc(100dvh - var(--ls-space-4) * 2);
         border-radius: var(--ls-radius-xl);
-        border: 1px solid var(--ls-border);
+        background-color: var(--ls-bg);
         box-shadow: var(--ls-shadow-lg);
+        overflow: hidden;
+    }
+
+    .app-shell:not(.compact) .sidebar {
+        height: auto;
+        align-self: stretch;
+        margin: var(--ls-space-2) 0 var(--ls-space-2) var(--ls-space-2);
+        border: 1px solid var(--ls-border);
+        border-radius: var(--ls-radius-lg);
+    }
+
+    .app-shell:not(.compact) .main-column {
+        margin: var(--ls-space-2);
+        border: 1px solid var(--ls-border);
+        border-radius: var(--ls-radius-lg);
+        overflow: hidden;
     }
 }
 
