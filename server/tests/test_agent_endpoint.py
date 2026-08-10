@@ -87,6 +87,85 @@ async def citation_tool_calling_stream_function(messages: list[ModelMessage], in
     }
 
 
+def _flaky_stream_function(*, fail_times: int, reply: str = "Recovered reply"):
+    """Builds a stream function that raises for the first `fail_times` calls
+    (simulating Groq's intermittent tool_use_failed error escaping mid-stream,
+    see `_run_stream_with_retry` in app/routers/agent.py) and streams `reply`
+    on every call after that. Returns the function plus a mutable call
+    counter so tests can assert exactly how many attempts were made."""
+    calls = {"count": 0}
+
+    async def stream_function(messages: list[ModelMessage], info: AgentInfo):
+        calls["count"] += 1
+        if calls["count"] <= fail_times:
+            raise RuntimeError("Failed to call a function. Please adjust your prompt. See 'failed_generation' for more details.")
+        yield reply
+
+    return stream_function, calls
+
+
+def _always_failing_stream_function():
+    calls = {"count": 0}
+
+    async def stream_function(messages: list[ModelMessage], info: AgentInfo):
+        calls["count"] += 1
+        raise RuntimeError("Failed to call a function. Please adjust your prompt. See 'failed_generation' for more details.")
+        yield  # pragma: no cover — unreachable, keeps this an async generator
+
+    return stream_function, calls
+
+
+async def _fail_after_one_chunk_stream_function(messages: list[ModelMessage], info: AgentInfo):
+    yield "Partial"
+    raise RuntimeError("Failed to call a function. Please adjust your prompt. See 'failed_generation' for more details.")
+
+
+class TestAgentEndpointRetriesTransientToolCallFailures:
+    """Regression coverage for the live bug caught testing PR #42: Groq's
+    tool_use_failed error occasionally escapes FallbackModel's fallback
+    boundary (which only guards stream *entry*, not iteration of an
+    already-entered stream) and reached patrons as a raw RUN_ERROR — observed
+    live at roughly a 2-in-3 failure rate for "Find me a sci-fi audiobook"."""
+
+    def test_retries_and_recovers_when_failure_happens_before_any_content(self, client):
+        stream_function, calls = _flaky_stream_function(fail_times=1)
+        with chat_agent.override(model=FunctionModel(stream_function=stream_function)):
+            response = client.post("/agent", json=_run_agent_input(thread_id="retry-1", content="Find me a sci-fi audiobook"))
+
+        assert calls["count"] == 2
+        events = _parse_sse_events(response.text)
+        event_types = [e["type"] for e in events]
+        assert "RUN_ERROR" not in event_types
+        assert event_types.count("RUN_STARTED") == 1
+        assert event_types[-1] == "RUN_FINISHED"
+        text_deltas = "".join(e["delta"] for e in events if e["type"] == "TEXT_MESSAGE_CONTENT")
+        assert text_deltas == "Recovered reply"
+
+    def test_gives_up_after_max_attempts_and_surfaces_the_last_error(self, client):
+        stream_function, calls = _always_failing_stream_function()
+        with chat_agent.override(model=FunctionModel(stream_function=stream_function)):
+            response = client.post("/agent", json=_run_agent_input(thread_id="retry-2", content="Find me a sci-fi audiobook"))
+
+        assert calls["count"] == 3  # _MAX_AGENT_RUN_ATTEMPTS
+        events = _parse_sse_events(response.text)
+        error_events = [e for e in events if e["type"] == "RUN_ERROR"]
+        assert len(error_events) == 1
+        assert "Failed to call a function" in error_events[0]["message"]
+
+    def test_does_not_retry_once_real_content_already_streamed(self, client):
+        with chat_agent.override(model=FunctionModel(stream_function=_fail_after_one_chunk_stream_function)):
+            response = client.post("/agent", json=_run_agent_input(thread_id="retry-3", content="Find me a sci-fi audiobook"))
+
+        events = _parse_sse_events(response.text)
+        event_types = [e["type"] for e in events]
+        # The partial text that already reached the client must survive —
+        # retrying after commit would duplicate/contradict it, not fix it.
+        assert event_types.count("RUN_STARTED") == 1
+        text_deltas = "".join(e["delta"] for e in events if e["type"] == "TEXT_MESSAGE_CONTENT")
+        assert text_deltas == "Partial"
+        assert "RUN_ERROR" in event_types
+
+
 class TestAgentEndpoint:
     def test_streams_run_started_text_and_run_finished(self, client):
         with chat_agent.override(model=FunctionModel(stream_function=streaming_text_function)):

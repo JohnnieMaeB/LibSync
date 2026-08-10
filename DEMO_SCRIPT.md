@@ -1,9 +1,9 @@
 # LibSync — Demo Script
 
-A scripted conversation flow that exercises every working Tier 1 + Tier 2 capability, in order, so you can
-recreate the full demo reliably (for yourself, in an interview, or on a call). Each turn says what to
-type, what it's testing, and what a correct answer looks like so you can tell "working" from "broken" at
-a glance.
+A scripted conversation flow that exercises every working Tier 1 + Tier 2 capability, presented through the
+Tier 3 UI, in order, so you can recreate the full demo reliably (for yourself, in an interview, or on a
+call). Each turn says what to type, what it's testing, and what a correct answer looks like so you can tell
+"working" from "broken" at a glance.
 
 This assumes the seed policy data from [`pinecone-scripts/upsert_pinecone_records.py`](pinecone-scripts/upsert_pinecone_records.py)
 is already loaded (see [README §2](README.md#-local-setup)) and the server is running with real
@@ -22,10 +22,36 @@ citation tools work without them, just in each API's slower anonymous rate-limit
 - **Optional but recommended:** [Logfire](https://logfire.pydantic.dev/) dashboard open in another tab if
   `LOGFIRE_TOKEN` is set — you can watch each tool call (`search_library_policies`, `search_catalog`,
   `search_scholarly_works`, `lookup_and_cite`) fire in real time as you go through the script, which is a
-  good visual for a demo. You'll also see it live in the chat itself: the bot bubble shows a "Searching…"
-  state the moment a tool call starts, streamed over the AG-UI transport (`POST /agent`) — no blank spinner.
+  good visual for a demo. You'll also see it live in the chat itself: the bot bubble shows a tool-specific
+  status pill (e.g. "🔍 Searching the catalog") the moment a tool call starts, streamed over the AG-UI
+  transport (`POST /agent`) — no blank spinner.
 - **Fresh session:** clear the site's `localStorage` (or open a private/incognito window) so turn 1 starts
   a brand-new thread id and the continuity turns later actually prove something.
+
+---
+
+## What Tier 3 adds to this walkthrough
+
+The turns below are unchanged from Tier 1/2 — same questions, same grounded data — but the UI around them
+now demonstrates its own things worth calling out during a demo:
+
+- **Suggestion chips** on first load (before turn 1): four starter prompts under the intro bubble, gone
+  after the first message is sent.
+- **Tool-status pills** are now tool-specific ("🔍 Searching the catalog", "🎓 Looking up research", "🎓
+  Looking up citation", "📚 Checking library policies"), not a generic "Searching…".
+- **Stop button:** the Send button becomes a red "Stop" control the instant any turn is submitted — even
+  before "Thinking…" resolves into a tool call or text. Click it mid-turn to interrupt a request; the bubble
+  finalizes as "Stopped." with a Regenerate action, no dangling state.
+- **Grounded in N sources:** any reply backed by one or more cards (turns 5–7) gets a small tag plus a
+  numbered badge on each card — the visible payoff of Tier 2's retrieval work.
+- **Copy / Regenerate:** hover (or Tab-focus) any bot reply to reveal a Copy button; only the most recent
+  reply also shows Regenerate, which re-runs the same question without duplicating your message in the
+  transcript.
+- **Retry on error:** simulate a failure (stop the server mid-request, or see Turn 12 below) and the error
+  bubble shows a Retry button that resubmits the same question — good for demonstrating recovery without
+  retyping.
+- **Keyboard/screen-reader pass:** Tab through chips → input → Send/Stop → message actions to show visible
+  focus rings; the chat region is `role="log" aria-live="polite"` so a screen reader announces new replies.
 
 ---
 
@@ -81,19 +107,21 @@ request at any public computer station.
 
 > **Type:** `Is Project Hail Mary by Andy Weir available?`
 
-Watch the bot bubble show **"Searching…"** the moment `search_catalog` fires, then expect a real **book
+Watch the bot bubble show a **"🔍 Searching the catalog"** status pill the moment `search_catalog` fires, then expect a real **book
 card** — cover thumbnail (when Open Library has one), the title linked out to the book's Open Library page,
 author, and an availability badge (often `unknown`, which is a real, honest status from Open Library's
 Availability API — not every edition is in the Internet Archive lending program — see
 [ARCHITECTURE.md](ARCHITECTURE.md)). The card renders live, as soon as the tool call resolves, and any
-narration the model adds appears alongside it, not replacing it.
+narration the model adds appears alongside it, not replacing it. A small numbered badge on the card and a
+"Grounded in 1 source" tag above the reply are Tier 3 additions — the same numbering scheme extends to
+turns 6 and 7 whenever a reply is backed by more than one card.
 
 If Logfire is open, you should see a `search_catalog` tool call, followed by an HTTP call out to
 `openlibrary.org`.
 
 **Confirms:** the catalog tool hits the real Open Library API, the card renders from a live `CUSTOM`
-event on the AG-UI stream (not parsed out of prose), and text/cards coexist correctly regardless of which
-arrives first.
+event on the AG-UI stream (not parsed out of prose), text/cards coexist correctly regardless of which
+arrives first, and the grounding tag/badge accurately reflects how many sources backed the reply.
 
 ---
 

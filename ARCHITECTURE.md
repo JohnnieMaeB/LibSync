@@ -1,13 +1,16 @@
 # LibSync Architecture
 
-This is the as-built architecture after [Tier 1](TIER1_PLAN.md) and [Tier 2](TIER2_PLAN.md): real RAG, real
-catalog/research/citation data, a budget-safe LLM provider, an interactive AG-UI transport, session
-continuity, tracing, and structured card output — the foundation the rest of the
-[roadmap](README.md#-future-enhancements) builds on. All of it runs at **$0/month** on free tiers; see
-[TIER1_PLAN.md §4](TIER1_PLAN.md#4-budget-ledger-must-stay-at-0) and
-[TIER2_PLAN.md §7](TIER2_PLAN.md#7-budget-ledger-addendum) for the budget ledgers. For a mechanical,
-method-by-method trace of the backend — what runs at import time and a step-by-step walk of every request —
-see [server/TRACE.md](server/TRACE.md); this doc stays at the "why" level.
+This is the as-built architecture after [Tier 1](TIER1_PLAN.md), [Tier 2](TIER2_PLAN.md), and
+[Tier 3](TIER3_PLAN.md): real RAG, real catalog/research/citation data, a budget-safe LLM provider, an
+interactive AG-UI transport, session continuity, tracing, structured card output, and a presentation layer
+(safe markdown, accessibility, conversational affordances, grounding UI) on top of it — the foundation the
+rest of the [roadmap](README.md#-future-enhancements) builds on. All of it runs at **$0/month** on free
+tiers; see [TIER1_PLAN.md §4](TIER1_PLAN.md#4-budget-ledger-must-stay-at-0),
+[TIER2_PLAN.md §7](TIER2_PLAN.md#7-budget-ledger-addendum), and
+[TIER3_PLAN.md §7](TIER3_PLAN.md#7-budget-ledger-addendum) for the budget ledgers (Tier 3 added no new
+services or dependencies — CSS and vanilla JS only). For a mechanical, method-by-method trace of the
+backend — what runs at import time and a step-by-step walk of every request — see
+[server/TRACE.md](server/TRACE.md); this doc stays at the "why" level.
 
 ---
 
@@ -96,7 +99,7 @@ sequenceDiagram
 ```
 
 The `on_complete` step matters more than it looks: `result.new_messages()` only covers what the run
-generated *beyond* the `message_history` it was given, and `AGUIAdapter` folds the frontend's new turn into
+generated _beyond_ the `message_history` it was given, and `AGUIAdapter` folds the frontend's new turn into
 that same `message_history` before running — so it never shows up in `new_messages()` on its own. Persisting
 only `new_messages()` would silently drop the user's own message from history every turn, breaking
 multi-turn continuity from the second turn onward. This was caught live (not by the unit tests) during
@@ -127,6 +130,25 @@ matching `output_type`, so a model that narrates ("I'll check the catalog...") b
 have that narration accepted as the final answer and the tool call silently dropped — also verified live.
 `run_stream_events()` wraps `run()` and runs the full graph, so the tool call after the narration still
 executes.
+
+**Whole-turn retry on `/agent`, on top of (not instead of) the above.** Verified live against the deployed
+dev backend: Groq's `tool_use_failed` error — the API itself rejecting a tool-call generation, distinct from
+the leaked-syntax case above — occasionally escapes with its raw provider text ("Failed to call a
+function...") reaching the patron directly, at roughly a 2-in-3 rate for some prompts (e.g. "Find me a
+sci-fi audiobook"). Root cause, traced into `pydantic_ai/models/groq.py`: pydantic-ai's own recovery for this
+(`GroqStreamedResponse._get_event_iterator`) only fires when Groq's error body matches its expected schema;
+when it doesn't, the raw exception propagates past `FallbackModel`'s boundary — which only guards stream
+*entry* (`request_stream()`'s initial call), not iteration of a stream already handed back to the caller —
+so neither the existing `retries=5` (governs `ModelRetry`, not a raw provider exception) nor the Groq→HF
+fallback ever engage. `_run_stream_with_retry` in
+[`server/app/routers/agent.py`](server/app/routers/agent.py) wraps `adapter.run_stream()` at the router level:
+it buffers events until the first one that isn't `RUN_STARTED`, and if that turns out to be a `RUN_ERROR`
+with nothing else shown yet, discards the buffer and retries the whole turn (up to 3 attempts) instead of
+forwarding it. This is safe specifically because the failure is observed to happen before any
+`TEXT_MESSAGE_*`/`TOOL_CALL_*`/`CUSTOM` event ever streams — nothing has reached the client to duplicate or
+contradict — and `on_complete` (session persistence) only fires on a successful run, so a discarded attempt
+is never persisted. Once any real content streams, the wrapper commits and stops retrying, even if a later
+error arrives in the same turn.
 
 **Open Library, not Libby/OverDrive/Kanopy/Hoopla, for real catalog data.** Those platforms have no public
 developer API at any price for a hobby project — partnership-only. WorldCat needs an institutional key.
@@ -180,7 +202,7 @@ Caused a real (if brief) production outage the first time this pipeline actually
 can only trigger on a push to `main`, and since these workflow files hadn't been merged there yet, it had
 never run. When a PR opened, `pr-preview.yml`'s original fallback — "clone `gh-pages`, and if that fails,
 `git init` a fresh one" — couldn't tell "the branch doesn't exist yet" apart from any other clone failure,
-so it silently created `gh-pages` from scratch containing *only* `pr-preview/pr-<N>/`, no root content at
+so it silently created `gh-pages` from scratch containing _only_ `pr-preview/pr-<N>/`, no root content at
 all. Pointing GitHub Pages at that branch's root then 404'd production — not because anything was deleted
 (`main`'s `docs/` was untouched throughout), but because `gh-pages` had never actually been seeded with real
 content in the first place. Fixed by checking existence explicitly with `git ls-remote --exit-code --heads`
@@ -240,13 +262,13 @@ to the AG-UI `thread_id` was a call-site change, not a data-model change.
 `AGUIEventStream` detects `BaseEvent` instances on `metadata` and yields them straight into the SSE stream.
 This meant no new plumbing was needed to get a card in front of the frontend — `search_catalog`,
 `search_scholarly_works`, and `lookup_and_cite` all reuse the same three-line `_custom_event()` helper in
-[`server/app/agent.py`](server/app/agent.py). `metadata` accepting an *iterable* of events (not just one) is
+[`server/app/agent.py`](server/app/agent.py). `metadata` accepting an _iterable_ of events (not just one) is
 what lets `search_catalog` emit one `book_card` event per result from a single tool call, rather than one
 combined event the frontend has to unpack.
 
 **Frontend text and cards must coexist as siblings, not overwrite each other.** The real event order for a
 grounded answer is `TOOL_CALL_RESULT` → `CUSTOM` (the card) → `TEXT_MESSAGE_*` (the model's trailing
-narration) — narration routinely arrives *after* the card, not before it. An earlier version of the
+narration) — narration routinely arrives _after_ the card, not before it. An earlier version of the
 frontend's event handler unconditionally cleared the bubble's `innerHTML` on every `TEXT_MESSAGE_CONTENT`
 event, which wiped out any card that had already rendered. This was caught live in a real browser (not by
 the unit tests, which had mocked event orderings that happened not to exercise this case) — see
@@ -258,7 +280,7 @@ after that appends instead of replacing.
 add over Open Library alone.** OpenAlex is the actual "research help" data source: citation counts,
 open-access flags, related/cited-by works — none of which Open Library has. Crossref gives real
 bibliographic fields (author, year, container-title, DOI) by DOI or title search; citeproc-py then formats
-them with the *actual* CSL 1.0.1 style files from `citeproc-py-styles` — the same processor family Zotero
+them with the _actual_ CSL 1.0.1 style files from `citeproc-py-styles` — the same processor family Zotero
 uses — instead of asking the model to recall citation-formatting rules (et al. thresholds, page-range
 dashes) from memory, which is wrong more often than it looks right. See
 [TIER2_PLAN.md §1](TIER2_PLAN.md#1-whats-out-there-free-library--research-data-sources) for the full survey
@@ -274,7 +296,7 @@ of hitting Crossref again for every style a patron clicks through.
 **`fastapi<0.137`, pinned deliberately.** FastAPI 0.137 changed how `app.include_router()`-registered routes
 are represented internally (a new `_IncludedRouter` type), which `opentelemetry-instrumentation-fastapi`
 0.63b1 (the version `logfire[fastapi]>=4.37.0` currently resolves to) can't read `.path` off — every CORS
-preflight `OPTIONS` request 500s whenever `LOGFIRE_TOKEN` is set, on *any* route, since every route in this
+preflight `OPTIONS` request 500s whenever `LOGFIRE_TOKEN` is set, on _any_ route, since every route in this
 app is registered via `include_router()`. This is real enough to break the deployed demo for real browser
 users (GitHub Pages and Render are different origins, so every chat message triggers a real preflight) — not
 just a local annoyance. A fixed instrumentation release (`0.64b0`) exists, but it requires
@@ -282,33 +304,62 @@ just a local annoyance. A fixed instrumentation release (`0.64b0`) exists, but i
 `opentelemetry-sdk<1.43.0` ceiling — so pinning FastAPI below 0.137 was the only fix actually available
 today. See the pin's comment in [`server/pyproject.toml`](server/pyproject.toml) for when it can be lifted.
 
+**Tier 3's markdown renderer builds DOM nodes directly instead of ever touching `innerHTML` with interpolated
+text.** Model output is untrusted — it can echo retrieved text or be steered via prompt injection — so
+`renderInlineMarkdown` (see [`client/src/script.js`](client/src/script.js)) matches a small, fixed set of
+patterns (`**bold**`, `*italic*`, `[text](https://url)`) and inserts everything else, matched or not, as a
+plain text node via `document.createTextNode`/`el.textContent`. There is no code path where a string derived
+from the model can become live markup — closing the gap the [TIER3_PLAN.md §1](TIER3_PLAN.md#1-brand-audit--whats-actually-there-today)
+audit flagged, while finally rendering the bold/link formatting the model already tends to produce.
+
+**"Grounded in N sources" and numbered card badges are computed client-side from the cards already
+rendered, not from new backend-supplied citation markers.** Tier 3's definition of done requires no backend
+changes, and the model doesn't emit inline `[1]`-style markers into its own text. Instead, every `book_card`,
+`research_results` work, and `citation` CUSTOM event rendered into a reply increments a per-turn counter
+(`ctx.cardCount` in `consumeAgentStream`); each card gets a numbered `.source-badge` in render order, and a
+`.grounded-tag` summarizing the count is prepended once the turn finishes. This gives Tier 2's retrieval work
+a visible, honest payoff (a reply either shows sources or it doesn't) without inventing a citation-marker
+protocol the backend doesn't produce.
+
+**Regenerate and retry re-run the question through a shared `runAgentTurn`, not a second copy of
+`sendMessage`'s body.** `sendMessage` appends the user bubble then delegates to `runAgentTurn(question)`;
+`regenerateLastReply()` calls the same function with the last question and no new user bubble. The error
+bubble's Retry button and a completed reply's Regenerate action both remove their message element and call
+`regenerateLastReply()` — so neither path duplicates the user's turn in the transcript, and stopping
+mid-stream (via `AbortController`, wired through `fetch`'s `signal`) reuses the exact same finalization path
+(`finalizeCompletedTurn`) as a normal completion, just with a "(Stopped)" note instead of a fallback message.
+
 ---
 
 ## Where things live
 
-| Concern | Code |
-|---|---|
-| Agent, system prompt, tool registration | [`server/app/agent.py`](server/app/agent.py) |
-| Shared deps injected into tools (`http_client`) | [`server/app/deps.py`](server/app/deps.py) |
-| Conversation history store, keyed by AG-UI thread id | [`server/app/session_store.py`](server/app/session_store.py) |
-| Pinecone policy search | [`server/app/services/pinecone_service.py`](server/app/services/pinecone_service.py) |
-| Open Library catalog search | [`server/app/services/open_library_service.py`](server/app/services/open_library_service.py) |
-| OpenAlex scholarly-works search | [`server/app/services/openalex_service.py`](server/app/services/openalex_service.py) |
-| Crossref bibliographic lookup (with short-lived cache) | [`server/app/services/crossref_service.py`](server/app/services/crossref_service.py) |
-| Crossref → CSL-JSON mapping + citeproc-py formatting | [`server/app/services/citation_service.py`](server/app/services/citation_service.py) |
-| `/agent` (AG-UI, primary transport) and `/citation/{doi}` (style switch) | [`server/app/routers/agent.py`](server/app/routers/agent.py) |
-| `/chat` and `/chat/stream` endpoints (fallback transport) | [`server/app/routers/chat.py`](server/app/routers/chat.py) |
-| Structured output types (`Book`, `BookResult`, `ScholarlyWork`, `ResearchResult`, `Citation`) | [`server/app/schemas.py`](server/app/schemas.py) |
-| `/api/query` endpoint (direct Pinecone search) | [`server/app/routers/pinecone_query.py`](server/app/routers/pinecone_query.py) |
-| Frontend source, incl. the AG-UI SSE event router | [`client/src/script.js`](client/src/script.js) |
-| Frontend build (prod, and PR previews with an `API_BASE_URL` override) | [`scripts/build-site.js`](scripts/build-site.js) |
-| Production Pages publish (`gh-pages` branch root, on push to `main`) | [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) |
-| PR preview publish + shared dev backend redeploy + PR comment | [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml) |
-| Pinecone IaC (index creation, seed data, smoke test) | [`pinecone-scripts/`](pinecone-scripts/) |
+| Concern                                                                                       | Code                                                                                         |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Agent, system prompt, tool registration                                                       | [`server/app/agent.py`](server/app/agent.py)                                                 |
+| Shared deps injected into tools (`http_client`)                                               | [`server/app/deps.py`](server/app/deps.py)                                                   |
+| Conversation history store, keyed by AG-UI thread id                                          | [`server/app/session_store.py`](server/app/session_store.py)                                 |
+| Pinecone policy search                                                                        | [`server/app/services/pinecone_service.py`](server/app/services/pinecone_service.py)         |
+| Open Library catalog search                                                                   | [`server/app/services/open_library_service.py`](server/app/services/open_library_service.py) |
+| OpenAlex scholarly-works search                                                               | [`server/app/services/openalex_service.py`](server/app/services/openalex_service.py)         |
+| Crossref bibliographic lookup (with short-lived cache)                                        | [`server/app/services/crossref_service.py`](server/app/services/crossref_service.py)         |
+| Crossref → CSL-JSON mapping + citeproc-py formatting                                          | [`server/app/services/citation_service.py`](server/app/services/citation_service.py)         |
+| `/agent` (AG-UI, primary transport) and `/citation/{doi}` (style switch)                      | [`server/app/routers/agent.py`](server/app/routers/agent.py)                                 |
+| `/chat` and `/chat/stream` endpoints (fallback transport)                                     | [`server/app/routers/chat.py`](server/app/routers/chat.py)                                   |
+| Structured output types (`Book`, `BookResult`, `ScholarlyWork`, `ResearchResult`, `Citation`) | [`server/app/schemas.py`](server/app/schemas.py)                                             |
+| `/api/query` endpoint (direct Pinecone search)                                                | [`server/app/routers/pinecone_query.py`](server/app/routers/pinecone_query.py)               |
+| Frontend source, incl. the AG-UI SSE event router                                             | [`client/src/script.js`](client/src/script.js)                                               |
+| Frontend build (prod, and PR previews with an `API_BASE_URL` override)                        | [`scripts/build-site.js`](scripts/build-site.js)                                             |
+| Production Pages publish (`gh-pages` branch root, on push to `main`)                          | [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)                   |
+| PR preview publish + shared dev backend redeploy + PR comment                                 | [`.github/workflows/pr-preview.yml`](.github/workflows/pr-preview.yml)                       |
+| Pinecone IaC (index creation, seed data, smoke test)                                          | [`pinecone-scripts/`](pinecone-scripts/)                                                     |
 
 ## What's next
 
-[TIER3_PLAN.md](TIER3_PLAN.md) builds on this foundation directly: surfacing Tier 2's tool calls and
-grounded sources more visibly in the UI (capability chips, numbered source citations), a real card design
-system, and an accessibility pass — in LibSync's existing black-and-amber brand, no new backend work. See
-the full [roadmap](README.md#-future-enhancements) for Tiers 4–9.
+Tier 3 is built: a safe (escape-by-default) markdown renderer closing the raw-`innerHTML` XSS gap, an
+accessibility baseline (`role="log"`/`aria-live` on the chat region, visible focus rings, `prefers-reduced-motion`
+handling), suggestion chips and per-tool status pills, a stop/regenerate/copy action set, a scroll-to-latest
+control, numbered source badges with a "Grounded in N sources" tag, and a distinct error style with an
+inline Retry — all CSS and vanilla JS on the existing black-and-amber brand, no backend changes. See
+[TIER3_PLAN.md](TIER3_PLAN.md) for the full plan and rationale. [TIER4_PLAN.md](TIER4_PLAN.md) covers
+porting this component/token spec into a React codebase next; see the full
+[roadmap](README.md#-future-enhancements) for Tiers 4–9.
