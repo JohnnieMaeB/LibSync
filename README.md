@@ -62,7 +62,7 @@ The project is currently in **active development**, focusing on technical experi
   CopilotKit runtime — see [TIER4_PLAN.md](TIER4_PLAN.md)), a CSS custom-property design-token system, and a
   safe (escape-by-default) markdown renderer built from real React elements, never `dangerouslySetInnerHTML`
 - **Backend:** Python, FastAPI
-- **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V3.2-Exp`) wired as an automatic fallback via `FallbackModel`
+- **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary, `openai/gpt-oss-120b`), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V4-Flash`) wired as an automatic fallback via `FallbackModel`
 - **Interactive transport:** [AG-UI protocol](https://docs.ag-ui.com/) (`pydantic-ai-slim[ag-ui]`) at `POST /agent` — streams text deltas, live tool-call progress, and structured `CUSTOM` events the frontend renders as real cards; `/chat`/`/chat/stream` remain as a simpler fallback transport
 - **Tool-using agent:** Four PydanticAI tools ground replies in real data — `search_library_policies` (Pinecone), `search_catalog` (Open Library), `search_scholarly_works` (OpenAlex), and `lookup_and_cite` (Crossref + citeproc-py)
 - **Structured output:** `output_type=str | BookResult` on the fallback transport, plus AG-UI `CUSTOM` events (`book_card`, `research_results`, `citation`) on the primary transport — either way, results come back as real data for the frontend to render as cards, not prose the UI has to parse
@@ -345,7 +345,7 @@ The last three are new in Tier 2 (research/citation tooling) — details below.
    ```
 
 **Getting a Hugging Face token (fallback LLM, optional):** the Inference Providers API (used here to call
-`deepseek-ai/DeepSeek-V3.2-Exp` via novita) requires a token even on the free tier, since usage is tracked
+`deepseek-ai/DeepSeek-V4-Flash` via novita) requires a token even on the free tier, since usage is tracked
 against your HF account. Free-tier HF accounts only get $0.10/month in Inference Provider credit, which is
 why this is fallback-only, not primary.
 

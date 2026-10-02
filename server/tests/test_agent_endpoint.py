@@ -13,6 +13,7 @@ from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 from app import agent as agent_module
 from app.agent import chat_agent
 from app.widget_registry import widget_registry
+from app.routers.agent import PATRON_ERROR_MESSAGE
 
 
 def _run_agent_input(*, thread_id: str, content: str) -> dict:
@@ -155,7 +156,7 @@ class TestAgentEndpointRetriesTransientToolCallFailures:
         text_deltas = "".join(e["delta"] for e in events if e["type"] == "TEXT_MESSAGE_CONTENT")
         assert text_deltas == "Recovered reply"
 
-    def test_gives_up_after_max_attempts_and_surfaces_the_last_error(self, client):
+    def test_gives_up_after_max_attempts_with_a_patron_safe_error(self, client):
         stream_function, calls = _always_failing_stream_function()
         with chat_agent.override(model=FunctionModel(stream_function=stream_function)):
             response = client.post("/agent", json=_run_agent_input(thread_id="retry-2", content="Find me a sci-fi audiobook"))
@@ -164,7 +165,9 @@ class TestAgentEndpointRetriesTransientToolCallFailures:
         events = _parse_sse_events(response.text)
         error_events = [e for e in events if e["type"] == "RUN_ERROR"]
         assert len(error_events) == 1
-        assert "Failed to call a function" in error_events[0]["message"]
+        # Provider internals stay in the server log, not the patron's chat.
+        assert error_events[0]["message"] == PATRON_ERROR_MESSAGE
+        assert "Failed to call a function" not in response.text
 
     def test_does_not_retry_once_real_content_already_streamed(self, client):
         with chat_agent.override(model=FunctionModel(stream_function=_fail_after_one_chunk_stream_function)):
@@ -178,6 +181,8 @@ class TestAgentEndpointRetriesTransientToolCallFailures:
         text_deltas = "".join(e["delta"] for e in events if e["type"] == "TEXT_MESSAGE_CONTENT")
         assert text_deltas == "Partial"
         assert "RUN_ERROR" in event_types
+        error_event = next(e for e in events if e["type"] == "RUN_ERROR")
+        assert error_event["message"] == PATRON_ERROR_MESSAGE
 
 
 class TestAgentEndpoint:
