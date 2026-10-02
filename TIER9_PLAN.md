@@ -29,9 +29,15 @@ existing functionality behind a login — it's additive.
 **Why:** not every library will have a Tier 8 catalog connector configured — some stay on the Open Library
 default. Patron accounts shouldn't be entirely gated behind a library's ILS integration status.
 **How:**
-- **Primary — "Sign in with your library card":** card number + PIN, validated against the library's own ILS
-  through Tier 8's `CatalogConnector` (Koha's REST API has patron authentication endpoints). No new credential
-  to remember — this *is* their existing library card.
+- **Primary — "Sign in with your library card":** card number + PIN, validated against the library's own ILS.
+  No new credential to remember — this *is* their existing library card. Revised after the October 2026
+  research ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026)):
+  **SIP2** is how e-resource vendors, proxies and kiosks already authenticate patrons against *any* ILS, so it
+  is the default path. The ILS's own patron API (Koha REST, Polaris PAPI) is used where the library prefers it.
+  SIP2 replies include the patron's personal details whether or not the caller needs them, so the connection
+  must be encrypted (TLS or a VPN tunnel), and LibSync keeps only the card's validity and a library-scoped
+  patron reference. It never stores the PIN or the personal details, following the privacy-proxy model of
+  services like OPLIN's Mask.
 - **Fallback — lightweight account:** email + magic link via the same Supabase Auth instance Tier 8 already
   runs, for libraries without a connected ILS. Same account model, weaker guarantee (not tied to a real patron
   record), still real enough to sync history.
@@ -48,9 +54,11 @@ Not accounts for their own sake — three concrete things:
 
 ### 2.3 Privacy is not an afterthought here — it's already in the persona
 
-`bot_context/bill_of_rights.py` and `core_values.py` have carried the ALA Library Bill of Rights and Core
-Values in the system prompt since Tier 1 — patron confidentiality is a named professional value in there
-already, not something this tier introduces. That makes the bar concrete, not aspirational: clear, discoverable
+The system prompt has carried the ALA Library Bill of Rights and Core Values since Tier 1, distilled into
+`bot_context/service_principles.py` since October 2026 — patron confidentiality is a named professional value in
+there already, not something this tier introduces. Tier 8's trust-and-compliance phase (36T: Groq Zero Data
+Retention, AI disclosure, documented retention) is a prerequisite here, since accounts mean storing patron
+data for the first time. That makes the bar concrete, not aspirational: clear, discoverable
 controls to view and delete stored history, no cross-library data sharing (RLS from Tier 8 already enforces
 tenant isolation; this extends the same guarantee to patron rows), and minimal retention by default.
 
@@ -76,7 +84,7 @@ account" — signing in is a choice offered, not a wall blocking the chat.
 
 | Phase | Scope | Est. |
 |---|---|---|
-| **36** | Dual-mode auth: Supabase magic-link fallback + ILS card-number/PIN auth via Tier 8's `CatalogConnector` (Koha patron endpoints) | 4–6 days |
+| **36** | Dual-mode auth: Supabase magic-link fallback + ILS card-number/PIN auth via SIP2 (default) or the ILS patron API (Koha REST, Polaris PAPI), built on Tier 8 Phase 35's SIP2 plumbing | 5–8 days |
 | **37** | Synced chat history: Tier 5's IndexedDB store gains a Supabase-backed sync layer for signed-in patrons; stays local-only for anonymous ones | 3–5 days |
 | **38** | `patron_status` tool — real checkouts/holds/due dates, ILS-backed accounts only | 3–4 days |
 | **39** | Privacy controls: view/delete stored history, retention policy surfaced in-app, tied to the ALA privacy values already in the persona | 2–3 days |
@@ -92,7 +100,7 @@ and get a real answer. A visible control exists to delete everything.
 | Item | Cost |
 |---|---|
 | Supabase Auth (same project as Tier 8) | $0 — 50k MAU free-tier ceiling, enormous headroom over a single-library patron base |
-| ILS-backed auth | $0 — calls the library's own existing Koha instance, same as Tier 8's catalog search |
+| ILS-backed auth | $0 — calls the library's own existing ILS over SIP2 or its patron API; the library provisions the SIP2 account |
 | No second Supabase project | Avoids burning the 2-project free-tier cap for no reason |
 
 ---
