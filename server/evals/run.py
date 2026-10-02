@@ -49,6 +49,10 @@ def summarize(report) -> dict:
             "failures": failed,
             "tools_called": case.output.tools_called,
             "duration_s": round(case.task_duration, 2),
+            # Kept for failing cases only: a phrase check that missed needs
+            # the actual reply to tell a real omission from a wording the
+            # check didn't anticipate.
+            **({"reply": case.output.reply[:600]} if failed else {}),
         })
     for failure in report.failures:
         cases.append({

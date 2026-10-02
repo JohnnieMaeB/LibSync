@@ -27,14 +27,20 @@ class EvalOutput(BaseModel):
     tools_called: list[str]
 
 
+# pydantic-ai delivers structured output (a `BookResult`) through its own
+# output tool; that's how the reply is returned, not a tool the agent chose.
+_OUTPUT_TOOL_PREFIX = "final_result"
+
+
 def tools_called(messages: Sequence[ModelMessage]) -> list[str]:
-    """Tool names the model called, in order, across `messages`."""
+    """Tool names the model called, in order, across `messages` — excluding
+    pydantic-ai's output tool."""
     return [
         part.tool_name
         for message in messages
         if isinstance(message, ModelResponse)
         for part in message.parts
-        if isinstance(part, ToolCallPart)
+        if isinstance(part, ToolCallPart) and not part.tool_name.startswith(_OUTPUT_TOOL_PREFIX)
     ]
 
 

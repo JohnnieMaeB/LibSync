@@ -32,6 +32,11 @@ def test_tools_called_extracts_tool_names_in_order():
     assert tools_called(messages) == ["search_catalog", "lookup_and_cite"]
 
 
+def test_tools_called_ignores_the_structured_output_tool():
+    messages = [ModelResponse(parts=[ToolCallPart(tool_name="final_result", args={"intro": "x", "books": []})])]
+    assert tools_called(messages) == []
+
+
 @pytest.mark.parametrize(
     ("called", "evaluator", "expected"),
     [

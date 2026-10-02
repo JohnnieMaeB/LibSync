@@ -1,8 +1,9 @@
 """pydantic-ai Agent setup for the LibSync chat assistant.
 
-Primary model is Groq (free tier: 30 RPM / 14,400 req/day, no card required).
-Hugging Face Inference Providers (novita) is wired as a fallback only, since
-its free-tier credit ($0.10/mo) is too small to serve as a primary provider.
+Primary models are on Groq (free tier, no card required, rate-limited per
+model — see the FallbackModel chain below). Hugging Face Inference Providers
+(novita) is the last fallback only, since its free-tier credit ($0.10/mo) is
+too small to serve as a primary provider.
 """
 
 import re
@@ -91,17 +92,24 @@ looks right.
 # Both providers retire model ids without much notice — `llama-3.3-70b-versatile`
 # (Groq) and `DeepSeek-V3.2-Exp` (novita) both started 404ing `model_not_found`
 # at once, which FallbackModel can't route around since it has nowhere left to
-# fall back to. Check a replacement actually exists and calls tools reliably
-# before swapping one in here.
-_groq_model = GroqModel(
-    "openai/gpt-oss-120b",
-    provider=GroqProvider(api_key=GROQ_API_KEY),
-)
+# fall back to. Vet a replacement with `uv run python -m evals.run --model
+# groq:<id>` before swapping one in here.
+#
+# Groq's free tier caps tokens per day *per model* (gpt-oss-120b: 200k, about
+# 90 patron turns), so the chain leads with three Groq models — each a
+# separate daily quota — before the Hugging Face fallback, whose ~$0.10/month
+# credit is a last resort. Ordered by eval pass rate on the 22-case suite
+# (October 2026): gpt-oss-120b, then qwen3.8-27b (19/22), then gpt-oss-20b
+# (18/22). FallbackModel moves on at any provider error, including a 429.
+_groq_provider = GroqProvider(api_key=GROQ_API_KEY)
+_groq_model = GroqModel("openai/gpt-oss-120b", provider=_groq_provider)
+_groq_qwen_model = GroqModel("qwen/qwen3.8-27b", provider=_groq_provider)
+_groq_small_model = GroqModel("openai/gpt-oss-20b", provider=_groq_provider)
 _huggingface_model = HuggingFaceModel(
     "deepseek-ai/DeepSeek-V4-Flash",
     provider=HuggingFaceProvider(api_key=HUGGINGFACE_TOKEN, provider_name="novita"),
 )
-_model = FallbackModel(_groq_model, _huggingface_model)
+_model = FallbackModel(_groq_model, _groq_qwen_model, _groq_small_model, _huggingface_model)
 
 chat_agent = Agent(
     _model, deps_type=LibSyncDeps, output_type=str | BookResult, system_prompt=SYSTEM_PROMPT, retries=5
