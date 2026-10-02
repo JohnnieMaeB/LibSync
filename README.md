@@ -13,6 +13,7 @@
   <img alt="Vector DB" src="https://img.shields.io/badge/Vector_DB-Pinecone-teal" />
   <img alt="CI/CD" src="https://img.shields.io/badge/CI%2FCD-GitHub_Actions-lightgrey" />
   <img alt="Budget" src="https://img.shields.io/badge/Budget-%240%2Fmonth-ffd166" />
+  <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green" />
 </p>
 
 <p align="center">
@@ -42,6 +43,7 @@
 - [Fitting Into Library Systems](#-fitting-into-library-systems)
 - [Future Enhancements](#-future-enhancements)
 - [Featured Deployment](#-featured-deployment)
+- [License](#-license)
 
 For the full request-flow diagrams and the reasoning behind each infrastructure choice, see
 [ARCHITECTURE.md](ARCHITECTURE.md); for a mechanical, method-by-method trace of the backend (entry point
@@ -657,3 +659,10 @@ Experience LibSync in action! Interact with the chatbot and explore the UI:
 Interact with the chatbot, explore the interface, and see the project in action.
 
 > **Note:** This is a demo project running exclusively on free-tier services. The backend on Render may spin down after periods of inactivity, which can result in a delay of up to ~50 seconds for the AI to respond when waking from idle.
+
+---
+
+## 📄 License
+
+LibSync is released under the [MIT License](LICENSE): you're free to use, modify and share it, as long as
+the copyright notice comes along.
