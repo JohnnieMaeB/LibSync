@@ -235,6 +235,12 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
   "Add to Home Screen"/desktop-install experience). **iOS note:** Safari has no automatic install prompt —
   installing requires the user to manually choose "Add to Home Screen" from the share sheet, and iOS has
   historically lagged Android on PWA feature parity (e.g. push notifications, background sync)
+- An embeddable widget for library websites: one `<script>` tag (`app/public/loader.js`, dependency-free, with
+  `data-library`, `data-accent`, and `data-position` attributes) adds a floating launcher that opens the
+  existing app in an iframe-isolated widget mode, so host-page CSS and scripts can't collide with it
+- Abuse protection for that open embed surface: a per-origin rate limit stacked on the existing per-IP one,
+  plus a lightweight library-id → origin allowlist (`POST /widget/register`) with a small grace quota, so a
+  new embed works immediately but one origin can't drain the shared free-tier budget
 - Cloud deployment for remote access
 
 ---
@@ -430,7 +436,8 @@ lookups, multi-turn continuity, honesty boundaries) with expected answers to che
 ```
 LibSync/
 ├── app/                  # Frontend source of truth (React + TypeScript, Vite)
-│   ├── public/                # PWA icons (icon-192/512/512-maskable.png) — copied into app/dist as-is
+│   ├── public/                # PWA icons (icon-192/512/512-maskable.png), plus the Tier 6 embed
+│   │                            loader.js and a widget-test.html host page — copied into app/dist as-is
 │   ├── src/
 │   │   ├── config.ts         # API_BASE_URL — the one place that changes per environment
 │   │   ├── hooks/             # useAgentStream (AG-UI transport), useConversations (IndexedDB-backed
@@ -451,8 +458,10 @@ LibSync/
 │   │   ├── agent.py         # PydanticAI agent, system prompt, tool registration
 │   │   ├── deps.py          # LibSyncDeps — shared resources injected into tools
 │   │   ├── session_store.py # In-process, TTL-bounded conversation history store, keyed by AG-UI thread id
+│   │   ├── widget_registry.py # In-memory library-id -> origin allowlist + grace quota for the Tier 6 embed
 │   │   ├── bot_context/     # Persona and library-policy knowledge sources
-│   │   ├── routers/         # /agent (AG-UI), /chat + /chat/stream (fallback), /citation, /api/query
+│   │   ├── routers/         # /agent (AG-UI), /chat + /chat/stream (fallback), /citation, /api/query,
+│   │   │                      /widget/register
 │   │   └── services/        # Pinecone, Open Library, OpenAlex, Crossref, and citeproc-py clients
 │   ├── tests/            # pytest suite (no live external calls; golden-file tests for citations)
 │   └── pyproject.toml
@@ -583,7 +592,7 @@ embeddable widget:
 | 3 | **✅ Complete** — UI/UX: an escape-by-default safe markdown renderer (closes the raw-`innerHTML` XSS gap), an accessibility baseline (`aria-live` chat log, focus rings, reduced-motion), suggestion chips, per-tool status pills, stop/regenerate/copy actions, grounded-citation UI (numbered source badges + tag), and a real design-token system on top of the current brand | [TIER3_PLAN.md](TIER3_PLAN.md) | [planning/TIER3_PLAN.html](planning/TIER3_PLAN.html) | [rendered](https://claude.ai/code/artifact/e444be53-8ca6-4813-8e07-2c6c92653448) |
 | 4 | **✅ Complete** — React migration — behavior-preserving move to React + AG-UI transport, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |
 | 5 | **✅ Complete** — Standalone web app — dynamic responsive layout, PWA installability, and **multi-conversation chat history** (client-side, IndexedDB) | [TIER5_PLAN.md](TIER5_PLAN.md) | [planning/TIER5_PLAN.html](planning/TIER5_PLAN.html) | [rendered](https://claude.ai/code/artifact/501ca3cc-b4c9-4f9a-a233-54a43134eb5a) |
-| 6 | Embeddable widget — a two-line snippet for library websites, iframe-isolated, reusing the Tier 4 components | [TIER6_PLAN.md](TIER6_PLAN.md) | [planning/TIER6_PLAN.html](planning/TIER6_PLAN.html) | [rendered](https://claude.ai/code/artifact/bdb8c64e-4019-4c39-bf6f-7d05538e3b30) |
+| 6 | **✅ Complete** — Embeddable widget — a two-line snippet for library websites, iframe-isolated, reusing the Tier 4 components | [TIER6_PLAN.md](TIER6_PLAN.md) | [planning/TIER6_PLAN.html](planning/TIER6_PLAN.html) | [rendered](https://claude.ai/code/artifact/bdb8c64e-4019-4c39-bf6f-7d05538e3b30) |
 | 7 | Mobile apps — Capacitor wraps the Tier 5 app for iOS/Android; $0-complete via sideload, store publication marked as an explicit paid exception | [TIER7_PLAN.md](TIER7_PLAN.md) | [planning/TIER7_PLAN.html](planning/TIER7_PLAN.html) | [rendered](https://claude.ai/code/artifact/807f868c-4dda-4507-8960-84c4c93ea233) |
 | 8 | Developer/manager/statistics dashboard — real multi-tenancy (Supabase + Pinecone namespaces), Koha catalog integration, Logfire-powered usage stats, for library staff — **with dashboard/connector mockups** | [TIER8_PLAN.md](TIER8_PLAN.md) | [planning/TIER8_PLAN.html](planning/TIER8_PLAN.html) | [rendered](https://claude.ai/code/artifact/79654d95-bdfa-44df-af27-c9a46e41fc1b) |
 | 9 | Patron accounts — dual-mode auth (real library card via Tier 8's catalog connector, or email fallback), optional and additive, never a wall in front of the chat | [TIER9_PLAN.md](TIER9_PLAN.md) | [planning/TIER9_PLAN.html](planning/TIER9_PLAN.html) | [rendered](https://claude.ai/code/artifact/e760505b-d41b-4f04-94e4-d8d7c413131b) |
