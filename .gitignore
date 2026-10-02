@@ -8,3 +8,6 @@ coverage/
 **/*.pyc
 **/.pytest_cache
 server/evals/results.json
+
+# Personal blog/LinkedIn drafts — kept local, never published from the repo
+blog-drafts/
