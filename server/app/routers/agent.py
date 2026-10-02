@@ -30,6 +30,7 @@ from app.deps import LibSyncDeps
 from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
 from app.services import citation_service, crossref_service
 from app.session_store import session_store
+from app.tenants import normalize_library_id
 from app.widget_registry import check_widget_registration
 
 router = APIRouter()
@@ -117,7 +118,10 @@ async def agent_endpoint(request: Request):
 
     adapter = await AGUIAdapter.from_request(request, agent=chat_agent)
     thread_id = adapter.conversation_id or str(uuid.uuid4())
-    deps = LibSyncDeps(http_client=request.app.state.http_client)
+    deps = LibSyncDeps(
+        http_client=request.app.state.http_client,
+        library_id=normalize_library_id(request.headers.get("x-libsync-library")),
+    )
 
     # AGUIAdapter.run_stream_native folds the frontend's sent messages onto
     # the end of whatever `message_history` we pass it. A single-message

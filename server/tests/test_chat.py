@@ -14,6 +14,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from app import agent as agent_module
+from app import tenants
 from app.agent import chat_agent
 
 MOCK_REPLY_PREFIX = "Mock reply for: "
@@ -69,7 +70,11 @@ def fallback_agent():
         yield
 
 
-def fake_search_pinecone(text: str, top_k: int = 5) -> dict:
+searched_namespaces: list[str] = []
+
+
+def fake_search_pinecone(text: str, top_k: int = 5, namespace: str = "ns1") -> dict:
+    searched_namespaces.append(namespace)
     return {
         "matches": [
             {
@@ -97,6 +102,11 @@ async def tool_calling_model_function(messages: list[ModelMessage], info: AgentI
 @pytest.fixture()
 def tool_calling_agent(monkeypatch):
     monkeypatch.setattr(agent_module, "search_pinecone", fake_search_pinecone)
+    # Namespace resolution would otherwise ask the real index which tenant
+    # namespaces exist.
+    monkeypatch.setattr(tenants, "list_namespaces", lambda: ["ns1", "example-library"])
+    tenants.reset_namespace_cache()
+    searched_namespaces.clear()
     with chat_agent.override(model=FunctionModel(tool_calling_model_function)):
         yield
 
@@ -243,6 +253,27 @@ class TestChatEndpoint:
         response = client.post("/chat", json={"message": "How much are late fees?"})
         assert response.status_code == 200
         assert "$0.25 per day" in response.json()["reply"]
+        assert searched_namespaces == ["ns1"]
+
+    @pytest.mark.parametrize(
+        ("header", "expected_namespace"),
+        [
+            ("example-library", "example-library"),  # has its own documents
+            ("Example-Library", "example-library"),  # ids are case-insensitive slugs
+            ("new-library", "ns1"),  # no namespace yet -> shared demo policies
+            ("../../ns-other", "ns1"),  # malformed -> treated as no library
+        ],
+    )
+    def test_policy_search_uses_the_embedding_librarys_namespace(
+        self, client, tool_calling_agent, header, expected_namespace
+    ):
+        response = client.post(
+            "/chat",
+            json={"message": "How much are late fees?"},
+            headers={"X-LibSync-Library": header, "Origin": "https://library.example"},
+        )
+        assert response.status_code == 200
+        assert searched_namespaces == [expected_namespace]
 
     def test_book_question_triggers_catalog_tool_and_grounds_reply(self, client, catalog_tool_calling_agent):
         response = client.post("/chat", json={"message": "Is Project Hail Mary available?"})
