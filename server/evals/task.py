@@ -61,7 +61,9 @@ async def _run_turn(question: str, deps: LibSyncDeps, history: list[ModelMessage
             if error.status_code != 429 or attempt == _MAX_RATE_LIMIT_RETRIES:
                 raise
             match = _RETRY_AFTER_PATTERN.search(str(error.body))
-            await anyio.sleep(float(match.group(1)) + 1 if match else 30)
+            wait = float(match.group(1)) + 1 if match else 30
+            print(f"  rate-limited, waiting {wait:.0f}s ({question[:50]!r})", flush=True)
+            await anyio.sleep(wait)
 
 
 def make_task(http_client: httpx.AsyncClient, pace_seconds: float = 0.0):
@@ -78,6 +80,9 @@ def make_task(http_client: httpx.AsyncClient, pace_seconds: float = 0.0):
 
         await anyio.sleep(pace_seconds)
         result = await _run_turn(inputs.question, deps, history)
-        return EvalOutput(reply=reply_text(result.output), tools_called=tools_called(result.new_messages()))
+        output = EvalOutput(reply=reply_text(result.output), tools_called=tools_called(result.new_messages()))
+        # The rich progress bar doesn't render in CI logs; this does.
+        print(f"  done: {inputs.question[:60]!r} -> tools {output.tools_called}", flush=True)
+        return output
 
     return run_conversation
