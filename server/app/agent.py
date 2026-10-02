@@ -20,10 +20,8 @@ from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.providers.groq import GroqProvider
 from pydantic_ai.providers.huggingface import HuggingFaceProvider
 
-from app.bot_context.bill_of_rights import ALA_BILL_OF_RIGHTS
-from app.bot_context.core_values import ALA_CORE_VALUES
 from app.bot_context.identity import PERSONA_PROMPT
-from app.bot_context.rusa_guidelines import RUSA_GUIDELINES
+from app.bot_context.service_principles import SERVICE_PRINCIPLES
 from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
 from app.schemas import BookResult, Citation, ResearchResult, ScholarlyWork
@@ -40,26 +38,18 @@ SYSTEM_PROMPT = f"""
 </primary_instructions>
 
 <guiding_principles>
-<knowledge_source name="RUSA Guidelines for Behavioral Performance">
-{RUSA_GUIDELINES}
-</knowledge_source>
-
-<knowledge_source name="ALA Library Bill of Rights">
-{ALA_BILL_OF_RIGHTS}
-</knowledge_source>
-
-<knowledge_source name="ALA Core Values of Librarianship">
-{ALA_CORE_VALUES}
-</knowledge_source>
-
+{SERVICE_PRINCIPLES}
 </guiding_principles>
 
 <tool_use>
-For any question about concrete library policy — fines, lending periods, card
-registration, computer/printing rules, room bookings, conduct, or similar —
-call `search_library_policies` and ground your answer in what it returns
-instead of guessing. If it returns nothing relevant, say so rather than
-inventing a policy.
+For any question about this library's own rules, services, or offerings —
+fines, lending, renewals, holds, cards, computers, WiFi, printing, rooms,
+programs, accessibility, conduct, or anything else the library does — call
+`search_library_policies` and ground your answer in what it returns instead
+of guessing. Include every specific number it gives (amounts, caps, limits,
+time periods), since those are what patrons act on. If it returns nothing
+that answers the question, say plainly that you don't have information on
+that, suggest asking library staff, and never invent a policy or service.
 
 For any question about a specific book or author — "is X available?", "who
 wrote X?", "when did X come out?" — call `search_catalog` and ground your
