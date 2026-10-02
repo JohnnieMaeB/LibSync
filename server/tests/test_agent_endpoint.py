@@ -6,11 +6,13 @@ the bespoke SSE contract."""
 import json
 import uuid
 
+import pytest
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 
 from app import agent as agent_module
 from app.agent import chat_agent
+from app.widget_registry import widget_registry
 from app.routers.agent import PATRON_ERROR_MESSAGE
 
 
@@ -391,6 +393,54 @@ class TestAgentEndpoint:
         assert custom_events[0]["value"]["doi"] == "10.1016/j.lindif.2023.102274"
         assert "Kasneci" in custom_events[0]["value"]["formatted"]
         assert set(custom_events[0]["value"]["available_styles"]) == {"apa", "mla", "chicago"}
+
+
+class TestWidgetRegistrationEnforcement:
+    """Tier 6: requests carrying X-LibSync-Library (the embeddable widget's
+    frontend, see app/src/hooks/useAgentStream.ts) are checked against the
+    registry's allowlist/grace quota — see app/widget_registry.py. Requests
+    with no such header (every other test in this file) are untouched."""
+
+    @pytest.fixture(autouse=True)
+    def reset_widget_registry(self):
+        widget_registry.reset()
+        yield
+        widget_registry.reset()
+
+    def test_unregistered_widget_traffic_is_allowed_within_its_grace_quota(self, client):
+        with chat_agent.override(model=FunctionModel(stream_function=streaming_text_function)):
+            response = client.post(
+                "/agent",
+                json=_run_agent_input(thread_id="widget-grace", content="Hi"),
+                headers={"X-LibSync-Library": "new-library", "Origin": "https://new-library.example"},
+            )
+        assert response.status_code == 200
+
+    def test_unregistered_widget_traffic_is_rejected_once_grace_is_exhausted(self, client):
+        origin = "https://abusive-embed.example"
+        for _ in range(50):  # GRACE_LIMIT in app/widget_registry.py
+            widget_registry.consume_grace(origin)
+
+        response = client.post(
+            "/agent",
+            json=_run_agent_input(thread_id="widget-grace-exhausted", content="Hi"),
+            headers={"X-LibSync-Library": "abusive-library", "Origin": origin},
+        )
+        assert response.status_code == 403
+        assert "grace quota" in response.json()["error"]
+
+    def test_registered_widget_traffic_is_never_grace_limited(self, client):
+        origin = "https://acme-library.example"
+        widget_registry.register("acme-library", origin)
+
+        with chat_agent.override(model=FunctionModel(stream_function=streaming_text_function)):
+            for i in range(5):  # far beyond any small grace quota
+                response = client.post(
+                    "/agent",
+                    json=_run_agent_input(thread_id=f"widget-registered-{i}", content="Hi"),
+                    headers={"X-LibSync-Library": "acme-library", "Origin": origin},
+                )
+                assert response.status_code == 200
 
 
 class TestCitationStyleSwitchEndpoint:
