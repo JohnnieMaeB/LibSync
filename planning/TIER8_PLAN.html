@@ -92,7 +92,7 @@
       <h1>Tier 8 — Developer, Manager &amp; Statistics Dashboard</h1>
       <p class="sub">Real multi-tenancy: a library connects its own catalog, uploads its own documents, and sees its own usage — all through a dashboard, no code changes.</p>
     </div>
-    <div class="stamp"><b>Budget · $0 at pilot scale</b>rev. 2026-07-08</div>
+    <div class="stamp"><b>Budget · $0 at pilot scale</b>rev. 2026-10-02</div>
   </div>
 
   <div class="callout">
@@ -101,15 +101,37 @@
   </div>
 
   <section class="card">
+    <div class="eyebrow">Research · October 2026</div>
+    <h2>Integrating with what libraries already run</h2>
+    <p>Supabase, Render and Pinecone are LibSync's own infrastructure, invisible to a library. Everything a library <i>touches</i> should be a system it already runs. This research reshaped the decisions and roadmap below. Full findings and sources are in <code>TIER8_PLAN.md §0</code>.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Area</th><th>What libraries run</th><th>LibSync's approach</th></tr></thead>
+        <tbody>
+          <tr><td>ILS</td><td>Symphony, Polaris, Sierra, Koha, Evergreen (public); Alma, FOLIO (academic)</td><td>One driver per ILS API, as Aspen Discovery does. Koha, then Polaris; SRU only as a fallback</td></tr>
+          <tr><td>Patron sign-in</td><td>Card + PIN in the ILS</td><td>SIP2, the cross-ILS standard (Tier 9). Encrypted, no PIN stored</td></tr>
+          <tr><td>Reference, FAQs, rooms</td><td>Springshare LibAnswers, LibChat, LibCal</td><td>FAQs as a policy source, LibChat as the human handoff, LibCal availability. Springshare's own chatbot is rule-based, so LibSync complements it</td></tr>
+          <tr><td>E-content</td><td>OverDrive/Libby, hoopla, Kanopy</td><td>OverDrive Discovery API availability, per library</td></tr>
+          <tr><td>Staff sign-in</td><td>Microsoft 365 / Google Workspace</td><td>Microsoft + Google sign-in (free). SAML only on Supabase Pro ($25/month)</td></tr>
+          <tr><td>Accessibility</td><td>ADA Title II rule</td><td>WCAG 2.1 AA, due April 26, 2027 (50,000+) or 2028 (smaller), plus a VPAT/ACR</td></tr>
+          <tr><td>Privacy &amp; AI</td><td>48 states + DC protect library records; ALA AI guidance (June 2026)</td><td>Disclose AI use, no training on patron data, defined retention, a human path, library can switch AI off</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
     <div class="eyebrow">Card 33</div>
     <h2>Key decisions</h2>
     <div class="decisions">
-      <div class="decision"><h3>Multi-tenancy → Pinecone namespaces</h3><p><b>Why:</b> Pinecone's own recommended pattern — physical isolation, independent scaling, clean offboarding. Already the <i>shape</i> of the code: <code>pinecone-scripts</code> already has <code>NAMESPACE = "ns1"</code>. <b>How:</b> parameterize it to <code>library_id</code> everywhere.</p></div>
-      <div class="decision"><h3>Tenant data → Supabase</h3><p><b>Why:</b> one free-tier service instead of three — Postgres + Auth + Storage together, with Row-Level Security scoping every query to the logged-in staff member's library. <b>How:</b> a <code>libraries</code> table, RLS on <code>auth.uid()</code>.</p></div>
-      <div class="decision"><h3>Statistics → query Logfire, don't rebuild it</h3><p><b>Why:</b> Tier 1 Phase 4 already instruments every tool call and error. <b>How:</b> tag spans with <code>library_id</code>; dashboard charts are SQL against Logfire's Query API.</p></div>
-      <div class="decision"><h3>Catalog → pluggable connector, Koha first</h3><p><b>Why:</b> "their own records" means real ILS integration. Koha is open-source with a documented REST API and realistic for a demo library to actually have. <b>How:</b> a <code>CatalogConnector</code> interface; Open Library stays the default.</p></div>
+      <div class="decision"><h3>Multi-tenancy → Pinecone namespaces <span class="chip-tag good">built</span></h3><p><b>Why:</b> Pinecone's own recommended pattern — physical isolation, independent scaling, clean offboarding. <b>How (merged, PR #49):</b> a library's own namespace is used once it exists in the index, else the shared <code>ns1</code> demo policies, so document upload switches a library over with no config.</p></div>
+      <div class="decision"><h3>Tenant data → Supabase</h3><p><b>Why:</b> one free-tier service instead of three — Postgres + Auth + Storage together, with Row-Level Security scoping every query to the logged-in staff member's library. <b>How:</b> a <code>libraries</code> table, RLS on <code>auth.uid()</code>. Staff sign in with their existing Microsoft or Google work accounts.</p></div>
+      <div class="decision"><h3>Statistics → query Logfire, don't rebuild it</h3><p><b>Why:</b> Tier 1 Phase 4 already instruments every tool call and error. <b>How:</b> every agent run is already tagged with <code>library_id</code> (PR #49); dashboard charts are SQL against Logfire's Query API.</p></div>
+      <div class="decision"><h3>Catalog → one driver per ILS</h3><p><b>Why:</b> "their own records" means real ILS integration, and products that integrate across ILSes (e.g. Aspen Discovery) use each ILS's own API. <b>How:</b> a <code>CatalogConnector</code> interface with drivers: Koha first (testable locally), then Polaris (free developer sandbox), SRU as a fallback. Open Library stays the default.</p></div>
       <div class="decision"><h3>Developer surface → keys + the API you have</h3><p><b>Why:</b> FastAPI already generates <code>/docs</code> for free. <b>How:</b> extend Tier 6's <code>data-library</code> allowlist into a real revocable API key; link, don't rebuild, the docs.</p></div>
       <div class="decision"><h3>Dashboard → a protected route, not a new app</h3><p><b>Why:</b> same "one component library" principle as every prior tier. <b>How:</b> <code>/admin</code> in the Tier 4 app, gated by Supabase Auth, first tier to need client-side routing.</p></div>
+      <div class="decision"><h3>Work alongside Springshare &amp; OverDrive</h3><p><b>Why:</b> libraries already staff LibChat and maintain LibAnswers FAQs. <b>How:</b> FAQs as a policy source, LibChat as the human handoff, LibCal room availability, OverDrive availability — each optional, with the library's own credentials.</p></div>
+      <div class="decision"><h3>Trust &amp; compliance before any pilot</h3><p><b>Why:</b> ALA's June 2026 AI guidance and WCAG 2.1 AA under ADA Title II are procurement gates. <b>How:</b> AI disclosure, Groq Zero Data Retention, per-library off switches, a "talk to a librarian" path, an accessibility audit + VPAT, a data agreement template.</p></div>
     </div>
   </section>
 
@@ -117,7 +139,7 @@
     <div class="eyebrow">Card 34</div>
     <h2>Architecture</h2>
     <div class="diagram-scroll">
-      <svg class="diagram" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Library staff log in via Supabase Auth to a protected admin route, which reads and writes RLS-scoped data in Supabase Postgres and Storage, uploads documents that get chunked into a per-library Pinecone namespace, configures a catalog connector (Open Library or Koha), and queries Logfire for statistics. Patrons continue to use the existing agent endpoint from prior tiers, which reads from the same namespace, connector, and Logfire instance.">
+      <svg class="diagram" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Library staff log in via Supabase Auth to a protected admin route, which reads and writes RLS-scoped data in Supabase Postgres and Storage, uploads documents that get chunked into a per-library Pinecone namespace, configures a catalog connector (Open Library, Koha, Polaris or an SRU fallback), and queries Logfire for statistics. Patrons continue to use the existing agent endpoint from prior tiers, which reads from the same namespace, connector, and Logfire instance.">
         <defs><marker id="arrow8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"></path></marker>
         <marker id="arrowNew8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--new)"></path></marker></defs>
 
@@ -125,7 +147,7 @@
         <g class="dbox new"><rect x="220" y="20" width="170" height="60" rx="2"></rect><text x="305" y="46" class="lbl" text-anchor="middle">/admin — new</text><text x="305" y="62" class="sub" text-anchor="middle">protected React route</text></g>
         <g class="dbox new"><rect x="440" y="20" width="200" height="70" rx="2"></rect><text x="540" y="46" class="lbl" text-anchor="middle">SUPABASE</text><text x="540" y="62" class="sub" text-anchor="middle">Postgres + Auth + Storage</text><text x="540" y="76" class="sub" text-anchor="middle">RLS-scoped per library</text></g>
         <g class="dbox new"><rect x="440" y="120" width="200" height="60" rx="2"></rect><text x="540" y="146" class="lbl" text-anchor="middle">PINECONE</text><text x="540" y="162" class="sub" text-anchor="middle">namespace = library_id</text></g>
-        <g class="dbox new"><rect x="440" y="210" width="200" height="70" rx="2"></rect><text x="540" y="234" class="lbl" text-anchor="middle">CATALOG CONNECTOR</text><text x="540" y="250" class="sub" text-anchor="middle">Open Library (default)</text><text x="540" y="264" class="sub" text-anchor="middle">or Koha REST API</text></g>
+        <g class="dbox new"><rect x="440" y="210" width="200" height="70" rx="2"></rect><text x="540" y="234" class="lbl" text-anchor="middle">CATALOG CONNECTOR</text><text x="540" y="250" class="sub" text-anchor="middle">Open Library (default)</text><text x="540" y="264" class="sub" text-anchor="middle">Koha · Polaris · SRU drivers</text></g>
         <g class="dbox"><rect x="440" y="300" width="200" height="30" rx="2"></rect><text x="540" y="320" class="lbl" text-anchor="middle" font-size="10">LOGFIRE — tagged by library_id</text></g>
 
         <g class="dbox emph"><rect x="700" y="20" width="140" height="50" rx="2"></rect><text x="770" y="42" class="lbl" text-anchor="middle">PATRON</text><text x="770" y="58" class="sub" text-anchor="middle">Tiers 1-7, unaffected</text></g>
@@ -392,9 +414,11 @@
         <thead><tr><th>Option</th><th>Status</th><th>Note</th></tr></thead>
         <tbody>
           <tr><td>Open Library</td><td><span class="chip-tag good">default</span></td><td>Tier 1's existing connector, kept as the fallback</td></tr>
-          <tr><td>Koha REST API</td><td><span class="chip-tag new">built</span></td><td>Open-source ILS, documented API, realistic to test against</td></tr>
-          <tr><td>Evergreen, Alma, Sierra, Polaris</td><td><span class="chip-tag watch">connector-shaped</span></td><td>Same interface, not implemented — add as needed</td></tr>
-          <tr><td>SIP2 / NCIP live circulation</td><td><span class="chip-tag watch">deferred</span></td><td>Patron-authenticated, session-oriented — a deeper integration than catalog search, Phase 35 stretch</td></tr>
+          <tr><td>Koha REST API</td><td><span class="chip-tag new">first driver</span></td><td>Open-source ILS, documented API, testable locally with <code>koha-testing-docker</code></td></tr>
+          <tr><td>Polaris API (PAPI)</td><td><span class="chip-tag new">second driver</span></td><td>Large, growing public-library base; free Polaris Developer Network sandbox; the library licenses its own API access</td></tr>
+          <tr><td>SRU</td><td><span class="chip-tag watch">fallback</span></td><td>Documented for Koha and Alma; not publicly for Sierra or Polaris, so best-effort only</td></tr>
+          <tr><td>Sierra, Symphony, Evergreen, Alma</td><td><span class="chip-tag watch">on demand</span></td><td>Same driver interface — built when a pilot library runs one</td></tr>
+          <tr><td>SIP2 / NCIP</td><td><span class="chip-tag watch">Phase 35 · Tier 9</span></td><td>SIP2 becomes Tier 9's patron sign-in path; live circulation stays a stretch</td></tr>
         </tbody>
       </table>
     </div>
@@ -402,14 +426,16 @@
 
   <section class="card">
     <div class="eyebrow">Card 37</div>
-    <h2>Roadmap — continues Tier 1–7's phase numbering</h2>
+    <h2>Roadmap — in recommended order</h2>
     <div class="shelf">
-      <article class="phase"><div class="phase-head"><span class="id">PHASE 30</span><span class="len">4–6 days</span></div><h3>Multi-tenant data model</h3><p>Supabase + RLS, parameterize the Pinecone namespace.</p></article>
-      <article class="phase"><div class="phase-head"><span class="id">PHASE 31</span><span class="len">4–6 days</span></div><h3>Document management</h3><p>Upload → Storage → chunk/embed per tenant.</p></article>
-      <article class="phase"><div class="phase-head"><span class="id">PHASE 32</span><span class="len">5–7 days</span></div><h3>Catalog connectors</h3><p><code>CatalogConnector</code> interface + Koha implementation.</p></article>
-      <article class="phase"><div class="phase-head"><span class="id">PHASE 33</span><span class="len">3–5 days</span></div><h3>Statistics dashboard</h3><p>Logfire Query API, tagged by <code>library_id</code>.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 30</span><span class="len">4–6 days</span></div><h3>Multi-tenant data model</h3><p>Supabase + RLS, Microsoft/Google staff sign-in. Namespaces + trace tagging already merged.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 36T</span><span class="len">5–8 days</span></div><h3>Trust &amp; compliance</h3><p>AI disclosure, Zero Data Retention, off switches, human path, WCAG audit + VPAT. Gates any pilot.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 31</span><span class="len">5–7 days</span></div><h3>Document management</h3><p>Upload → Storage → embed per library; optional LibAnswers FAQ sync.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 32</span><span class="len">7–10 days</span></div><h3>ILS drivers</h3><p><code>CatalogConnector</code>: Koha, then Polaris, then SRU fallback.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 33</span><span class="len">3–5 days</span></div><h3>Statistics dashboard</h3><p>Logfire Query API over <code>library_id</code>-tagged runs.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 37T</span><span class="len">5–8 days</span></div><h3>Springshare &amp; e-content</h3><p>LibChat handoff, LibCal and OverDrive availability.</p></article>
       <article class="phase"><div class="phase-head"><span class="id">PHASE 34</span><span class="len">2–3 days</span></div><h3>Developer surface</h3><p>API keys, <code>/docs</code> link, escalation webhook.</p></article>
-      <article class="phase stretch"><div class="phase-head"><span class="id">PHASE 35</span><span class="len">stretch</span></div><h3>SIP2/NCIP connector</h3><p>Live circulation data — not scoped here.</p></article>
+      <article class="phase stretch"><div class="phase-head"><span class="id">PHASE 35</span><span class="len">stretch</span></div><h3>SIP2/NCIP connector</h3><p>Shared SIP2 plumbing for Tier 9 sign-in; live circulation later.</p></article>
     </div>
   </section>
 
@@ -419,9 +445,11 @@
     <ul class="dod">
       <li>Staff see only their own library's data — enforced by RLS, not UI hiding.</li>
       <li>A librarian can upload a policy document and have it searchable in chat, in their own namespace, no code changes.</li>
-      <li>A librarian can point catalog search at their real Koha instance instead of Open Library.</li>
+      <li>A librarian can point catalog search at their real ILS (Koha first, then Polaris) instead of Open Library.</li>
       <li>A stats view shows real usage — volume, tool breakdown, error rate, free-tier headroom — sourced from Logfire.</li>
       <li>Patron-facing behavior across Tiers 1–7 is completely unaffected.</li>
+      <li>Staff sign in with their existing Microsoft or Google work account.</li>
+      <li>A library can pass procurement: AI use disclosed, documented retention and deletion, AI can be switched off, a human path on every conversation, a published WCAG 2.1 AA conformance report.</li>
     </ul>
     <p style="margin-top:1rem; font-size:.9rem; color:var(--text-muted);">From here, <b style="color:var(--accent);">Tier 9</b> covers the patron side: real accounts, optional and additive, built on the <code>CatalogConnector</code> and Supabase Auth this tier introduces.</p>
   </section>

@@ -289,8 +289,11 @@ curl -sN -X POST http://localhost:3000/chat/stream \
   grounded text answer instead of a live card. Both are correct, grounded answers; only the presentation
   differs. Ask a fresh, specific book question in a new session to reliably see the card.
 - **A retry pause, or occasionally a `RUN_ERROR` event, if you run through this script very quickly several
-  times in a row.** Groq's free tier is 30 requests/minute — rapid-fire demo re-runs can trip it. Space out
-  repeated full run-throughs by a minute or so.
+  times in a row.** Groq's free tier limits tokens per model, per minute and per day (`gpt-oss-120b`:
+  8,000/minute, 200,000/day). Rapid-fire re-runs can trip the per-minute limit; space out full run-throughs by
+  a minute or so. Once the primary model's daily quota runs out, replies keep coming from the next Groq model
+  in the fallback chain (`qwen3.8-27b`, then `gpt-oss-20b`), so wording may differ slightly late in a busy
+  day. Don't run the live eval suite right before a demo: it spends the same daily quota.
 - **`availability: "unknown"`** on a book card is a real status from Open Library's Availability API (not
   every edition is in the Internet Archive lending program), not a broken lookup.
 - **Citation formatting has minor real quirks of its own** (e.g. `citeproc-py`'s APA output can render
@@ -303,11 +306,12 @@ curl -sN -X POST http://localhost:3000/chat/stream \
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| Every reply is the generic "Unable to reach AI service" error, with `model_not_found` (404) in the server log | A provider retired a configured model (happened to all of them at once in October 2026) | Pick current ids from the provider's model list, vet them with `uv run python -m evals.run --model groq:<id>`, and update `server/app/agent.py` |
 | Every reply is the generic "Unable to reach AI service" error | `GROQ_API_KEY` or `PINECONE_API_KEY` missing/invalid | Check `server/.env` against `server/.env.example`; see [README §2](README.md#-local-setup) |
 | Server crashes on startup | Set `LOGFIRE_TOKEN` without the matching extra installed | Run `uv sync` in `server/` — `pyproject.toml` pins `logfire[fastapi]` |
 | Logfire shows `401 Unauthorized` / `Failed to export span batch` in logs | Used a Logfire read token instead of a write token | Regenerate under **Settings → Write tokens**; see [README's Logfire setup steps](README.md#-local-setup) |
 | Every request to `/agent` (or `/chat`) returns a CORS/network error in the browser console, even though `curl` against it works | `LOGFIRE_TOKEN` set with a `fastapi` version `>=0.137` — a known upstream `opentelemetry-instrumentation-fastapi` incompatibility 500s every CORS preflight | Confirm `fastapi<0.137` is pinned in `server/pyproject.toml` (it is, by default) and re-run `uv sync`; see [ARCHITECTURE.md's `fastapi<0.137` entry](ARCHITECTURE.md#why-these-choices) |
-| Policy answers cite the wrong number or say "no information found" | Seed data not upserted yet | Run `pinecone-scripts/upsert_pinecone_records.py` (see [README §2](README.md#-local-setup)) |
+| Policy answers cite the wrong number, say "no information found", or leave out details like the $5 fine cap | Seed data not fully upserted: the index should hold 34 records (it once held only 10) | Run `pinecone-scripts/upsert_pinecone_records.py` (see [README §2](README.md#-local-setup)) |
 | Book question never calls `search_catalog`, or a `RUN_ERROR` right after a stalling "Let me check..." text | A transient Groq tool-calling quirk, mitigated in code (`ModelRetry` + `run_stream_events()`, see [ARCHITECTURE.md](ARCHITECTURE.md)) | Retry the same question — if it fails consistently across many attempts, check the server logs for the real exception |
 | Research/citation questions reply "temporarily unavailable" | OpenAlex or Crossref transiently unreachable, or rate-limited (more likely without `OPENALEX_MAILTO`/`CROSSREF_MAILTO` set) | Retry after a moment; set the polite-pool env vars (see [README §2](README.md#-local-setup)) if it happens often |
 | Citation style switcher does nothing when you change the dropdown | Network hiccup on the `GET /citation/{doi}` call — the frontend intentionally leaves the previous text in place rather than showing an error for this low-stakes action | Retry the style switch; check the browser Network tab for the actual response if it persists |

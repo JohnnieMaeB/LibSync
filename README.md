@@ -39,6 +39,7 @@
 - [Project Structure](#-project-structure)
 - [Cloud Deployment](#-cloud-deployment-render)
 - [PR Previews and Deployment](#-pr-previews-and-deployment)
+- [Fitting Into Library Systems](#-fitting-into-library-systems)
 - [Future Enhancements](#-future-enhancements)
 - [Featured Deployment](#-featured-deployment)
 
@@ -86,13 +87,16 @@ The project is currently in **active development**, focusing on technical experi
 - **Frontend:** Chat UI in React + TypeScript, on Vite. `app/` is the source of truth; GitHub Pages is
   published from its `vite build` output automatically on every push to `main`, with every PR getting its
   own live preview — see [PR Previews and Deployment](#-pr-previews-and-deployment).
-- **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — Groq
-  primary / Hugging Face fallback — with four tools that ground replies in real data instead of guessing.
+- **Backend:** FastAPI server (`server/`) handling requests, rate limiting, and a PydanticAI agent — three Groq
+  models in a fallback chain, then Hugging Face as a last resort — with four tools that ground replies in real data instead of guessing.
   `/agent` (AG-UI protocol) is the primary transport: it streams token deltas, live tool-call progress, and
   structured `CUSTOM` events the frontend renders as book/research/citation cards. `/chat` and `/chat/stream`
   remain as a simpler fallback transport.
 - **Vector Layer:** Pinecone's integrated-embedding `search()` powers `search_library_policies`, called by
-  the agent whenever a patron asks about a concrete policy (fines, lending periods, etc.).
+  the agent whenever a patron asks about a concrete policy (fines, lending periods, etc.). Each library gets
+  its own namespace once it has its own documents; until then it gets the shared demo policies.
+- **Embeddable widget:** a one-tag `loader.js` snippet puts the assistant on any library website in an isolated
+  iframe, with per-origin rate limits and a lightweight library-id allowlist protecting the shared budget.
 - **Real catalog data:** `search_catalog` calls the free, keyless Open Library API for book/author lookups
   and real lending/availability status, rendering a card with cover art and a link-out as results resolve.
 - **Research assistant:** `search_scholarly_works` calls the free OpenAlex API for real papers — title,
@@ -103,7 +107,10 @@ The project is currently in **active development**, focusing on technical experi
   A style switcher re-formats client-side via `GET /citation/{doi}` without a new Crossref lookup.
 - **Session continuity:** A client-minted thread id (persisted in `localStorage`) threads conversation
   history through an in-process, TTL-bounded session store, keyed by the AG-UI thread id.
-- **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set.
+- **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set, with every agent
+  run tagged by `library_id`.
+- **Agent evals:** 22 known-answer cases run against the real model and tools, weekly and on demand, so
+  provider breakage (like a retired model) and grounding regressions surface before patrons see them.
 - **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), publishes `app/`'s build to
   GitHub Pages (production on push to `main`, isolated previews per open PR), and pings Pinecone/Render
   weekly so the free tiers don't silently auto-pause.
@@ -112,15 +119,16 @@ The project is currently in **active development**, focusing on technical experi
 ```mermaid
 flowchart LR
     U["Patron<br/>(browser)"] -->|POST /agent, AG-UI SSE| FE["Static frontend<br/>GitHub Pages"]
+    LIBSITE["Library website<br/>(Tier 6 embed snippet)"] -.iframe, X-LibSync-Library.-> FE
     FE -->|fetch, thread_id| API["FastAPI<br/>Render free web service"]
-    API --> AGT["PydanticAI Agent<br/>(deps: http client, session store)"]
-    AGT -->|primary| GROQ["Groq<br/>free tier LLM"]
-    AGT -.fallback.-> HF["HF Inference Providers<br/>(novita) — budget-limited"]
+    API --> AGT["PydanticAI Agent<br/>(deps: http client, library_id)"]
+    AGT -->|FallbackModel| GROQ["Groq free tier<br/>gpt-oss-120b → qwen3.8-27b → gpt-oss-20b<br/>(separate daily quota each)"]
+    GROQ -.last resort.-> HF["HF Inference Providers<br/>(novita) — budget-limited"]
     AGT -->|tool call| POL["search_library_policies"]
     AGT -->|tool call| CAT["search_catalog"]
     AGT -->|tool call| RES["search_scholarly_works"]
     AGT -->|tool call| CITE["lookup_and_cite"]
-    POL --> PC["Pinecone serverless index<br/>integrated embedding, free tier"]
+    POL --> PC["Pinecone serverless index<br/>one namespace per library, free tier"]
     CAT --> OL["Open Library API<br/>free, no key"]
     RES --> OA["OpenAlex API<br/>free"]
     CITE --> CR["Crossref API + citeproc-py<br/>free, real CSL styles"]
@@ -129,7 +137,7 @@ flowchart LR
     AGT -->|reply + thread_id| API --> FE --> U
 ```
 
-This is today's actual wiring (Tier 1 + Tier 2 + Tier 3, complete) — see [ARCHITECTURE.md](ARCHITECTURE.md)
+This is today's actual wiring (Tiers 1–6 complete, Tier 8 groundwork merged) — see [ARCHITECTURE.md](ARCHITECTURE.md)
 for the per-turn sequence diagram and the reasoning behind each choice. The tiered plans linked under
 [Future Enhancements](#-future-enhancements) pick up from here.
 
@@ -192,7 +200,12 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 - **Environment Configuration & Security:** Managing environment variables and securing API tokens across
   six external services, each gated to fail safe (opt-in tracing, fallback LLM, keyless research APIs)
   rather than fail loud
-- **Observability:** Logfire tracing of agent runs, tool calls, and model usage
+- **Observability:** Logfire tracing of agent runs, tool calls, and model usage, tagged per library
+- **AI Evaluation:** A live eval suite (pydantic-evals) of known-answer cases scored by deterministic checks
+  against the real model and tools, used to catch provider breakage, vet replacement models, and measure a
+  55% system-prompt reduction, while sharing a production free-tier budget safely
+- **Domain Research & Product Fit:** Researched how library technology integrates today (ILS APIs, SIP2,
+  Springshare, OverDrive, ALA AI and privacy guidance, ADA Title II) and reshaped the roadmap around it
 - **Testing Strategy:** `FunctionModel`/`FallbackModel` overrides for deterministic agent tests,
   `httpx.MockTransport` for third-party API clients with zero live calls in CI, and golden-file citation tests
 - **Project Workflow:** Version control with Git, branching, and automated build/test pipelines — including
@@ -541,6 +554,29 @@ every push to `main`.
    branch," branch `gh-pages`, folder `/ (root)`.
 
 After that, every PR against `main` gets a preview automatically — nothing to run by hand per PR.
+
+---
+
+## 🏛️ Fitting Into Library Systems
+
+LibSync is built to plug into what libraries already run, not to ask them to adopt something new. Supabase,
+Render and Pinecone are LibSync's own infrastructure, invisible to a library. Everything a library *touches*
+is a system it already has. The decisions below come from research into the current library-tech landscape
+(October 2026). The full findings and sources are in
+[TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026).
+
+| Library system | LibSync's approach | Status |
+|---|---|---|
+| **Library website** (WordPress, Drupal, LibGuides) | One `<script>` tag, iframe-isolated, the same way libraries already embed chat widgets | ✅ Tier 6 |
+| **Policies and FAQs** | Each library's own Pinecone namespace, filled from uploaded documents or its existing Springshare LibAnswers FAQs | Namespaces ✅; upload and FAQ sync planned |
+| **Catalog (ILS)** | One driver per ILS API, as Aspen Discovery does: Koha first, then Polaris, with SRU as a fallback | Planned (Tier 8) |
+| **Human librarians** | Hand off to the library's existing LibChat (or email/phone), a path ALA's AI guidance requires | Planned (Tier 8) |
+| **Rooms and events** | Real availability from Springshare LibCal | Planned (Tier 8) |
+| **E-books** | OverDrive/Libby availability through the library's own Discovery API access | Planned (Tier 8) |
+| **Staff accounts** | "Sign in with Microsoft / Google", using the work accounts staff already have | Planned (Tier 8) |
+| **Patron accounts** | Library card + PIN over SIP2, the cross-ILS standard; never stores the PIN | Planned (Tier 9) |
+| **Accessibility law** | WCAG 2.1 AA under the ADA Title II rule (due April 2027 or 2028, depending on the library's population), with a published conformance report | Planned, before any pilot |
+| **Privacy and AI policy** | ALA's 2026 AI guidance and vendor privacy guidelines: disclose AI use, no training on patron data, defined retention, library can switch AI off | Planned, before any pilot |
 
 ---
 

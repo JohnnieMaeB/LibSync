@@ -19,15 +19,16 @@ backend — what runs at import time and a step-by-step walk of every request �
 ```mermaid
 flowchart LR
     U["Patron<br/>(browser)"] -->|POST /agent, AG-UI SSE| FE["Static frontend<br/>GitHub Pages"]
+    LIBSITE["Library website<br/>(Tier 6 embed snippet)"] -.iframe, X-LibSync-Library.-> FE
     FE -->|fetch, thread_id| API["FastAPI<br/>Render free web service"]
-    API --> AGT["PydanticAI Agent<br/>(deps: http client, session store)"]
-    AGT -->|primary| GROQ["Groq<br/>free tier LLM"]
-    AGT -.fallback.-> HF["HF Inference Providers<br/>(novita) — budget-limited"]
+    API --> AGT["PydanticAI Agent<br/>(deps: http client, library_id)"]
+    AGT -->|FallbackModel| GROQ["Groq free tier<br/>gpt-oss-120b → qwen3.8-27b → gpt-oss-20b<br/>(separate daily quota each)"]
+    GROQ -.last resort.-> HF["HF Inference Providers<br/>(novita) — budget-limited"]
     AGT -->|tool call| POL["search_library_policies"]
     AGT -->|tool call| CAT["search_catalog"]
     AGT -->|tool call| RES["search_scholarly_works"]
     AGT -->|tool call| CITE["lookup_and_cite"]
-    POL --> PC["Pinecone serverless index<br/>integrated embedding, free tier"]
+    POL --> PC["Pinecone serverless index<br/>one namespace per library, free tier"]
     CAT --> OL["Open Library API<br/>free, no key"]
     RES --> OA["OpenAlex API<br/>free, keyless"]
     CITE --> CR["Crossref API + citeproc-py<br/>free, real CSL styles"]
@@ -110,16 +111,22 @@ manual browser verification of Tier 2 — see [`server/app/routers/agent.py`](se
 
 ## Why these choices
 
-**Groq as primary LLM, Hugging Face (novita) as fallback only.** Groq's free tier (30 RPM / 14,400
-req/day, no card) is orders of magnitude safer than routing primary traffic through HF's paid `novita`
-provider, which only grants $0.10/month in Inference Provider credit on a free account — enough for a
-handful of requests before every call starts 402-ing. Both models are wrapped in a
-[`FallbackModel`](https://ai.pydantic.dev/models/#fallback), so a Groq outage doesn't take the whole demo
-down; it falls through to HF instead of failing the request outright. See
-[`server/app/agent.py`](server/app/agent.py).
+**Three Groq models, then Hugging Face (novita) as a last resort.** Groq's free tier needs no card, but it
+caps tokens **per model**: `openai/gpt-oss-120b` gets 8,000 tokens per minute and 200,000 per day, about 90
+patron turns. HF's `novita` provider grants only about $0.10/month of credit on a free account, enough for a
+handful of requests before every call returns 402. So the
+[`FallbackModel`](https://ai.pydantic.dev/models/#fallback) chain is `gpt-oss-120b` → `qwen/qwen3.8-27b`
+(19/22 on the eval suite) → `gpt-oss-20b` (18/22) → HF `DeepSeek-V4-Flash`. That's three separate Groq daily
+quotas before the paid-credit fallback, and `FallbackModel` moves on at any provider error, including a 429.
+History, October 2026: Groq retired `llama-3.3-70b-versatile` and novita retired `DeepSeek-V3.2-Exp`. Both
+returned 404 at once, which no fallback chain can route around, and every turn failed until they were
+replaced. Vet any replacement with the eval suite (`--model groq:<id>`) before swapping it in. A turn that
+fails for good shows patrons the same plain "Unable to reach AI service" message on every transport. The raw
+provider text goes to the server log (`_patron_safe` in
+[`server/app/routers/agent.py`](server/app/routers/agent.py)). See [`server/app/agent.py`](server/app/agent.py).
 
 **Retry on leaked tool-call syntax, and `run_stream_events()` over `run_stream()` for streaming.** Verified
-live against real Groq credentials, `llama-3.3-70b-versatile` sometimes puts a malformed tool call in the
+live against real Groq credentials, `llama-3.3-70b-versatile` (since retired; the guard stays, since any model can do this) sometimes put a malformed tool call in the
 text response itself (`<function=search_catalog{...}`, `<search_catalog>{...}</search_catalog>`, or raw
 `{"type": "function", "name": "search_catalog", ...}` JSON) instead of issuing a real one — an
 `output_validator` on `chat_agent` (see `_reject_leaked_tool_call_syntax` in
@@ -151,7 +158,10 @@ is never persisted. Once any real content streams, the wrapper commits and stops
 error arrives in the same turn.
 
 **Open Library, not Libby/OverDrive/Kanopy/Hoopla, for real catalog data.** Those platforms have no public
-developer API at any price for a hobby project — partnership-only. WorldCat needs an institutional key.
+developer API at any price for a hobby project — partnership-only. (OverDrive's Discovery APIs, including
+availability, *are* open to approved developer partners against a specific library's collection. That's the
+per-library integration planned in [TIER8_PLAN.md §2.7](TIER8_PLAN.md#27-work-alongside-springshare-and-e-content-vendors-not-around-them),
+not a replacement for this default.) WorldCat needs an institutional key.
 Open Library is free, keyless, and has genuinely library-shaped data: Search, Availability (borrow/lending
 status via Internet Archive), and Covers APIs. The persona is explicit in its system prompt that concrete
 book lookups are backed by Open Library, not a live connection to the commercial apps it also discusses —
@@ -337,6 +347,47 @@ bubble's Retry button and a completed reply's Regenerate action both remove thei
 mid-stream (via `AbortController`, wired through `fetch`'s `signal`) reuses the exact same finalization path
 (`finalizeCompletedTurn`) as a normal completion, just with a "(Stopped)" note instead of a fallback message.
 
+
+**Live agent evals alongside mocked unit tests, not instead of them.** The pytest suite mocks every model and
+API, so it shows the code is correct, not that the agent is. [`server/evals/`](server/evals/README.md) runs 22
+known-answer cases ([pydantic-evals](https://ai.pydantic.dev/evals/)) against the real model, tools and seed
+data, scored by deterministic checks: right tool called, the specific fact from the seed record in the reply,
+honest about gaps, no leaked system prompt. No LLM-as-judge, so every failure has a concrete reason. Its first
+day of runs caught the two retired models, a Pinecone index holding 10 of its 34 records, and a prompt that was
+two-thirds reference documents, none of which the unit tests could see (see the
+[write-up](docs/writeups/2026-10-first-agent-evals.md)). It runs weekly at a low-traffic hour and on demand
+([`agent-evals.yml`](.github/workflows/agent-evals.yml)), never per push, because it spends the same Groq daily
+quota production uses. It targets the primary model alone by default: run through the full fallback chain, one
+suite run used up the HF fallback's monthly credit.
+
+**A distilled system prompt, not pasted reference documents.** The RUSA behavioral guidelines, ALA Library
+Bill of Rights and ALA Core Values used to be in the prompt word for word: about 2,300 tokens, mostly written
+for in-person desk staff. They're now a short set of actionable service principles with the sources cited
+([`service_principles.py`](server/app/bot_context/service_principles.py)), cutting each request from about
+3,800 to 2,200 tokens. On a per-model daily token quota, that's about 40% more turns per day.
+
+**One Pinecone namespace per library, activated by existence rather than config (Tier 8 groundwork).** The
+widget's `X-LibSync-Library` header is validated as a lowercase slug and threaded into `LibSyncDeps`. Policy
+search uses the library's own namespace once one exists in the index, and the shared `ns1` demo policies
+until then ([`server/app/tenants.py`](server/app/tenants.py)). So uploading a library's documents (Tier 8
+Phase 31) switches it over with no tenant table to keep in sync. Every agent run also records `library_id` as
+run metadata on its Logfire span, so per-library usage stats will be a query over existing traces rather than
+a second logging pipeline.
+
+**Integrate with what libraries already run.** Supabase, Render and Pinecone are LibSync's own infrastructure,
+invisible to a library. Everything a library *touches* should be a system it already has. Research in October
+2026 ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026),
+with sources) produced these decisions:
+- **Catalogs:** one driver per ILS API, the model Aspen Discovery uses across Koha, Evergreen, Polaris, Sierra
+  and Symphony. Koha first, then Polaris, with SRU only as a best-effort fallback.
+- **Patron sign-in:** SIP2, the cross-ILS standard, encrypted, with no PIN stored.
+- **Staff sign-in:** Microsoft and Google accounts.
+- **Existing vendors:** Springshare (LibAnswers FAQs, LibChat handoff, LibCal) and OverDrive availability,
+  rather than replacing them.
+- **Trust and compliance before any pilot:** ALA's June 2026 *Guidance on the Use of AI in Libraries* and
+  its vendor privacy guidelines, and WCAG 2.1 AA under the ADA Title II rule (due April 2027 or 2028,
+  depending on the library's population).
+
 ---
 
 ## Where things live
@@ -344,7 +395,11 @@ mid-stream (via `AbortController`, wired through `fetch`'s `signal`) reuses the 
 | Concern                                                                                       | Code                                                                                         |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Agent, system prompt, tool registration                                                       | [`server/app/agent.py`](server/app/agent.py)                                                 |
-| Shared deps injected into tools (`http_client`)                                               | [`server/app/deps.py`](server/app/deps.py)                                                   |
+| Shared deps injected into tools (`http_client`, `library_id`)                                 | [`server/app/deps.py`](server/app/deps.py)                                                   |
+| Library id validation and per-library Pinecone namespace resolution                           | [`server/app/tenants.py`](server/app/tenants.py)                                             |
+| Persona and distilled service principles (system prompt sources)                              | [`server/app/bot_context/`](server/app/bot_context/)                                         |
+| Embeddable widget: loader snippet, origin allowlist, `/widget/register`                       | [`app/public/loader.js`](app/public/loader.js), [`server/app/widget_registry.py`](server/app/widget_registry.py) |
+| Live agent evals (cases, evaluators, runner) and their weekly workflow                         | [`server/evals/`](server/evals/), [`.github/workflows/agent-evals.yml`](.github/workflows/agent-evals.yml) |
 | Conversation history store, keyed by AG-UI thread id                                          | [`server/app/session_store.py`](server/app/session_store.py)                                 |
 | Pinecone policy search                                                                        | [`server/app/services/pinecone_service.py`](server/app/services/pinecone_service.py)         |
 | Open Library catalog search                                                                   | [`server/app/services/open_library_service.py`](server/app/services/open_library_service.py) |
@@ -366,20 +421,14 @@ mid-stream (via `AbortController`, wired through `fetch`'s `signal`) reuses the 
 
 ## What's next
 
-Tier 3 shipped a safe (escape-by-default) markdown renderer closing the raw-`innerHTML` XSS gap, an
-accessibility baseline (`role="log"`/`aria-live` on the chat region, visible focus rings, `prefers-reduced-motion`
-handling), suggestion chips and per-tool status pills, a stop/regenerate/copy action set, a scroll-to-latest
-control, numbered source badges with a "Grounded in N sources" tag, and a distinct error style with an
-inline Retry — all CSS and vanilla JS on the existing black-and-amber brand, no backend changes. See
-[TIER3_PLAN.md](TIER3_PLAN.md) for the full plan and rationale.
+Tiers 1–6 are built: the grounded agent and its tools (1–2), the safe-markdown and accessibility UI pass (3),
+the React + AG-UI migration (4), the standalone app with multi-conversation history and PWA install (5), and
+the embeddable widget (6). Tier 4 deviated from [TIER4_PLAN.md](TIER4_PLAN.md) §2.2 in one way: it uses
+`@ag-ui/client`'s `HttpAgent` directly rather than CopilotKit's React packages, which are built around a Node
+Copilot Runtime proxy this repo's Python AG-UI endpoint doesn't need.
 
-Tier 4 is built: that component/token spec, ported 1:1 into a React + TypeScript codebase on Vite
-(`app/`), with `docs/` now a build artifact instead of a hand-copied source tree — behavior-preserving, no
-visual redesign, no backend changes. It deviates from [TIER4_PLAN.md](TIER4_PLAN.md) §2.2 in one way: it
-uses `@ag-ui/client`'s `HttpAgent` directly rather than `@copilotkit/react-core`/`react-ui`, since
-CopilotKit's React hooks are built around a Node Copilot Runtime proxy that isn't officially supported to
-bypass, and standing one up just to relay to this repo's existing Python AG-UI endpoint would have added
-infrastructure Tier 4 was explicit about not needing. `@ag-ui/client` is still the same team's official,
-protocol-level SDK — it's what PydanticAI's own AG-UI reference frontend uses. See
-[TIER4_PLAN.md](TIER4_PLAN.md) for the full plan; see the full [roadmap](README.md#-future-enhancements) for
-Tiers 5–9.
+Tier 8 is in progress. The tenant groundwork (per-library namespaces, `library_id` on every trace) is merged.
+Next, in the recommended order from [TIER8_PLAN.md](TIER8_PLAN.md#5-roadmap-continues-tier-17s-phase-numbering):
+Supabase with staff sign-in (Phase 30), then trust and compliance (36T, the gate for any real library pilot),
+then document upload, ILS drivers, stats, and the Springshare and OverDrive integrations. See the full
+[roadmap](README.md#-future-enhancements) for Tiers 7–9.

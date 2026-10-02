@@ -56,6 +56,15 @@ uv run pytest
   `httpx.AsyncClient`, an in-process TTL cache (see `open_library_service.py`/`openalex_service.py` for the
   pattern), and identify the app to the API's polite pool (`User-Agent` header or a `mailto=`/contact-email
   param) rather than going fully anonymous.
+- Tools that read library-specific data should take `RunContext[LibSyncDeps]` and use `ctx.deps.library_id`
+  (already validated by `app/tenants.py`), never the raw `X-LibSync-Library` header.
+- Changed the system prompt, a tool's behavior, the seed policies or a model? Also run the **live evals**
+  (`uv run python -m evals.run`, needs real `GROQ_API_KEY`/`PINECONE_API_KEY`; see
+  [server/evals/README.md](server/evals/README.md)), and add or update a case in `evals/dataset.py` when you
+  add a behavior. A full run spends a large share of the production model's free daily Groq quota, so use
+  `--case` for targeted checks, run one suite at a time, and avoid `--with-fallback` (it drains the
+  Hugging Face fallback's monthly credit). New library integrations should follow the decisions in
+  [TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026).
 
 ## Making a frontend change
 
