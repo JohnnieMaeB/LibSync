@@ -45,7 +45,8 @@
 For the full request-flow diagrams and the reasoning behind each infrastructure choice, see
 [ARCHITECTURE.md](ARCHITECTURE.md); for a mechanical, method-by-method trace of the backend (entry point
 through every file and function), see [server/TRACE.md](server/TRACE.md). Contributing? See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md). For what live agent evals caught that 100+ mocked tests didn't, see
+[What our first agent evals caught in one day](docs/writeups/2026-10-first-agent-evals.md).
 
 ---
 
