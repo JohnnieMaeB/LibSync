@@ -62,7 +62,7 @@ The project is currently in **active development**, focusing on technical experi
   CopilotKit runtime — see [TIER4_PLAN.md](TIER4_PLAN.md)), a CSS custom-property design-token system, and a
   safe (escape-by-default) markdown renderer built from real React elements, never `dangerouslySetInnerHTML`
 - **Backend:** Python, FastAPI
-- **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier, primary, `openai/gpt-oss-120b`), with Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V4-Flash`) wired as an automatic fallback via `FallbackModel`
+- **AI Integration:** [PydanticAI](https://ai.pydantic.dev/) agent on [Groq](https://groq.com/) (free tier) with a `FallbackModel` chain of three Groq models — `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `openai/gpt-oss-20b`, each its own daily token quota — then Hugging Face Inference Providers (novita, `deepseek-ai/DeepSeek-V4-Flash`) as a last resort
 - **Interactive transport:** [AG-UI protocol](https://docs.ag-ui.com/) (`pydantic-ai-slim[ag-ui]`) at `POST /agent` — streams text deltas, live tool-call progress, and structured `CUSTOM` events the frontend renders as real cards; `/chat`/`/chat/stream` remain as a simpler fallback transport
 - **Tool-using agent:** Four PydanticAI tools ground replies in real data — `search_library_policies` (Pinecone), `search_catalog` (Open Library), `search_scholarly_works` (OpenAlex), and `lookup_and_cite` (Crossref + citeproc-py)
 - **Structured output:** `output_type=str | BookResult` on the fallback transport, plus AG-UI `CUSTOM` events (`book_card`, `research_results`, `citation`) on the primary transport — either way, results come back as real data for the frontend to render as cards, not prose the UI has to parse
@@ -73,6 +73,7 @@ The project is currently in **active development**, focusing on technical experi
 - **Citation formatting:** [Crossref REST API](https://api.crossref.org/) (free, keyless) for bibliographic records, formatted by [citeproc-py](https://github.com/brechtm/citeproc-py) against real CSL 1.0.1 style files (APA/MLA/Chicago) — the same processor family Zotero uses
 - **Session continuity:** In-process, TTL-bounded session store keyed by the AG-UI thread id
 - **Observability:** [Logfire](https://logfire.pydantic.dev/) (free Hobby tier), opt-in via `LOGFIRE_TOKEN`
+- **Agent evals:** [pydantic-evals](https://ai.pydantic.dev/evals/) suite of 22 known-answer cases run against the real model and tools (grounded policy facts, catalog, research, citations, honesty boundaries, prompt-injection resistance), weekly in CI and on demand — see [server/evals/README.md](server/evals/README.md)
 - **Package Management:** [uv](https://docs.astral.sh/uv/) for the Python backend and IaC scripts
 - **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), automated GitHub Pages publishing with per-PR previews, and a weekly free-tier keep-alive ping
 - **Cloud Deployment:** Render
@@ -463,6 +464,7 @@ LibSync/
 │   │   ├── routers/         # /agent (AG-UI), /chat + /chat/stream (fallback), /citation, /api/query,
 │   │   │                      /widget/register
 │   │   └── services/        # Pinecone, Open Library, OpenAlex, Crossref, and citeproc-py clients
+│   ├── evals/            # Live agent evals (pydantic-evals): golden cases, evaluators, runner
 │   ├── tests/            # pytest suite (no live external calls; golden-file tests for citations)
 │   └── pyproject.toml
 ├── pinecone-scripts/     # Python IaC scripts (uv-managed) for the Pinecone index

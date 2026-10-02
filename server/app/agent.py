@@ -1,8 +1,9 @@
 """pydantic-ai Agent setup for the LibSync chat assistant.
 
-Primary model is Groq (free tier: 30 RPM / 14,400 req/day, no card required).
-Hugging Face Inference Providers (novita) is wired as a fallback only, since
-its free-tier credit ($0.10/mo) is too small to serve as a primary provider.
+Primary models are on Groq (free tier, no card required, rate-limited per
+model — see the FallbackModel chain below). Hugging Face Inference Providers
+(novita) is the last fallback only, since its free-tier credit ($0.10/mo) is
+too small to serve as a primary provider.
 """
 
 import re
@@ -20,10 +21,8 @@ from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.providers.groq import GroqProvider
 from pydantic_ai.providers.huggingface import HuggingFaceProvider
 
-from app.bot_context.bill_of_rights import ALA_BILL_OF_RIGHTS
-from app.bot_context.core_values import ALA_CORE_VALUES
 from app.bot_context.identity import PERSONA_PROMPT
-from app.bot_context.rusa_guidelines import RUSA_GUIDELINES
+from app.bot_context.service_principles import SERVICE_PRINCIPLES
 from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
 from app.schemas import BookResult, Citation, ResearchResult, ScholarlyWork
@@ -40,26 +39,18 @@ SYSTEM_PROMPT = f"""
 </primary_instructions>
 
 <guiding_principles>
-<knowledge_source name="RUSA Guidelines for Behavioral Performance">
-{RUSA_GUIDELINES}
-</knowledge_source>
-
-<knowledge_source name="ALA Library Bill of Rights">
-{ALA_BILL_OF_RIGHTS}
-</knowledge_source>
-
-<knowledge_source name="ALA Core Values of Librarianship">
-{ALA_CORE_VALUES}
-</knowledge_source>
-
+{SERVICE_PRINCIPLES}
 </guiding_principles>
 
 <tool_use>
-For any question about concrete library policy — fines, lending periods, card
-registration, computer/printing rules, room bookings, conduct, or similar —
-call `search_library_policies` and ground your answer in what it returns
-instead of guessing. If it returns nothing relevant, say so rather than
-inventing a policy.
+For any question about this library's own rules, services, or offerings —
+fines, lending, renewals, holds, cards, computers, WiFi, printing, rooms,
+programs, accessibility, conduct, or anything else the library does — call
+`search_library_policies` and ground your answer in what it returns instead
+of guessing. Include every specific number it gives (amounts, caps, limits,
+time periods), since those are what patrons act on. If it returns nothing
+that answers the question, say plainly that you don't have information on
+that, suggest asking library staff, and never invent a policy or service.
 
 For any question about a specific book or author — "is X available?", "who
 wrote X?", "when did X come out?" — call `search_catalog` and ground your
@@ -101,17 +92,24 @@ looks right.
 # Both providers retire model ids without much notice — `llama-3.3-70b-versatile`
 # (Groq) and `DeepSeek-V3.2-Exp` (novita) both started 404ing `model_not_found`
 # at once, which FallbackModel can't route around since it has nowhere left to
-# fall back to. Check a replacement actually exists and calls tools reliably
-# before swapping one in here.
-_groq_model = GroqModel(
-    "openai/gpt-oss-120b",
-    provider=GroqProvider(api_key=GROQ_API_KEY),
-)
+# fall back to. Vet a replacement with `uv run python -m evals.run --model
+# groq:<id>` before swapping one in here.
+#
+# Groq's free tier caps tokens per day *per model* (gpt-oss-120b: 200k, about
+# 90 patron turns), so the chain leads with three Groq models — each a
+# separate daily quota — before the Hugging Face fallback, whose ~$0.10/month
+# credit is a last resort. Ordered by eval pass rate on the 22-case suite
+# (October 2026): gpt-oss-120b, then qwen3.8-27b (19/22), then gpt-oss-20b
+# (18/22). FallbackModel moves on at any provider error, including a 429.
+_groq_provider = GroqProvider(api_key=GROQ_API_KEY)
+_groq_model = GroqModel("openai/gpt-oss-120b", provider=_groq_provider)
+_groq_qwen_model = GroqModel("qwen/qwen3.8-27b", provider=_groq_provider)
+_groq_small_model = GroqModel("openai/gpt-oss-20b", provider=_groq_provider)
 _huggingface_model = HuggingFaceModel(
     "deepseek-ai/DeepSeek-V4-Flash",
     provider=HuggingFaceProvider(api_key=HUGGINGFACE_TOKEN, provider_name="novita"),
 )
-_model = FallbackModel(_groq_model, _huggingface_model)
+_model = FallbackModel(_groq_model, _groq_qwen_model, _groq_small_model, _huggingface_model)
 
 chat_agent = Agent(
     _model, deps_type=LibSyncDeps, output_type=str | BookResult, system_prompt=SYSTEM_PROMPT, retries=5
