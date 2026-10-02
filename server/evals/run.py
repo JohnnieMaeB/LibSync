@@ -4,6 +4,7 @@
     uv run python -m evals.run --case late-fees   # one case (repeatable)
     uv run python -m evals.run --threshold 0.9
     uv run python -m evals.run --model groq:openai/gpt-oss-120b   # try another model
+    uv run python -m evals.run --with-fallback   # the full FallbackModel chain, as production runs it
 
 Needs real GROQ_API_KEY and PINECONE_API_KEY (server/.env or the
 environment). Writes evals/results.json, and a markdown summary to
@@ -23,7 +24,7 @@ from pathlib import Path
 import httpx
 from pydantic_evals import Dataset
 
-from app.agent import chat_agent
+from app.agent import _groq_model, chat_agent
 from app.config import GROQ_API_KEY, PINECONE_API_KEY
 from evals.dataset import dataset
 from evals.task import make_task
@@ -102,6 +103,13 @@ async def main() -> int:
         help="Override the agent's model with a pydantic-ai model string (e.g. groq:qwen/qwen3.8-27b) — "
         "for vetting a replacement before changing app/agent.py.",
     )
+    parser.add_argument(
+        "--with-fallback",
+        action="store_true",
+        help="Run the full FallbackModel chain instead of the primary model alone. Off by default: every "
+        "rate-limited eval turn would otherwise spill onto the Hugging Face fallback, whose free credit "
+        "(~$0.10/month) a single suite run can exhaust, leaving production with no fallback.",
+    )
     parser.add_argument("--pace", type=float, default=3.0, help="Seconds to wait before each agent turn (default 3).")
     args = parser.parse_args()
 
@@ -121,12 +129,17 @@ async def main() -> int:
             evaluators=dataset.evaluators,
         )
 
-    model_override = chat_agent.override(model=args.model) if args.model else nullcontext()
+    if args.model:
+        model_override = chat_agent.override(model=args.model)
+    elif args.with_fallback:
+        model_override = nullcontext()
+    else:
+        model_override = chat_agent.override(model=_groq_model)
     async with httpx.AsyncClient(timeout=30) as http_client:
         with model_override:
             report = await selected.evaluate(
                 make_task(http_client, pace_seconds=args.pace),
-                name=args.model or "libsync-agent",
+                name=args.model or ("libsync-agent (with fallback)" if args.with_fallback else _groq_model.model_name),
                 max_concurrency=args.concurrency,
             )
 

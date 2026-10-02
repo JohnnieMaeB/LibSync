@@ -9,7 +9,12 @@ cd server
 uv run python -m evals.run                                  # full suite (~8 min on Groq's free tier)
 uv run python -m evals.run --case late-fees --case renewals # just these cases
 uv run python -m evals.run --model groq:qwen/qwen3.8-27b    # vet a different model before swapping it in
+uv run python -m evals.run --with-fallback                  # whole FallbackModel chain (spends HF credit)
 ```
+
+By default the suite runs the **primary Groq model alone**. With the fallback chain enabled, every eval turn that
+hits Groq's rate limit spills onto the Hugging Face fallback, and one full run used up its free monthly credit
+(about $0.10). Use `--with-fallback` only when you specifically need to test the chain.
 
 Needs `GROQ_API_KEY` and `PINECONE_API_KEY` (from `server/.env` or the environment). Exits non-zero if fewer
 than `--threshold` (default 85%) of cases pass, and writes per-case results to `evals/results.json`
