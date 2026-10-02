@@ -11,7 +11,9 @@ from pinecone import Pinecone
 from app.config import PINECONE_API_KEY
 
 INDEX_NAME = "libsync-policy-index"
-NAMESPACE = "ns1"
+# The shared demo policies; also what any library without its own namespace
+# gets (see app/tenants.py).
+DEFAULT_NAMESPACE = "ns1"
 
 _pinecone_client: Pinecone | None = None
 
@@ -29,7 +31,13 @@ def _get_index():
     return _pinecone_client.Index(INDEX_NAME)
 
 
-def search_pinecone(text: str, top_k: int = 5) -> dict:
+def list_namespaces() -> list[str]:
+    """Names of the namespaces that currently hold records in the index."""
+    stats = _get_index().describe_index_stats()
+    return list(stats.namespaces or {})
+
+
+def search_pinecone(text: str, top_k: int = 5, namespace: str = DEFAULT_NAMESPACE) -> dict:
     """Search the Pinecone index for policy chunks matching a natural-language query.
 
     Raises:
@@ -42,7 +50,7 @@ def search_pinecone(text: str, top_k: int = 5) -> dict:
     try:
         index = _get_index()
         response = index.search(
-            namespace=NAMESPACE,
+            namespace=namespace,
             top_k=top_k,
             inputs={"text": text},
             fields=["chunk_text", "category"],

@@ -28,6 +28,7 @@ from app.deps import LibSyncDeps
 from app.schemas import BookResult, Citation, ResearchResult, ScholarlyWork
 from app.services import citation_service, crossref_service, open_library_service, openalex_service
 from app.services.pinecone_service import search_pinecone
+from app.tenants import policy_namespace
 from app.session_store import session_store
 
 # The system prompt provides the AI with its core identity, instructions, and
@@ -112,7 +113,15 @@ _huggingface_model = HuggingFaceModel(
 _model = FallbackModel(_groq_model, _groq_qwen_model, _groq_small_model, _huggingface_model)
 
 chat_agent = Agent(
-    _model, deps_type=LibSyncDeps, output_type=str | BookResult, system_prompt=SYSTEM_PROMPT, retries=5
+    _model,
+    deps_type=LibSyncDeps,
+    output_type=str | BookResult,
+    system_prompt=SYSTEM_PROMPT,
+    retries=5,
+    # Recorded on every run's Logfire span, so Tier 8's per-library usage
+    # stats (TIER8_PLAN.md §2.3) are a query over existing traces rather
+    # than a second logging pipeline.
+    metadata=lambda ctx: {"library_id": ctx.deps.library_id or "default"},
 )
 
 # Some Llama models served via Groq occasionally leak a tool call into the
@@ -151,8 +160,13 @@ def _reject_leaked_tool_call_syntax(data: str | BookResult) -> str | BookResult:
     return data
 
 
-@chat_agent.tool_plain
-async def search_library_policies(query: str) -> str:
+def _search_policies(query: str, library_id: str | None) -> dict:
+    # Both calls block on Pinecone, so they run together in one worker thread.
+    return search_pinecone(query, 3, namespace=policy_namespace(library_id))
+
+
+@chat_agent.tool
+async def search_library_policies(ctx: RunContext[LibSyncDeps], query: str) -> str:
     """Search the library's policy knowledge base for information relevant to
     the user's question (e.g. fines, lending periods, card registration,
     computer/printing rules, room bookings, conduct, inter-library loan).
@@ -161,7 +175,7 @@ async def search_library_policies(query: str) -> str:
         query: The patron's question or topic, in plain language.
     """
     try:
-        results = await anyio.to_thread.run_sync(search_pinecone, query, 3)
+        results = await anyio.to_thread.run_sync(_search_policies, query, ctx.deps.library_id)
     except Exception as error:
         print("Policy search error:", error)
         return "Policy lookup is temporarily unavailable."
@@ -285,7 +299,9 @@ async def lookup_and_cite(
     )
 
 
-async def get_chat_reply(message: str, http_client: httpx.AsyncClient, session_id: str) -> str | BookResult:
+async def get_chat_reply(
+    message: str, http_client: httpx.AsyncClient, session_id: str, library_id: str | None = None
+) -> str | BookResult:
     """Send a user's message to the chat agent and return its reply — plain
     text, or a `BookResult` when the agent grounds its answer in concrete
     `search_catalog` results.
@@ -299,7 +315,7 @@ async def get_chat_reply(message: str, http_client: httpx.AsyncClient, session_i
     """
     try:
         print("Received message:", message)
-        deps = LibSyncDeps(http_client=http_client)
+        deps = LibSyncDeps(http_client=http_client, library_id=library_id)
         history = session_store.get(session_id)
         result = await chat_agent.run(message, deps=deps, message_history=history)
         session_store.append(session_id, result.new_messages())
@@ -313,7 +329,7 @@ async def get_chat_reply(message: str, http_client: httpx.AsyncClient, session_i
 
 
 async def stream_chat_reply(
-    message: str, http_client: httpx.AsyncClient, session_id: str
+    message: str, http_client: httpx.AsyncClient, session_id: str, library_id: str | None = None
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream a chat turn as `(event_name, data)` pairs for SSE delivery.
 
@@ -338,7 +354,7 @@ async def stream_chat_reply(
     `BookResult`, sent once, complete, when the turn resolves to one), "done"
     once the turn is complete and saved to the session store, or "error".
     """
-    deps = LibSyncDeps(http_client=http_client)
+    deps = LibSyncDeps(http_client=http_client, library_id=library_id)
     history = session_store.get(session_id)
     try:
         current_text: str | None = None

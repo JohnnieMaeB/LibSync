@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agent import get_chat_reply, stream_chat_reply
 from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
+from app.tenants import normalize_library_id
 from app.widget_registry import check_widget_registration
 
 router = APIRouter()
@@ -28,7 +29,12 @@ async def chat(request: Request):
         return JSONResponse(status_code=400, content={"error": "No message provided"})
 
     try:
-        reply = await get_chat_reply(message, request.app.state.http_client, session_id)
+        reply = await get_chat_reply(
+            message,
+            request.app.state.http_client,
+            session_id,
+            library_id=normalize_library_id(request.headers.get("x-libsync-library")),
+        )
         return {"reply": reply, "session_id": session_id}
     except Exception:
         return JSONResponse(
@@ -52,10 +58,11 @@ async def chat_stream(request: Request):
         return JSONResponse(status_code=400, content={"error": "No message provided"})
 
     http_client = request.app.state.http_client
+    library_id = normalize_library_id(request.headers.get("x-libsync-library"))
 
     async def event_source():
         yield _format_sse("session", {"session_id": session_id})
-        async for event_name, data in stream_chat_reply(message, http_client, session_id):
+        async for event_name, data in stream_chat_reply(message, http_client, session_id, library_id=library_id):
             yield _format_sse(event_name, data)
 
     return StreamingResponse(event_source(), media_type="text/event-stream")
