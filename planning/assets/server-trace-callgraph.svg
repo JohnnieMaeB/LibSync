@@ -128,8 +128,9 @@
   </g>
 
   <rect x="1000" y="465" width="260" height="60" rx="8" fill="#1e1e1e" stroke="#ffd166" stroke-width="1"/>
-  <text x="1016" y="488" fill="#ffd166" font-size="11.5" font-weight="600">Groq (primary) → HF (fallback)</text>
-  <text x="1016" y="504" fill="#aaaaaa" font-size="9.5">llama-3.3-70b · DeepSeek-V3.2/novita</text>
+  <text x="1016" y="485" fill="#ffd166" font-size="11.5" font-weight="600">Groq ×3 (fallback chain) → HF</text>
+  <text x="1016" y="501" fill="#aaaaaa" font-size="9.5">gpt-oss-120b · qwen3.8-27b · gpt-oss-20b</text>
+  <text x="1016" y="515" fill="#aaaaaa" font-size="9.5">last resort: DeepSeek-V4-Flash (novita)</text>
   <path d="M950,495 L1000,495" stroke="#666666" stroke-width="1.3" marker-end="url(#cg-arrow)"/>
   <path d="M1000,510 L950,510" stroke="#666666" stroke-width="1.3" marker-end="url(#cg-arrow)"/>
 

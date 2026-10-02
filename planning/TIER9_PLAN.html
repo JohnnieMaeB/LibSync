@@ -78,21 +78,21 @@
       <h1>Tier 9 — Patron Accounts</h1>
       <p class="sub">Real accounts for patrons, optional and additive — sign in with the library card they already have, not a new credential to remember.</p>
     </div>
-    <div class="stamp"><b>Budget · $0</b>rev. 2026-07-08</div>
+    <div class="stamp"><b>Budget · $0</b>rev. 2026-10-02</div>
   </div>
 
   <div class="callout">
     <span class="ico">💡</span>
-    <p>Why Tier 9 and not slotted earlier: real patron auth needs an ILS to validate a card number against. That's <b>Tier 8's <code>CatalogConnector</code></b> — a genuine dependency, not a scheduling choice. Anonymous stays the default throughout; this is additive, never a wall.</p>
+    <p>Why Tier 9 and not slotted earlier: real patron auth needs an ILS to validate a card number against, reached over <b>SIP2</b> (the cross-ILS standard e-resource vendors already use) or the ILS's patron API, built on Tier 8's ILS integration — a genuine dependency, not a scheduling choice. Anonymous stays the default throughout; this is additive, never a wall.</p>
   </div>
 
   <section class="card">
     <div class="eyebrow">Card 39</div>
     <h2>Key decisions</h2>
     <div class="decisions">
-      <div class="decision"><h3>Dual-mode auth</h3><p><b>Why:</b> not every library has an ILS connected yet. <b>How:</b> "sign in with your library card" via Koha's patron endpoints where available; email magic-link fallback via the same Supabase Auth from Tier 8 otherwise.</p></div>
+      <div class="decision"><h3>Dual-mode auth</h3><p><b>Why:</b> not every library has an ILS connected yet. <b>How:</b> "sign in with your library card" over <b>SIP2</b> by default (encrypted; LibSync never stores the PIN or the personal details SIP2 returns), or the ILS's patron API (Koha REST, Polaris PAPI) where a library prefers it; email magic-link fallback via Tier 8's Supabase Auth otherwise.</p></div>
       <div class="decision"><h3>What it unlocks</h3><p><b>Why:</b> not accounts for their own sake. <b>How:</b> cross-device chat history sync, saved citation-style preference, and — ILS-backed only — a real <code>patron_status</code> tool for checkouts/holds.</p></div>
-      <div class="decision"><h3>Privacy, already in the persona</h3><p><b>Why:</b> the ALA Bill of Rights and Core Values have been in the system prompt since Tier 1 — patron confidentiality isn't new here. <b>How:</b> discoverable view/delete controls, RLS-enforced isolation, minimal retention.</p></div>
+      <div class="decision"><h3>Privacy, already in the persona</h3><p><b>Why:</b> the ALA Bill of Rights and Core Values have shaped the system prompt since Tier 1 (distilled into <code>service_principles.py</code>) — patron confidentiality isn't new here. <b>How:</b> discoverable view/delete controls, RLS-enforced isolation, minimal retention, with Tier 8's trust-and-compliance phase (ALA AI guidance, Zero Data Retention) as a prerequisite.</p></div>
       <div class="decision"><h3>One Supabase project, not two</h3><p><b>Why:</b> the free tier caps at 2 active projects. <b>How:</b> a <code>patrons</code> table alongside Tier 8's <code>libraries</code> table, same RLS pattern.</p></div>
     </div>
   </section>
@@ -153,7 +153,7 @@
     <div class="eyebrow">Card 41</div>
     <h2>Roadmap — continues Tier 1–8's phase numbering (Phase 35 stays reserved for Tier 8's unscoped SIP2/NCIP stretch)</h2>
     <div class="shelf">
-      <article class="phase"><div class="phase-head"><span class="id">PHASE 36</span><span class="len">4–6 days</span></div><h3>Dual-mode auth</h3><p>Supabase magic-link fallback + ILS card/PIN auth via <code>CatalogConnector</code>.</p></article>
+      <article class="phase"><div class="phase-head"><span class="id">PHASE 36</span><span class="len">5–8 days</span></div><h3>Dual-mode auth</h3><p>Supabase magic-link fallback + card/PIN auth via SIP2 (default) or the ILS patron API.</p></article>
       <article class="phase"><div class="phase-head"><span class="id">PHASE 37</span><span class="len">3–5 days</span></div><h3>Synced chat history</h3><p>Tier 5's IndexedDB store gains a Supabase sync layer for signed-in patrons.</p></article>
       <article class="phase"><div class="phase-head"><span class="id">PHASE 38</span><span class="len">3–4 days</span></div><h3><code>patron_status</code> tool</h3><p>Real checkouts/holds/due dates — ILS-backed accounts only.</p></article>
       <article class="phase"><div class="phase-head"><span class="id">PHASE 39</span><span class="len">2–3 days</span></div><h3>Privacy controls</h3><p>View/delete history, retention policy, tied to the ALA values in the persona.</p></article>
@@ -165,7 +165,7 @@
     <h2>Definition of done</h2>
     <ul class="dod">
       <li>Anonymous use is unchanged — signing in is offered, never required.</li>
-      <li>A patron can sign in with their real library card where an ILS connector exists, or a lightweight email account where it doesn't.</li>
+      <li>A patron can sign in with their real library card (over SIP2 or the ILS patron API) where the library's ILS is connected, or a lightweight email account where it doesn't.</li>
       <li>Chat history syncs across devices for signed-in patrons.</li>
       <li>ILS-authenticated patrons can query their real checkout/hold status.</li>
       <li>A discoverable control exists to view and delete a patron's own stored history.</li>
