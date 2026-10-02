@@ -8,7 +8,10 @@ name: Agent Evals
 # a model id being retired upstream, which took every chat turn down at once.
 on:
   schedule:
-    - cron: "0 13 * * 1" # Every Monday at 13:00 UTC, an hour after keep-alive.yml
+    # Every Monday at 08:00 UTC (early morning across US time zones): a full
+    # run spends a large share of the primary model's 200k-token daily Groq
+    # quota, which production shares, so it runs when patrons are fewest.
+    - cron: "0 8 * * 1"
   workflow_dispatch:
     inputs:
       model:
