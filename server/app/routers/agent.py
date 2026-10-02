@@ -49,6 +49,18 @@ _MAX_AGENT_RUN_ATTEMPTS = 3
 # and can no longer be silently retried.
 _PRE_COMMIT_EVENT_TYPES = frozenset({EventType.RUN_STARTED})
 
+# What a patron sees when a turn fails for good — the same wording as the
+# /chat transports and the frontend's own default. The raw exception text
+# (e.g. "All models from FallbackModel failed (2 sub-exceptions)") is
+# provider internals: meaningless to a patron, and it's logged server-side
+# instead of being streamed to the browser.
+PATRON_ERROR_MESSAGE = "⚠️ Error: Unable to reach AI service. Please try again later."
+
+
+def _patron_safe(event: RunErrorEvent) -> RunErrorEvent:
+    print("Agent run failed:", event.message)
+    return event.model_copy(update={"message": PATRON_ERROR_MESSAGE})
+
 
 async def _run_stream_with_retry(adapter: AGUIAdapter, **run_kwargs: Any) -> AsyncIterator[BaseEvent]:
     """Retries a whole agent turn if it fails before any real content streamed.
@@ -76,7 +88,7 @@ async def _run_stream_with_retry(adapter: AGUIAdapter, **run_kwargs: Any) -> Asy
                     for buffered_event in buffered:
                         yield buffered_event
                     buffered.clear()
-                yield event
+                yield _patron_safe(event) if isinstance(event, RunErrorEvent) else event
             else:
                 return
             if committed:
@@ -89,7 +101,7 @@ async def _run_stream_with_retry(adapter: AGUIAdapter, **run_kwargs: Any) -> Asy
             print(f"Agent run attempt {attempt} raised, retrying:", error)
             continue
     if last_error_event is not None:
-        yield last_error_event
+        yield _patron_safe(last_error_event)
 
 
 @router.post("/agent")

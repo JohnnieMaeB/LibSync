@@ -98,12 +98,17 @@ looks right.
 </tool_use>
 """
 
+# Both providers retire model ids without much notice — `llama-3.3-70b-versatile`
+# (Groq) and `DeepSeek-V3.2-Exp` (novita) both started 404ing `model_not_found`
+# at once, which FallbackModel can't route around since it has nowhere left to
+# fall back to. Check a replacement actually exists and calls tools reliably
+# before swapping one in here.
 _groq_model = GroqModel(
-    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-120b",
     provider=GroqProvider(api_key=GROQ_API_KEY),
 )
 _huggingface_model = HuggingFaceModel(
-    "deepseek-ai/DeepSeek-V3.2-Exp",
+    "deepseek-ai/DeepSeek-V4-Flash",
     provider=HuggingFaceProvider(api_key=HUGGINGFACE_TOKEN, provider_name="novita"),
 )
 _model = FallbackModel(_groq_model, _huggingface_model)
