@@ -131,3 +131,32 @@ async def test_run_turn_waits_out_rate_limits(monkeypatch):
     assert await task_module._run_turn("q", deps=None, history=[]) == "ok"
     assert calls["n"] == 2
     assert sleeps == [3.5]
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("Please try again in 28.485s.", 28.485),
+        ("Please try again in 7m30.5s.", 450.5),
+        ("Please try again in 1h2m3s.", 3723.0),
+        ("no hint here", None),
+    ],
+)
+def test_retry_after_seconds_parses_groq_wait_hints(body, expected):
+    from evals.task import retry_after_seconds
+
+    assert retry_after_seconds(body) == expected
+
+
+async def test_run_turn_fails_fast_on_a_daily_quota(monkeypatch):
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    from evals import task as task_module
+
+    async def fake_run(*args, **kwargs):
+        raise ModelHTTPError(429, "groq-model", {"error": {"message": "Please try again in 7m30s."}})
+
+    monkeypatch.setattr(task_module.chat_agent, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="daily quota"):
+        await task_module._run_turn("q", deps=None, history=[])
