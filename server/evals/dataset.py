@@ -23,6 +23,8 @@ _ADMITS_GAP = (
     "don't have", "do not have", "couldn't find", "could not find", "wasn't able", "was not able",
     "no information", "not find", "doesn't", "does not", "don't see", "no specific", "not aware",
     "can't", "cannot", "unable", "not able", "no record", "isn't", "not listed",
+    "not seeing", "don't currently", "doesn't currently", "don't list", "doesn't list", "no mention",
+    "nothing about", "nothing listed",
 )
 
 
@@ -42,7 +44,7 @@ CASES: list[Case[EvalInput, EvalOutput, dict]] = [
     _policy_case("meeting-room", "Can I book a meeting room?", ("two hours", "2 hours"), ("48 hours",),
                  records="pol5, pol22"),
     _policy_case("visual-impairment", "Do you have anything for people with visual impairments?",
-                 ("screen reader",), records="pol31"),
+                 ("screen reader", "screen-reader"), records="pol31"),
     _policy_case("loan-period", "How long can I borrow a book for?", ("three weeks", "3 weeks", "21 days"),
                  records="pol2"),
     _policy_case("renewals", "How many times can I renew a book?", ("three", "3 times", "3 renewals"),
