@@ -80,6 +80,24 @@ seconds. It retried every case three times into a wall.
 **Fixes:** unbuffered, line-per-case logging; Groq's minute- and hour-scale wait times parsed correctly;
 waits too long to be the per-minute limit fail the case immediately; and a 3-minute limit per case.
 
+## 6. The first scheduled run went red, and mostly the model was right
+
+The Monday run scored 16/22 (73%), under the 85% gate. The harness worked; what failed was more instructive:
+
+- **Four "failures" were my checker.** gpt-oss writes a narrow no-break space (U+202F) between a number and its unit
+  ("7 days") and curly apostrophes ("doesn’t"). The phrase checks compared plain ASCII, so correct replies, including
+  an honest "I'm not seeing piano-lesson programming listed," were scored as misses. Checks now normalize first (NFKC,
+  curly quotes and non-breaking hyphens to ASCII, collapsed whitespace), with tests for each.
+- **One was stale data.** The live record for `pol7` still said only "$0.10 per page." The seed file added the color
+  price on July 11, but the upsert script only inserted ids missing from the index, so edits to existing records never
+  arrived (`pol9` too). The model was being honest. The script now updates changed records, and the runner has a
+  deterministic pre-flight that compares the live index to the seed file before any LLM call.
+- **One was real.** On the Libby question the model called `search_catalog` and returned book cards instead of saying
+  it can't check Libby. The prompt now routes those questions to a plain-text answer.
+
+**Lesson:** evals have bugs, and so does the data they check. A red run is a prompt to look at all three: the agent,
+the checks, and the data.
+
 ## Takeaways
 
 - **Mocked tests and live evals answer different questions.** Both are needed. The unit suite stayed green
@@ -88,6 +106,7 @@ waits too long to be the per-minute limit fail the case immediately; and a 3-min
   record `pol11`?"
 - **On a free tier, quotas are a design input.** Prompt size, fallback order and eval scheduling all came
   down to Groq's per-model daily limits.
+- **Evals have bugs too.** Compare meaning, not bytes, and verify the data underneath them.
 - **Evals cost money too.** A test suite that shares production's budget can take production down, so
   isolate what it touches.
 

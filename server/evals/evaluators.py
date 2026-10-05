@@ -3,9 +3,15 @@
 Deliberately deterministic (no LLM-as-judge): every check here is a plain
 string or tool-name comparison, so a failing case points at a concrete,
 reproducible reason, and running the suite costs no model calls beyond the
-agent's own. Phrase checks are case-insensitive substring matches.
+agent's own. Phrase checks are case-insensitive substring matches on
+*normalized* text (see `normalize`): models write typographic characters
+(curly apostrophes, narrow no-break spaces between a number and its unit,
+non-breaking hyphens), and an ASCII-only comparison scored correct answers
+as failures.
 """
 
+import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext
@@ -14,8 +20,30 @@ from app.agent import _LEAKED_TOOL_CALL_PATTERN
 from evals.task import EvalInput, EvalOutput
 
 
+_TYPOGRAPHIC_TO_ASCII = {
+    0x2018: "'",  # left single quotation mark
+    0x2019: "'",  # right single quotation mark / curly apostrophe
+    0x201C: '"',
+    0x201D: '"',
+    0x2010: "-",  # hyphen
+    0x2011: "-",  # non-breaking hyphen
+    0x2012: "-",
+    0x2013: "-",  # en dash
+    0x2014: "-",  # em dash
+}
+
+
+def normalize(text: str) -> str:
+    """Folds the typographic variants models emit into plain ASCII forms so
+    phrase checks compare meaning, not character encoding: NFKC (which turns
+    no-break and narrow no-break spaces into spaces), curly quotes and
+    non-breaking hyphens to ASCII, whitespace collapsed, case folded."""
+    text = unicodedata.normalize("NFKC", text).translate(_TYPOGRAPHIC_TO_ASCII)
+    return re.sub(r"\s+", " ", text).casefold()
+
+
 def _contains(text: str, phrase: str) -> bool:
-    return phrase.lower() in text.lower()
+    return normalize(phrase) in normalize(text)
 
 
 @dataclass

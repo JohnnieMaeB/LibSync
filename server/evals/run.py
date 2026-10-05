@@ -27,6 +27,7 @@ from pydantic_evals import Dataset
 from app.agent import _groq_model, chat_agent
 from app.config import GROQ_API_KEY, PINECONE_API_KEY
 from evals.dataset import dataset
+from evals.index_sync import check_index_in_sync
 from evals.task import make_task
 
 RESULTS_PATH = Path(__file__).parent / "results.json"
@@ -115,11 +116,33 @@ async def main() -> int:
         "(~$0.10/month) a single suite run can exhaust, leaving production with no fallback.",
     )
     parser.add_argument("--pace", type=float, default=3.0, help="Seconds to wait before each agent turn (default 3).")
+    parser.add_argument(
+        "--skip-index-check",
+        action="store_true",
+        help="Skip the pre-flight check that the live Pinecone index matches pinecone-scripts' seed records.",
+    )
     args = parser.parse_args()
 
     if GROQ_API_KEY == "unset" or not PINECONE_API_KEY:
         print("GROQ_API_KEY and PINECONE_API_KEY must be set to run live evals.", file=sys.stderr)
         return 2
+
+    if not args.skip_index_check:
+        missing, stale = check_index_in_sync()
+        if missing or stale:
+            message = f"""## ❌ Live policy index is out of sync with the seed records
+
+- missing: {', '.join(missing) or 'none'}
+- stale (text or category differs): {', '.join(stale) or 'none'}
+
+Run the **Pinecone IaC** workflow (or `uv run python upsert_pinecone_records.py` in `pinecone-scripts/`)
+to sync it, then re-run. No evals were run, so no LLM tokens were spent.
+"""
+            print(message)
+            if step_summary := os.getenv("GITHUB_STEP_SUMMARY"):
+                with open(step_summary, "a", encoding="utf-8") as f:
+                    f.write(message)
+            return 1
 
     selected = dataset
     if args.case:
