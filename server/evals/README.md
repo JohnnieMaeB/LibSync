@@ -28,7 +28,7 @@ tool-name comparisons (no LLM-as-judge, so a failure always has a concrete reaso
 | Evaluator | Passes when |
 |---|---|
 | `CalledTools` | the expected tool(s) ran on the final turn, and no forbidden ones did |
-| `MentionsAll` | each required fact appears in the reply (any one of its listed alternatives, case-insensitive) |
+| `MentionsAll` | each required fact appears in the reply (any one of its listed alternatives; text is normalized first: case, curly quotes, non-breaking spaces and hyphens) |
 | `MentionsNone` | no forbidden phrase appears: fabricated policies, leaked system-prompt tags |
 | `NonEmptyReply`, `NoLeakedToolSyntax` | applied to every case |
 
@@ -47,3 +47,10 @@ When you change the seed data or the system prompt, update the affected cases in
 Evals → Run workflow, optionally with a model override). It's kept out of the per-push `ci.yml` because it spends
 real free-tier quota and depends on third-party uptime. The offline harness tests in
 `tests/test_evals.py` do run on every push.
+
+## Pre-flight: the index must match the seed file
+
+Before spending any LLM tokens, the runner checks that every record in `pinecone-scripts/upsert_pinecone_records.py`
+is in the live index with the same text and category (`evals/index_sync.py`). If not, it stops and reports the
+missing and stale ids and the fix (run the Pinecone IaC workflow). Skip it with `--skip-index-check`. This exists
+because stale data makes a correct, honest answer ("the policy doesn't list a color price") look like an agent failure.

@@ -1,4 +1,8 @@
-"""Upserts the library policy records into the Pinecone index (skips ones that already exist)."""
+"""Syncs the library policy records into the Pinecone index: inserts missing records and
+updates existing ones whose text or category changed (unchanged records are skipped).
+
+It used to skip every id already in the index, so edits to existing records (e.g. pol7's color
+price, pol9's turnaround time) silently never reached the live index."""
 
 import os
 import sys
@@ -46,6 +50,15 @@ RECORDS = [
 ]
 
 
+def needs_upsert(record: dict, existing_vectors: dict) -> bool:
+    """True if the record is missing from the index, or its stored text/category differs."""
+    live = existing_vectors.get(record["_id"])
+    if live is None:
+        return True
+    stored = live.metadata or {}
+    return stored.get("chunk_text") != record["chunk_text"] or stored.get("category") != record["category"]
+
+
 def upsert_records() -> None:
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY", "PINECONE_API_KEY"))
 
@@ -54,15 +67,19 @@ def upsert_records() -> None:
         record_ids = [record["_id"] for record in RECORDS]
         fetch_response = index.fetch(ids=record_ids, namespace=NAMESPACE)
 
-        existing_ids = set(fetch_response.vectors.keys())
-        records_to_upsert = [record for record in RECORDS if record["_id"] not in existing_ids]
+        records_to_upsert = [record for record in RECORDS if needs_upsert(record, fetch_response.vectors)]
 
         if records_to_upsert:
-            print(f"Upserting {len(records_to_upsert)} new records into index '{INDEX_NAME}'...")
+            new_count = sum(1 for record in records_to_upsert if record["_id"] not in fetch_response.vectors)
+            print(
+                f"Upserting {len(records_to_upsert)} records into index '{INDEX_NAME}' "
+                f"({new_count} new, {len(records_to_upsert) - new_count} changed): "
+                f"{', '.join(record['_id'] for record in records_to_upsert)}"
+            )
             index.upsert_records(namespace=NAMESPACE, records=records_to_upsert)
             print("Records upserted successfully.")
         else:
-            print("All records already exist in the index. No upsert needed.")
+            print("Index already matches the seed records. No upsert needed.")
     except Exception as error:
         print("An error occurred during the upsert process:", error)
         sys.exit(1)
