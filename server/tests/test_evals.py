@@ -231,3 +231,19 @@ def test_upsert_script_updates_changed_records_not_just_missing_ones():
     assert needs_upsert(record, {"pol7": live("B&W $0.10")}) is True  # stale text
     assert needs_upsert(record, {"pol7": live("B&W $0.10, color $0.50", "other")}) is True  # stale category
     assert needs_upsert(record, {"pol7": live("B&W $0.10, color $0.50")}) is False  # in sync
+
+
+async def test_dataset_checks_accept_natural_phrasings_models_actually_use():
+    """Both phrasings came from real replies in the first CI eval run (Oct 5, 2026) that the checks wrongly rejected."""
+    cases = {case.name: case for case in CASES}
+
+    honest_gap = EvalOutput(
+        reply="I\u2019m not seeing any information about piano lessons. It looks like we don\u2019t currently list that program.",
+        tools_called=["search_library_policies"],
+    )
+    assert all((await _assertions(honest_gap, *cases["no-matching-policy"].evaluators)).values())
+
+    hyphenated = EvalOutput(
+        reply="Many e\u2011books have screen\u2011reader support.", tools_called=["search_library_policies"]
+    )
+    assert all((await _assertions(hyphenated, *cases["visual-impairment"].evaluators)).values())
