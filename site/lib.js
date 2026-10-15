@@ -82,14 +82,18 @@ function renderMarkdown(body, { sourceDirInRepo = null } = {}) {
 // Turns one of the LinkedIn drafts (title line, metadata bullets, a ```text
 // fenced block holding the post) into a site post. Only the fenced text is
 // published; the surrounding review notes are private working notes.
-function draftToPost(src, { year = 2026 } = {}) {
+function draftToPost(rawSrc, { year = 2026, unlisted = true } = {}) {
+  const src = rawSrc.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n"); // drafts saved on Windows use CRLF
   const title = (src.match(/^# (.+)$/m) || [])[1];
   if (!title) throw new Error("Draft has no '# ' title line");
   const dateLine = (src.match(/^- \*\*Date:\*\*\s*(.+)$/m) || [])[1] || "";
   const dm = dateLine.match(/([A-Z][a-z]{2})\s+(\d{1,2})/);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   if (!dm || months.indexOf(dm[1]) < 0) throw new Error(`Can't read a date from: ${dateLine}`);
-  const date = `${year}-${String(months.indexOf(dm[1]) + 1).padStart(2, "0")}-${String(dm[2]).padStart(2, "0")}`;
+  // `year` is the year the series starts (October); January through September belong to the next year.
+  const monthIndex = months.indexOf(dm[1]);
+  const postYear = monthIndex < 9 ? year + 1 : year;
+  const date = `${postYear}-${String(monthIndex + 1).padStart(2, "0")}-${String(dm[2]).padStart(2, "0")}`;
   const fence = src.match(/```text\n([\s\S]*?)\n```/);
   if (!fence) throw new Error("Draft has no ```text block");
   const partMatch = title.match(/^Part (\d+):\s*(.+?)(?:\s*\(.*\))?$/);
@@ -104,6 +108,7 @@ function draftToPost(src, { year = 2026 } = {}) {
     `title: ${clean}`,
     `date: ${date}`,
     `order: ${order}`,
+    `unlisted: ${unlisted}`,
     `series: ${isPrologue ? "Prologue" : partMatch ? `Part ${partMatch[1]} of 18` : ""}`,
     "---",
     "",

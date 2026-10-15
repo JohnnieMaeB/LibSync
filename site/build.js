@@ -31,7 +31,7 @@ function parseArgs(argv) {
 // `depth` = how many directories below the blog root this page sits, so every
 // link can be relative (the same build is served from /LibSync/blog/ in
 // production and /LibSync/pr-preview/pr-N/blog/ in PR previews).
-function layout({ title, description, depth, body, pagePath, type = "website" }) {
+function layout({ title, description, depth, body, pagePath, type = "website", noindex = false }) {
   const root = relPrefix(depth);
   const fullTitle = pagePath === "" ? SITE_NAME : `${title} | ${SITE_NAME}`;
   const canonical = `${SITE_URL}/blog/${pagePath}`;
@@ -43,6 +43,7 @@ function layout({ title, description, depth, body, pagePath, type = "website" })
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(fullTitle)}</title>
 <meta name="description" content="${escapeHtml(description)}">
+${noindex ? '<meta name="robots" content="noindex, nofollow">' : ""}
 <link rel="canonical" href="${canonical}">
 <link rel="alternate" type="application/atom+xml" title="${SITE_NAME}" href="${root}feed.xml">
 <link rel="stylesheet" href="${root}assets/style.css">
@@ -91,11 +92,13 @@ function readPosts(today) {
         date: data.date,
         order: Number(data.order ?? 99),
         series: data.series || "",
+        unlisted: data.unlisted === "true",
         description: data.description || firstPara.slice(0, 200),
         html: renderMarkdown(body),
       };
     })
-    .filter((p) => p.date <= today) // future-dated posts stay hidden until their day
+    // Listed posts wait for their date; unlisted ones are always built (and never linked).
+    .filter((p) => p.unlisted || p.date <= today)
     .sort((a, b) => a.order - b.order);
 }
 
@@ -154,9 +157,11 @@ ${postsHtml}
 }
 
 function buildPost(post, posts) {
-  const i = posts.indexOf(post);
-  const prev = posts[i - 1];
-  const next = posts[i + 1];
+  // Series navigation stays within a visibility class, so a listed post never links to an unlisted one.
+  const pool = posts.filter((p) => p.unlisted === post.unlisted);
+  const i = pool.indexOf(post);
+  const prev = pool[i - 1];
+  const next = pool[i + 1];
   const nav = `<nav class="series-nav" aria-label="Series">
 <span>${prev ? `<a href="../${prev.slug}/">&larr; ${escapeHtml(prev.title)}</a>` : ""}</span>
 <span>${next ? `<a href="../${next.slug}/">${escapeHtml(next.title)} &rarr;</a>` : ""}</span>
@@ -166,7 +171,7 @@ function buildPost(post, posts) {
 <p class="meta"><time datetime="${post.date}">${formatDate(post.date)}</time></p>
 ${post.html}
 ${nav}`;
-  return layout({ title: post.title, description: post.description, depth: 1, body, pagePath: `${post.slug}/`, type: "article" });
+  return layout({ title: post.title, description: post.description, depth: 1, body, pagePath: `${post.slug}/`, type: "article", noindex: post.unlisted });
 }
 
 function buildCaseStudy(study) {
@@ -208,12 +213,13 @@ ${urls.map((u) => `<url><loc>${u}</loc></url>`).join("\n")}
 
 function main() {
   const { outDir, today } = parseArgs(process.argv.slice(2));
-  const posts = readPosts(today);
+  const allPosts = readPosts(today);
+  const posts = allPosts.filter((p) => !p.unlisted);
   const studies = readCaseStudies();
   fs.rmSync(outDir, { recursive: true, force: true });
   write(outDir, "index.html", buildIndex(posts, studies));
   write(outDir, "about/index.html", buildAbout());
-  for (const p of posts) write(outDir, `${p.slug}/index.html`, buildPost(p, posts));
+  for (const p of allPosts) write(outDir, `${p.slug}/index.html`, buildPost(p, allPosts));
   for (const s of studies) write(outDir, `case-studies/${s.slug}/index.html`, buildCaseStudy(s));
   const all = [...posts, ...studies].sort((a, b) => b.date.localeCompare(a.date));
   write(outDir, "feed.xml", buildFeed(all));
@@ -222,7 +228,7 @@ function main() {
   fs.copyFileSync(path.join(__dirname, "assets", "style.css"), path.join(outDir, "assets", "style.css"));
   const social = path.join(__dirname, "assets", "social.png");
   if (fs.existsSync(social)) fs.copyFileSync(social, path.join(outDir, "assets", "social.png"));
-  console.log(`Built blog: ${posts.length} posts, ${studies.length} case studies -> ${outDir}`);
+  console.log(`Built blog: ${posts.length} listed + ${allPosts.length - posts.length} unlisted posts, ${studies.length} case studies -> ${outDir}`);
 }
 
 if (require.main === module) main();

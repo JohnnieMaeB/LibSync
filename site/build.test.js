@@ -74,6 +74,18 @@ test("draftToPost treats the Prologue as order 0", () => {
   assert.match(post.markdown, /series: Prologue/);
 });
 
+test("draftToPost dates January through September into the following year", () => {
+  const post = lib.draftToPost(DRAFT.replace("Tue Dec 15", "Tue Jan 5"));
+  assert.strictEqual(post.date, "2027-01-05");
+});
+
 test("draftToPost fails loudly on a draft with no text block", () => {
   assert.throws(() => lib.draftToPost("# Part 1: X\n\n- **Date:** Tue Oct 13\n"), /text/);
+});
+
+test("draftToPost handles CRLF drafts and defaults to unlisted", () => {
+  const post = lib.draftToPost(DRAFT.replace(/\n/g, "\r\n"));
+  assert.match(post.markdown, /unlisted: true/);
+  assert.match(post.markdown, /First paragraph\./);
+  assert.match(lib.draftToPost(DRAFT, { unlisted: false }).markdown, /unlisted: false/);
 });
