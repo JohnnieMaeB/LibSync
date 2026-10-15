@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One script tag | LibSync build log</title>
+<meta name="description" content="Embedding was one script tag. Making that safe took longer, and the safety was in the plan before the code existed.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/13-one-script-tag/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="One script tag">
+<meta property="og:description" content="Embedding was one script tag. Making that safe took longer, and the safety was in the plan before the code existed.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/13-one-script-tag/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 13 of 18</p>
+<h1>One script tag</h1>
+<p class="meta"><time datetime="2027-01-26">January 26, 2027</time></p>
+<p>Embedding was one script tag. Making that safe took longer, and the safety was in the plan before the code existed.</p>
+<p>Libraries add chat tools by pasting a script tag, so the Tier 6 widget is exactly that: loader.js with data-library, data-accent and data-position attributes. A floating launcher opens the assistant. Libraries paste snippets; they don&#39;t run Kubernetes.</p>
+<p>I don&#39;t control the host page. It&#39;s WordPress, or Drupal, or a decade of accumulated global CSS. So Claude Code built:</p>
+<ul>
+<li>An iframe: host styles and scripts can&#39;t reach the assistant, and mine can&#39;t break theirs.</li>
+<li>A vanilla, zero-dependency loader.js with inline styles only: no style tag, no class names to collide with.</li>
+<li>A small postMessage contract: close and resize.</li>
+</ul>
+<p>The harder half was the backend. Once any site can embed LibSync, they all spend one shared free-tier budget.</p>
+<ul>
+<li>Per-IP limiting (100 requests per 15 minutes) doesn&#39;t model embeds, where many patrons on different IPs share one site. So there&#39;s a second limit keyed on the Origin header, 500 per 15 minutes, stacked as another slowapi decorator on /agent and /chat.</li>
+<li>An allowlist: a library registers its id against its origin with POST /widget/register, and a second origin claiming the same id gets a 409. Unregistered origins get a 50-request grace quota, so an embed works instantly and then asks you to register.</li>
+<li>The registry is in memory, so registrations reset on a cold start. That&#39;s the $0 tax from Part 10, paid knowingly: a speed bump, not authentication.</li>
+</ul>
+<p>&quot;Embeddable&quot; means designing for hosts you&#39;ll never see and traffic you don&#39;t control.</p>
+<p>Architect&#39;s note: have the agent write the threat model and the definition of done before the code. These abuse limits weren&#39;t an afterthought, because the Tier 6 plan named them first. A plan is the cheapest place to catch a design mistake.</p>
+<p>If you&#39;ve built embeddable widgets, what bit you that you didn&#39;t expect?</p>
+<p>LibSync build log, Part 13 of 18. Next: the day I ran my first real evals, and the score was 0 out of 22.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../12-curl-said-it-was-fine/">&larr; Curl said it was fine</a></span>
+<span><a href="../14-zero-out-of-twenty-two/">0/22 &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
