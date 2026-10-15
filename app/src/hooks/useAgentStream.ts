@@ -93,11 +93,19 @@ function entriesToMessages(entries: ChatEntry[]): { id: string; role: string; co
   return messages;
 }
 
+function requestHeaders(libraryId: string | null, tools: string | null): Record<string, string> | undefined {
+  const headers: Record<string, string> = {};
+  if (libraryId) headers["X-LibSync-Library"] = libraryId;
+  if (tools) headers["X-LibSync-Tools"] = tools;
+  return Object.keys(headers).length ? headers : undefined;
+}
+
 export function useAgentStream({
   conversationId,
   initialEntries,
   onEntriesChange,
   libraryId = null,
+  tools = null,
 }: {
   conversationId: string;
   initialEntries: ChatEntry[];
@@ -106,6 +114,9 @@ export function useAgentStream({
   // backend key per-origin rate limiting and the registration allowlist off
   // which embedding library sent the request (TIER6_PLAN.md §4).
   libraryId?: string | null;
+  // Tool groups the embedding library allows (widget.ts), sent as
+  // X-LibSync-Tools; null means all. TIER8_PLAN.md §2.8.
+  tools?: string | null;
 }) {
   const [entries, setEntriesState] = useState<ChatEntry[]>(initialEntries);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -319,7 +330,7 @@ export function useAgentStream({
         const agent = new HttpAgent({
           url: `${API_BASE_URL}/agent`,
           threadId: input.threadId,
-          headers: libraryId ? { "X-LibSync-Library": libraryId } : undefined,
+          headers: requestHeaders(libraryId, tools),
         });
         agentRef.current = agent;
         const result = await runAgentOnce(agent, input, onEvent);
@@ -366,7 +377,7 @@ export function useAgentStream({
 
       setIsStreaming(false);
     },
-    [commitEntries, conversationId, patchBot, libraryId],
+    [commitEntries, conversationId, patchBot, libraryId, tools],
   );
 
   const sendMessage = useCallback(

@@ -30,7 +30,7 @@ from app.deps import LibSyncDeps
 from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
 from app.services import citation_service, crossref_service
 from app.session_store import session_store
-from app.tenants import normalize_library_id
+from app.tenants import normalize_library_id, parse_enabled_tools
 from app.widget_registry import check_widget_registration
 
 router = APIRouter()
@@ -121,6 +121,7 @@ async def agent_endpoint(request: Request):
     deps = LibSyncDeps(
         http_client=request.app.state.http_client,
         library_id=normalize_library_id(request.headers.get("x-libsync-library")),
+        enabled_tools=parse_enabled_tools(request.headers.get("x-libsync-tools")),
     )
 
     # AGUIAdapter.run_stream_native folds the frontend's sent messages onto

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWidgetConfig } from "./widget";
+import { getWidgetConfig, safeHelpUrl } from "./widget";
 
 describe("getWidgetConfig", () => {
   it("is not widget mode when mode=widget is absent from the URL", () => {
@@ -23,5 +23,30 @@ describe("getWidgetConfig", () => {
 
   it("libraryId is null when not present", () => {
     expect(getWidgetConfig("?mode=widget").libraryId).toBeNull();
+  });
+
+  it("parses the help URL and tool groups loader.js forwards", () => {
+    const config = getWidgetConfig("?mode=widget&help=mailto%3Aask%40lib.example&tools=+catalog+");
+    expect(config.helpUrl).toBe("mailto:ask@lib.example");
+    expect(config.tools).toBe("catalog");
+  });
+
+  it("defaults help URL and tools to null", () => {
+    const config = getWidgetConfig("?mode=widget");
+    expect(config.helpUrl).toBeNull();
+    expect(config.tools).toBeNull();
+  });
+});
+
+describe("safeHelpUrl", () => {
+  it.each(["https://lib.example/ask", "http://lib.example", "mailto:a@b.example", "tel:+15555550100"])(
+    "accepts %s",
+    (url) => {
+      expect(safeHelpUrl(url)).not.toBeNull();
+    },
+  );
+
+  it.each(["javascript:alert(1)", "data:text/html,hi", "not a url", "", null])("rejects %s", (url) => {
+    expect(safeHelpUrl(url)).toBeNull();
   });
 });

@@ -20,6 +20,7 @@ from pydantic_ai.models.groq import GroqModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.providers.groq import GroqProvider
 from pydantic_ai.providers.huggingface import HuggingFaceProvider
+from pydantic_ai.tools import ToolDefinition
 
 from app.bot_context.identity import PERSONA_PROMPT
 from app.bot_context.service_principles import SERVICE_PRINCIPLES
@@ -28,7 +29,7 @@ from app.deps import LibSyncDeps
 from app.schemas import BookResult, Citation, ResearchResult, ScholarlyWork
 from app.services import citation_service, crossref_service, open_library_service, openalex_service
 from app.services.pinecone_service import search_pinecone
-from app.tenants import policy_namespace
+from app.tenants import TOOL_GROUPS, policy_namespace
 from app.session_store import session_store
 
 # The system prompt provides the AI with its core identity, instructions, and
@@ -166,12 +167,25 @@ def _reject_leaked_tool_call_syntax(data: str | BookResult) -> str | BookResult:
     return data
 
 
+def _tool_group_switch(group: str):
+    """A `prepare` hook that hides a tool from the model when the embedding
+    library switched its group off (TIER8_PLAN.md §2.8). Hidden, not refused:
+    the model never sees the tool, so it can't promise a lookup it can't do."""
+    assert group in TOOL_GROUPS
+
+    async def prepare(ctx: RunContext[LibSyncDeps], tool_def: ToolDefinition) -> ToolDefinition | None:
+        enabled = ctx.deps.enabled_tools
+        return tool_def if enabled is None or group in enabled else None
+
+    return prepare
+
+
 def _search_policies(query: str, library_id: str | None) -> dict:
     # Both calls block on Pinecone, so they run together in one worker thread.
     return search_pinecone(query, 3, namespace=policy_namespace(library_id))
 
 
-@chat_agent.tool
+@chat_agent.tool(prepare=_tool_group_switch("policies"))
 async def search_library_policies(ctx: RunContext[LibSyncDeps], query: str) -> str:
     """Search the library's policy knowledge base for information relevant to
     the user's question (e.g. fines, lending periods, card registration,
@@ -192,7 +206,7 @@ async def search_library_policies(ctx: RunContext[LibSyncDeps], query: str) -> s
     return "\n".join(f"- {m['text']}" for m in matches)
 
 
-@chat_agent.tool
+@chat_agent.tool(prepare=_tool_group_switch("catalog"))
 async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn:
     """Search the real Open Library catalog for a book or author, including
     its lending/full-text availability via Internet Archive.
@@ -224,7 +238,7 @@ async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn
     )
 
 
-@chat_agent.tool
+@chat_agent.tool(prepare=_tool_group_switch("research"))
 async def search_scholarly_works(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn:
     """Search the real OpenAlex scholarly index for papers matching a topic
     or title, including citation counts and open-access status.
@@ -257,7 +271,7 @@ async def search_scholarly_works(ctx: RunContext[LibSyncDeps], query: str) -> To
     )
 
 
-@chat_agent.tool
+@chat_agent.tool(prepare=_tool_group_switch("citations"))
 async def lookup_and_cite(
     ctx: RunContext[LibSyncDeps], style: str, doi: str | None = None, title: str | None = None
 ) -> ToolReturn:
@@ -306,7 +320,11 @@ async def lookup_and_cite(
 
 
 async def get_chat_reply(
-    message: str, http_client: httpx.AsyncClient, session_id: str, library_id: str | None = None
+    message: str,
+    http_client: httpx.AsyncClient,
+    session_id: str,
+    library_id: str | None = None,
+    enabled_tools: frozenset[str] | None = None,
 ) -> str | BookResult:
     """Send a user's message to the chat agent and return its reply — plain
     text, or a `BookResult` when the agent grounds its answer in concrete
@@ -321,7 +339,7 @@ async def get_chat_reply(
     """
     try:
         print("Received message:", message)
-        deps = LibSyncDeps(http_client=http_client, library_id=library_id)
+        deps = LibSyncDeps(http_client=http_client, library_id=library_id, enabled_tools=enabled_tools)
         history = session_store.get(session_id)
         result = await chat_agent.run(message, deps=deps, message_history=history)
         session_store.append(session_id, result.new_messages())
@@ -335,7 +353,11 @@ async def get_chat_reply(
 
 
 async def stream_chat_reply(
-    message: str, http_client: httpx.AsyncClient, session_id: str, library_id: str | None = None
+    message: str,
+    http_client: httpx.AsyncClient,
+    session_id: str,
+    library_id: str | None = None,
+    enabled_tools: frozenset[str] | None = None,
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream a chat turn as `(event_name, data)` pairs for SSE delivery.
 
@@ -360,7 +382,7 @@ async def stream_chat_reply(
     `BookResult`, sent once, complete, when the turn resolves to one), "done"
     once the turn is complete and saved to the session store, or "error".
     """
-    deps = LibSyncDeps(http_client=http_client, library_id=library_id)
+    deps = LibSyncDeps(http_client=http_client, library_id=library_id, enabled_tools=enabled_tools)
     history = session_store.get(session_id)
     try:
         current_text: str | None = None

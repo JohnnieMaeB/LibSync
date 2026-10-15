@@ -54,6 +54,30 @@ def policy_namespace(library_id: str | None) -> str:
     return DEFAULT_NAMESPACE
 
 
+# Tool groups a library can switch off from its embed snippet (`data-tools`),
+# mapped to the agent tools each one controls. TIER8_PLAN.md §2.8.
+TOOL_GROUPS: dict[str, str] = {
+    "policies": "search_library_policies",
+    "catalog": "search_catalog",
+    "research": "search_scholarly_works",
+    "citations": "lookup_and_cite",
+}
+
+
+def parse_enabled_tools(raw: str | None) -> frozenset[str] | None:
+    """The tool groups a request allows, from the `X-LibSync-Tools` header.
+
+    None (header absent or blank) means every group. Unknown names are
+    ignored, so a typo can only turn a tool off, never invent one. The header
+    comes from the library's own embed snippet; a patron who edits it can only
+    re-enable tools the standalone app already offers everyone, so it's a
+    preference, not a security boundary.
+    """
+    if raw is None or not raw.strip():
+        return None
+    return frozenset(name.strip().lower() for name in raw.split(",")) & frozenset(TOOL_GROUPS)
+
+
 def reset_namespace_cache() -> None:
     """Test hygiene only."""
     global _namespace_cache

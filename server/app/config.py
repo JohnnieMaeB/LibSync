@@ -21,6 +21,12 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PORT = int(os.getenv("PORT", "3000"))
 IS_TEST_ENV = os.getenv("NODE_ENV") == "test" or os.getenv("ENV") == "test"
 LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
+# Patron messages and model replies stay out of traces unless explicitly
+# turned on for debugging: library records are confidential by law in 48
+# states + DC, and ALA's AI guidance asks vendors not to log reference
+# interactions by default (TIER8_PLAN.md §2.8). Spans still record timing,
+# tool names, token counts, errors and library_id.
+LOGFIRE_INCLUDE_CONTENT = os.getenv("LOGFIRE_INCLUDE_CONTENT", "").lower() in ("1", "true", "yes")
 
 # OpenAlex (Tier 2 research assistant) and Crossref (Tier 2 citation
 # assistant) are free and keyless, but both ask callers to identify

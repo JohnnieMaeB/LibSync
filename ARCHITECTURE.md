@@ -374,6 +374,13 @@ Phase 31) switches it over with no tenant table to keep in sync. Every agent run
 run metadata on its Logfire span, so per-library usage stats will be a query over existing traces rather than
 a second logging pipeline.
 
+**Patron messages stay out of traces by default (Phase 36T).** `logfire.instrument_pydantic_ai` records full
+prompts and replies unless told otherwise. Library records are confidential by law in 48 states + DC, and ALA's
+AI guidance asks vendors not to log reference interactions, so it now runs with `include_content` off. Spans keep
+timing, tool names, token counts, errors and `library_id`. `LOGFIRE_INCLUDE_CONTENT=1` turns content back on for
+local debugging only. The same phase hides switched-off tools from the model through each tool's `prepare` hook
+(`X-LibSync-Tools`, from the embed snippet's `data-tools`), so the model can't promise a lookup it can't do.
+
 **Integrate with what libraries already run.** Supabase, Render and Pinecone are LibSync's own infrastructure,
 invisible to a library. Everything a library *touches* should be a system it already has. Research in October
 2026 ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026),

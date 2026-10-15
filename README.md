@@ -254,11 +254,15 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
   installing requires the user to manually choose "Add to Home Screen" from the share sheet, and iOS has
   historically lagged Android on PWA feature parity (e.g. push notifications, background sync)
 - An embeddable widget for library websites: one `<script>` tag (`app/public/loader.js`, dependency-free, with
-  `data-library`, `data-accent`, and `data-position` attributes) adds a floating launcher that opens the
+  `data-library`, `data-accent`, `data-position`, plus optional `data-help-url` for a "Talk to a librarian" link and
+  `data-tools` to limit the assistant to some tool groups) adds a floating launcher that opens the
   existing app in an iframe-isolated widget mode, so host-page CSS and scripts can't collide with it
 - Abuse protection for that open embed surface: a per-origin rate limit stacked on the existing per-IP one,
   plus a lightweight library-id → origin allowlist (`POST /widget/register`) with a small grace quota, so a
   new embed works immediately but one origin can't drain the shared free-tier budget
+- Trust by default, per ALA's 2026 AI guidance: an always-visible "you're chatting with an AI" notice, a
+  plain-language "How your data is handled" explanation, a "Talk to a librarian" link, per-library tool switches,
+  and patron messages kept out of traces unless `LOGFIRE_INCLUDE_CONTENT=1` is set for debugging
 - Cloud deployment for remote access
 
 ---
