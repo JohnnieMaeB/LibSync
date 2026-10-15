@@ -28,6 +28,11 @@ if (!match) {
 const live = process.argv.includes("--live");
 const post = draftToPost(fs.readFileSync(path.join(draftsDir, match), "utf8"), { unlisted: !live });
 const dest = path.join(__dirname, "posts", match);
+// Long-form posts are edited by hand in site/posts/. Never clobber one by accident.
+if (fs.existsSync(dest) && !process.argv.includes("--force")) {
+  console.error(`${path.relative(process.cwd(), dest)} already exists. Pass --force to overwrite it with the draft's LinkedIn text.`);
+  process.exit(1);
+}
 fs.writeFileSync(dest, post.markdown);
 console.log(`Wrote ${path.relative(process.cwd(), dest)} (dated ${post.date}, ${live ? "listed" : "unlisted"}).`);
 console.log("Check it for [Personalize] lines or unresolved placeholders before committing.");
