@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curl said it was fine | LibSync build log</title>
+<meta name="description" content="Every request to my API returned 500 in the browser. curl said everything was fine. Three packages disagreed about what a route is.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/12-curl-said-it-was-fine/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Curl said it was fine">
+<meta property="og:description" content="Every request to my API returned 500 in the browser. curl said everything was fine. Three packages disagreed about what a route is.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/12-curl-said-it-was-fine/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 12 of 18</p>
+<h1>Curl said it was fine</h1>
+<p class="meta"><time datetime="2027-01-19">January 19, 2027</time></p>
+<p>Every request to my API returned 500 in the browser. curl said everything was fine. Three packages disagreed about what a route is.</p>
+<p>My frontend (github.io) and API (onrender.com) are different origins, so every chat message starts with a CORS preflight, an OPTIONS request. It worked until observability was switched on.</p>
+<p>With LOGFIRE_TOKEN set, instrument_fastapi() wraps the app in OpenTelemetry&#39;s FastAPI instrumentation. FastAPI 0.137 changed how routes registered through include_router() are represented, wrapping them in a new _IncludedRouter type. The instrumentation reads .path off each route, the new type doesn&#39;t have one, and every preflight 500s, on every route, because every route in my app is registered that way. curl never sends a preflight, which is why the API looked healthy from a terminal.</p>
+<p>A fixed instrumentation release exists (0.64b0). It requires opentelemetry-semantic-conventions==0.64b0, which conflicts with logfire 4.37.0&#39;s own opentelemetry-sdk&lt;1.43.0 ceiling. No upgrade path resolved. The only available fix: pin fastapi&lt;0.137.</p>
+<p>The pin isn&#39;t the part to copy. The comment on it is: what breaks and for whom (real browsers, cross-origin), the exact version chain, and the condition for removing it (when logfire ships a release compatible with instrumentation 0.64b0 or later). Plus an architecture-doc entry and a troubleshooting row: &quot;CORS errors in the browser but not in curl? Check the FastAPI pin.&quot;</p>
+<p>That comment is for a stranger: me in three months, after a lot of context switching between jobs, classes and this project. A solo architect working with an agent gets one chance to leave a trail for that stranger.</p>
+<p>Architect&#39;s note: make the agent write the exit condition next to every workaround. A workaround without an exit is permanent, and the next session starts without this context.</p>
+<p>What&#39;s the strangest dependency conflict you&#39;ve debugged?</p>
+<p>LibSync build log, Part 12 of 18. Next: opening the app to every library website on the internet.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../11-nothing-was-deleted/">&larr; Nothing was deleted</a></span>
+<span><a href="../13-one-script-tag/">One script tag &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
