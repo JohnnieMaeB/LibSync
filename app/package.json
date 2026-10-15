@@ -13,12 +13,19 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.57",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "idb": "^8.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.3",
     "@eslint/js": "^9.13.0",
     "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^6.9.1",

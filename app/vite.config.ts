@@ -9,6 +9,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // Registered from src/native.ts instead of an injected script, so the
+      // Android/iOS shell (Tier 7) can skip it.
+      injectRegister: null,
       // Static-asset caching only (Tier 5 §4) — this is installability, not
       // offline chat, which would need the backend to be cacheable too.
       workbox: {

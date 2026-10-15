@@ -1,0 +1,79 @@
+name: Mobile Builds
+
+# Tier 7: build the Capacitor shells around the web app. Android produces a
+# debug APK anyone can sideload ($0, no Play Store); iOS proves the Xcode
+# project compiles for the simulator (installing on a phone still needs a Mac
+# with Xcode and free personal-team signing; App Store publishing is the paid,
+# opt-in Phase 29). TIER7_PLAN.md.
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/mobile.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build web app and sync into the Android project
+        working-directory: ./app
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: ./app/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libsync-android-debug-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Build web app and sync into the iOS project
+        working-directory: ./app
+        run: |
+          npm ci
+          npm run build
+          npx cap sync ios
+
+      - name: Build for the iOS simulator (unsigned)
+        working-directory: ./app/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -30
+          test "${PIPESTATUS[0]}" -eq 0
