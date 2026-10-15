@@ -105,10 +105,9 @@ touch this path.
 - Keep the budget constraint in mind: no change should require a paid tier on Groq, Pinecone, Render, Open
   Library, OpenAlex, Crossref, or Logfire. If a change needs one, flag it explicitly rather than assuming
   it's fine.
-- Don't bump `fastapi` past `<0.137` without checking the pin's comment in `server/pyproject.toml` first —
-  it's there to avoid a real CORS-preflight-breaking bug (`opentelemetry-instrumentation-fastapi` 0.63b1
-  can't handle FastAPI 0.137+'s `_IncludedRouter`), not an arbitrary version freeze. See
-  [ARCHITECTURE.md](ARCHITECTURE.md) for the full explanation.
+- If you touch the `fastapi` or `logfire` versions, run the full server suite: it includes a test that
+  instruments an app and checks a CORS preflight still returns 200 (a past incompatibility 500'd every
+  browser request while `curl` looked fine). See [ARCHITECTURE.md](ARCHITECTURE.md) for the history.
 - Run the relevant test suite(s) before opening a PR. CI runs both (`server-tests`, `client-tests`) on every
   PR, and a preview deploy kicks off separately — see
   [README § PR Previews and Deployment](README.md#-pr-previews-and-deployment).
