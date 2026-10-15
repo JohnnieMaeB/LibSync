@@ -30,8 +30,7 @@ from app.deps import LibSyncDeps
 from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
 from app.services import citation_service, crossref_service
 from app.session_store import session_store
-from app.tenants import normalize_library_id, parse_enabled_tools
-from app.widget_registry import check_widget_registration
+from app.request_gate import gate_request
 
 router = APIRouter()
 
@@ -110,18 +109,16 @@ async def _run_stream_with_retry(adapter: AGUIAdapter, **run_kwargs: Any) -> Asy
 @limiter.limit(RATE_LIMIT)
 @limiter.limit(WIDGET_ORIGIN_RATE_LIMIT, key_func=get_origin_or_ip)
 async def agent_endpoint(request: Request):
-    registration_error = check_widget_registration(
-        request.headers.get("x-libsync-library"), request.headers.get("origin")
-    )
-    if registration_error:
-        return JSONResponse(status_code=403, content={"error": registration_error})
+    gated = await gate_request(request)
+    if isinstance(gated, JSONResponse):
+        return gated
 
     adapter = await AGUIAdapter.from_request(request, agent=chat_agent)
     thread_id = adapter.conversation_id or str(uuid.uuid4())
     deps = LibSyncDeps(
         http_client=request.app.state.http_client,
-        library_id=normalize_library_id(request.headers.get("x-libsync-library")),
-        enabled_tools=parse_enabled_tools(request.headers.get("x-libsync-tools")),
+        library_id=gated.library_id,
+        enabled_tools=gated.enabled_tools,
     )
 
     # AGUIAdapter.run_stream_native folds the frontend's sent messages onto

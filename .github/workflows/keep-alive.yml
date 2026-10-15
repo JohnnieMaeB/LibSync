@@ -11,6 +11,19 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Free Supabase projects pause after a week without activity (Tier 8). Skips
+  # cleanly until the dashboard is configured.
+  ping-supabase:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Query Supabase to keep the project active
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then echo "Supabase not configured; skipping."; exit 0; fi
+          curl -sf --max-time 30 -H "apikey: $SUPABASE_KEY" "$SUPABASE_URL/rest/v1/libraries?select=id&limit=1" > /dev/null             && echo "Supabase is reachable."             || echo "::warning::Supabase did not respond — check the project in the Supabase dashboard."
+
   ping-render:
     runs-on: ubuntu-24.04
     steps:

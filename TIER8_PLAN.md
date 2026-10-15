@@ -230,7 +230,7 @@ flowchart LR
 
 | Phase | Scope | Est. |
 |---|---|---|
-| **30** | Supabase project: `libraries` table + RLS, staff auth (Microsoft + Google sign-in, invite-only email). *Already done (PR #49): per-library Pinecone namespaces that activate automatically, and `library_id` on every trace* | 4–6 days |
+| **30** | *Built (needs Supabase credentials to switch on; see [docs/ADMIN.md](docs/ADMIN.md)): `libraries` / `library_staff` / write-only `library_secrets` tables with RLS, a `#/admin` dashboard with Microsoft, Google and invite-only email sign-in, per-library assistant on/off, help link, tool switches and website allowlist, all failing open to defaults. Earlier (PR #49): per-library Pinecone namespaces and `library_id` on every trace.* Supabase project: `libraries` table + RLS, staff auth (Microsoft + Google sign-in, invite-only email) | 4–6 days |
 | **31** | Document management UI: upload → Storage → chunk/embed into the library's namespace, replacing the manual `pinecone-scripts` workflow. Plus an optional LibAnswers FAQ sync as a second source | 5–7 days |
 | **32** | `CatalogConnector` driver model: `KohaConnector` (tested against `koha-testing-docker`), then `PolarisConnector` (Polaris Developer Network sandbox), then a best-effort `SRUConnector`; per-library driver config UI | 7–10 days |
 | **33** | Statistics dashboard: usage, error and budget-headroom views over the `library_id`-tagged Logfire traces | 3–5 days |

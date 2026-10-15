@@ -21,6 +21,10 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PORT = int(os.getenv("PORT", "3000"))
 IS_TEST_ENV = os.getenv("NODE_ENV") == "test" or os.getenv("ENV") == "test"
 LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
+# Tier 8 (optional): per-library settings and the staff dashboard. Unset means
+# every library uses the defaults and the embed snippet's attributes, as before.
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/") or None
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY") or None
 # Patron messages and model replies stay out of traces unless explicitly
 # turned on for debugging: library records are confidential by law in 48
 # states + DC, and ALA's AI guidance asks vendors not to log reference

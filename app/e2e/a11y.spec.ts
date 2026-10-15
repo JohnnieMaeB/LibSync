@@ -71,6 +71,8 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/agent", (route) =>
     route.fulfill({ status: 200, contentType: "text/event-stream", body: CARD_REPLY }),
   );
+  // No dashboard settings: the widget falls back to its embed attributes.
+  await page.route("**/libraries/**", (route) => route.fulfill({ status: 404, body: "{}" }));
 });
 
 test("standalone app", async ({ page }) => {
@@ -109,4 +111,23 @@ test("keyboard: Tab reaches the composer and Enter on the disclosure link opens 
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(disclosure).toBeFocused();
+});
+
+test("staff dashboard (not configured)", async ({ page }) => {
+  await page.goto("./#/admin");
+  await expect(page.getByRole("heading", { name: "LibSync staff dashboard" })).toBeVisible();
+  await expectNoViolations(page);
+});
+
+test("widget with the assistant switched off", async ({ page }) => {
+  await page.route("**/libraries/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ id: "acme", name: "Acme", help_url: "https://acme.example/ask", ai_enabled: false }),
+    }),
+  );
+  await page.goto("./?mode=widget&library=acme");
+  await expect(page.getByText(/turned the AI assistant off/)).toBeVisible();
+  await expectNoViolations(page);
 });

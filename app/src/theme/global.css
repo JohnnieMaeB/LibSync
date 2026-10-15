@@ -1020,3 +1020,106 @@ a.work-card-title:hover {
     border-radius: var(--ls-radius-pill);
     cursor: pointer;
 }
+
+/* Tier 8 Phase 30: assistant switched off by the library, and the staff
+   dashboard at #/admin. */
+.assistant-off {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+    color: var(--ls-text);
+}
+
+.assistant-off a {
+    color: var(--ls-accent);
+}
+
+.admin,
+.admin-loading {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+    color: var(--ls-text);
+    line-height: 1.5;
+}
+
+.admin h1 {
+    color: var(--ls-accent);
+    font-size: 1.5rem;
+}
+
+.admin a {
+    color: var(--ls-accent);
+}
+
+.admin form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin input:not([type="checkbox"]),
+.admin textarea {
+    padding: 8px 10px;
+    font: inherit;
+    color: var(--ls-text);
+    background: var(--ls-bubble-bot);
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-sm);
+}
+
+.admin button {
+    align-self: flex-start;
+    padding: 8px 16px;
+    font: inherit;
+    color: #000;
+    background: var(--ls-accent);
+    border: none;
+    border-radius: var(--ls-radius-pill);
+    cursor: pointer;
+}
+
+.admin .admin-link-button {
+    padding: 0;
+    color: var(--ls-accent);
+    background: none;
+    text-decoration: underline;
+}
+
+.admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.admin-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin fieldset {
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-sm);
+}
+
+.admin-library {
+    margin-top: 24px;
+    padding: 16px;
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-md);
+}
+
+.admin-snippet {
+    overflow-x: auto;
+    padding: 12px;
+    font-size: 0.8rem;
+    background: #181818;
+    border-radius: var(--ls-radius-sm);
+}

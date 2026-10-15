@@ -45,6 +45,10 @@ jobs:
 
       - name: Build site
         run: node scripts/build-site.js --out "$RUNNER_TEMP/site"
+        env:
+          # Optional staff dashboard (Tier 8). Public values; unset = dashboard off.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Publish to gh-pages
         env:

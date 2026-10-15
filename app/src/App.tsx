@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Header } from "./components/Header";
 import { CapabilityLine } from "./components/CapabilityLine";
 import { AiNotice } from "./components/AiNotice";
@@ -9,6 +9,11 @@ import { useAgentStream } from "./hooks/useAgentStream";
 import { useConversations } from "./hooks/useConversations";
 import { generateId } from "./lib/id";
 import { getWidgetConfig, standaloneHelpUrl, type WidgetConfig } from "./widget";
+import { useLibraryConfig } from "./libraryConfig";
+
+// Loaded only when a staff member opens #/admin, so the patron app never
+// downloads the dashboard or the Supabase client.
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 import type { ChatEntry } from "./types";
 
 // Owns one conversation's live chat state. Keyed by conversationId in
@@ -63,7 +68,31 @@ function ChatConversation({
 // history, rendered through AppShell's `compact` card — see
 // TIER6_PLAN.md §2/§3 and AppShell.tsx's `compact` prop, built in Tier 5
 // specifically for this reuse.
+// Shown instead of the chat when the library switched the assistant off in its
+// dashboard (TIER8_PLAN.md §2.8: the library can disable AI features).
+function AssistantOff({ helpUrl, onClose }: { helpUrl: string | null; onClose: () => void }) {
+  return (
+    <>
+      <Header onClose={onClose} />
+      <div className="assistant-off" role="status">
+        <p>This library has turned the AI assistant off.</p>
+        {helpUrl ? (
+          <a href={helpUrl} target="_blank" rel="noopener noreferrer">
+            Talk to a librarian
+          </a>
+        ) : (
+          <p>Please contact library staff for help.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 function WidgetApp({ config }: { config: WidgetConfig }) {
+  const library = useLibraryConfig(config.libraryId);
+  // Dashboard settings win over the snippet's, so a library can change its
+  // help link without editing its website.
+  const helpUrl = library?.helpUrl ?? config.helpUrl;
   const [conversationId] = useState(() => generateId());
   const noopPersist = useCallback(() => {}, []);
   const handleClose = useCallback(() => {
@@ -81,15 +110,19 @@ function WidgetApp({ config }: { config: WidgetConfig }) {
       onDeleteConversation={() => {}}
     >
       <div className="container">
-        <ChatConversation
-          conversationId={conversationId}
-          initialEntries={[]}
-          onEntriesChange={noopPersist}
-          libraryId={config.libraryId}
-          tools={config.tools}
-          helpUrl={config.helpUrl}
-          onClose={handleClose}
-        />
+        {library && !library.aiEnabled ? (
+          <AssistantOff helpUrl={helpUrl} onClose={handleClose} />
+        ) : (
+          <ChatConversation
+            conversationId={conversationId}
+            initialEntries={[]}
+            onEntriesChange={noopPersist}
+            libraryId={config.libraryId}
+            tools={config.tools}
+            helpUrl={helpUrl}
+            onClose={handleClose}
+          />
+        )}
       </div>
     </AppShell>
   );
@@ -135,7 +168,20 @@ export default function App() {
   // stays stable across a given component instance's lifetime (satisfying
   // React's rules of hooks).
   const [widgetConfig] = useState(() => getWidgetConfig());
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
+  if (!widgetConfig.isWidget && hash.startsWith("#/admin")) {
+    return (
+      <Suspense fallback={<p className="admin-loading">Loading dashboard…</p>}>
+        <AdminApp />
+      </Suspense>
+    );
+  }
   if (widgetConfig.isWidget) {
     return <WidgetApp config={widgetConfig} />;
   }
