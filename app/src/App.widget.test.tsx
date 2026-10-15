@@ -87,6 +87,33 @@ describe("Widget mode (Tier 6)", () => {
     expect(options.headers["X-LibSync-Library"]).toBe("acme-library");
   });
 
+  it("forwards the loader's data-tools as an X-LibSync-Tools header and links its help URL", async () => {
+    setWidgetUrl(
+      "?mode=widget&library=acme-library&tools=policies%2Ccatalog&help=" +
+        encodeURIComponent("https://acme.example/ask"),
+    );
+    (fetch as any).mockResolvedValueOnce(
+      makeStreamingResponse([
+        aguiEvent({ type: "RUN_STARTED", threadId: "t1", runId: "r1" }),
+        ...textMessageEvents("m1", ["ok"]),
+        aguiEvent({ type: "RUN_FINISHED", threadId: "t1", runId: "r1" }),
+      ]),
+    );
+
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByRole("link", { name: "Talk to a librarian" })).toHaveAttribute(
+      "href",
+      "https://acme.example/ask",
+    );
+    await user.type(screen.getByLabelText("Type your question"), "Hello");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+    await screen.findByText("ok");
+
+    const [, options] = (fetch as any).mock.calls[0];
+    expect(options.headers["X-LibSync-Tools"]).toBe("policies,catalog");
+  });
+
   it("clicking the close button posts libsync:close to the parent window (loader.js's postMessage contract)", async () => {
     setWidgetUrl("?mode=widget&library=acme-library");
     const postMessage = vi.fn();

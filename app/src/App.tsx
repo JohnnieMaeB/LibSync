@@ -1,13 +1,14 @@
 import { useCallback, useState } from "react";
 import { Header } from "./components/Header";
 import { CapabilityLine } from "./components/CapabilityLine";
+import { AiNotice } from "./components/AiNotice";
 import { ChatBox } from "./components/ChatBox";
 import { Composer } from "./components/Composer";
 import { AppShell } from "./components/AppShell";
 import { useAgentStream } from "./hooks/useAgentStream";
 import { useConversations } from "./hooks/useConversations";
 import { generateId } from "./lib/id";
-import { getWidgetConfig } from "./widget";
+import { getWidgetConfig, standaloneHelpUrl, type WidgetConfig } from "./widget";
 import type { ChatEntry } from "./types";
 
 // Owns one conversation's live chat state. Keyed by conversationId in
@@ -19,12 +20,16 @@ function ChatConversation({
   initialEntries,
   onEntriesChange,
   libraryId,
+  tools,
+  helpUrl,
   onClose,
 }: {
   conversationId: string;
   initialEntries: ChatEntry[];
   onEntriesChange: (conversationId: string, entries: ChatEntry[]) => void;
   libraryId?: string | null;
+  tools?: string | null;
+  helpUrl: string | null;
   onClose?: () => void;
 }) {
   const [capabilityDismissed, setCapabilityDismissed] = useState(false);
@@ -33,6 +38,7 @@ function ChatConversation({
     initialEntries,
     onEntriesChange,
     libraryId,
+    tools,
   });
   const chipsHidden = entries.length > 0;
 
@@ -48,6 +54,7 @@ function ChatConversation({
         onRetry={retry}
       />
       <Composer isStreaming={isStreaming} onSend={sendMessage} onStop={stop} />
+      <AiNotice helpUrl={helpUrl} />
     </>
   );
 }
@@ -56,7 +63,7 @@ function ChatConversation({
 // history, rendered through AppShell's `compact` card — see
 // TIER6_PLAN.md §2/§3 and AppShell.tsx's `compact` prop, built in Tier 5
 // specifically for this reuse.
-function WidgetApp({ libraryId }: { libraryId: string | null }) {
+function WidgetApp({ config }: { config: WidgetConfig }) {
   const [conversationId] = useState(() => generateId());
   const noopPersist = useCallback(() => {}, []);
   const handleClose = useCallback(() => {
@@ -78,7 +85,9 @@ function WidgetApp({ libraryId }: { libraryId: string | null }) {
           conversationId={conversationId}
           initialEntries={[]}
           onEntriesChange={noopPersist}
-          libraryId={libraryId}
+          libraryId={config.libraryId}
+          tools={config.tools}
+          helpUrl={config.helpUrl}
           onClose={handleClose}
         />
       </div>
@@ -113,6 +122,7 @@ function StandaloneApp() {
           conversationId={activeId}
           initialEntries={activeEntries}
           onEntriesChange={persistActiveEntries}
+          helpUrl={standaloneHelpUrl()}
         />
       </div>
     </AppShell>
@@ -127,7 +137,7 @@ export default function App() {
   const [widgetConfig] = useState(() => getWidgetConfig());
 
   if (widgetConfig.isWidget) {
-    return <WidgetApp libraryId={widgetConfig.libraryId} />;
+    return <WidgetApp config={widgetConfig} />;
   }
   return <StandaloneApp />;
 }

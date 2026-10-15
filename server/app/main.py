@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-from app.config import LOGFIRE_TOKEN
+from app.config import LOGFIRE_INCLUDE_CONTENT, LOGFIRE_TOKEN
 from app.rate_limit import limiter
 from app.routers import agent, chat, pinecone_query, widget
 
@@ -34,7 +34,7 @@ app = FastAPI(title="LibSync Backend", lifespan=lifespan)
 # CI/tests), so the free Logfire Hobby tier is never required to run the app.
 if LOGFIRE_TOKEN:
     logfire.configure(token=LOGFIRE_TOKEN, service_name="libsync-backend")
-    logfire.instrument_pydantic_ai()
+    logfire.instrument_pydantic_ai(include_content=LOGFIRE_INCLUDE_CONTENT)
     logfire.instrument_fastapi(app)
 
 # Rate limiting is enforced per-route via the @limiter.limit(...) decorator

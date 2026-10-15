@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agent import get_chat_reply, stream_chat_reply
 from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
-from app.tenants import normalize_library_id
+from app.tenants import normalize_library_id, parse_enabled_tools
 from app.widget_registry import check_widget_registration
 
 router = APIRouter()
@@ -34,6 +34,7 @@ async def chat(request: Request):
             request.app.state.http_client,
             session_id,
             library_id=normalize_library_id(request.headers.get("x-libsync-library")),
+            enabled_tools=parse_enabled_tools(request.headers.get("x-libsync-tools")),
         )
         return {"reply": reply, "session_id": session_id}
     except Exception:
@@ -59,10 +60,13 @@ async def chat_stream(request: Request):
 
     http_client = request.app.state.http_client
     library_id = normalize_library_id(request.headers.get("x-libsync-library"))
+    enabled_tools = parse_enabled_tools(request.headers.get("x-libsync-tools"))
 
     async def event_source():
         yield _format_sse("session", {"session_id": session_id})
-        async for event_name, data in stream_chat_reply(message, http_client, session_id, library_id=library_id):
+        async for event_name, data in stream_chat_reply(
+            message, http_client, session_id, library_id=library_id, enabled_tools=enabled_tools
+        ):
             yield _format_sse(event_name, data)
 
     return StreamingResponse(event_source(), media_type="text/event-stream")
