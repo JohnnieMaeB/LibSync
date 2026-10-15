@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curl said it was fine | LibSync build log</title>
+<meta name="description" content="Every request to my API returned 500 in the browser, and curl said everything was fine. Three packages disagreed about what a route is.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/12-curl-said-it-was-fine/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Curl said it was fine">
+<meta property="og:description" content="Every request to my API returned 500 in the browser, and curl said everything was fine. Three packages disagreed about what a route is.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/12-curl-said-it-was-fine/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 12 of 18</p>
+<h1>Curl said it was fine</h1>
+<p class="meta"><time datetime="2027-01-19">January 19, 2027</time></p>
+<p>Every request to my API returned 500 in the browser. <code>curl</code> said everything was fine. Three packages disagreed about what a route is.</p>
+<h2>Why curl couldn&#39;t see it</h2>
+<p>My frontend (on <code>github.io</code>) and my API (on <code>onrender.com</code>) live on different origins. Browsers treat that as a security boundary, so before every chat message the browser first sends a <strong>preflight</strong>: an <code>OPTIONS</code> request that asks the API, &quot;may this page talk to you?&quot; Only if the answer is yes does the real request go out.</p>
+<p><code>curl</code> never sends a preflight. It just makes the request. So from a terminal, the API looked completely healthy while every real user&#39;s browser hit a wall.</p>
+<p>It had worked fine until observability was switched on.</p>
+<h2>The conflict</h2>
+<p>With a Logfire token set, the app calls <code>instrument_fastapi()</code>, which wraps it in OpenTelemetry&#39;s FastAPI instrumentation so I can see traces. That instrumentation walks the app&#39;s routes and reads a <code>.path</code> off each one.</p>
+<p>FastAPI 0.137 changed how routes registered through <code>include_router()</code> are represented. They&#39;re wrapped in a new internal type, <code>_IncludedRouter</code>, which has no <code>.path</code>. The instrumentation hit one and failed. Every preflight returned a 500, on every route, because every route in my app is registered that way.</p>
+<p>A fixed version of the instrumentation exists (<code>0.64b0</code>). But it requires a version of <code>opentelemetry-semantic-conventions</code> that conflicts with the ceiling that Logfire 4.37.0 puts on <code>opentelemetry-sdk</code>. Three packages, each doing something reasonable, with no combination that resolves.</p>
+<p>The only available fix was to pin <code>fastapi&lt;0.137</code>.</p>
+<h2>The comment matters more than the pin</h2>
+<p>A pinned version isn&#39;t interesting. What I&#39;d copy is the comment sitting on top of it in <code>pyproject.toml</code>:</p>
+<ul>
+<li><strong>What breaks, and for whom:</strong> every CORS preflight, so real browsers on a different origin, and no one on <code>curl</code>.</li>
+<li><strong>The exact version chain</strong> that produces the failure.</li>
+<li><strong>The condition for removing the pin:</strong> when Logfire ships a release compatible with instrumentation 0.64b0 or later.</li>
+</ul>
+<p>Beside it, the agent added an entry to the architecture document and a row to the troubleshooting table: <em>&quot;CORS errors in the browser but not in curl? Check the FastAPI pin.&quot;</em></p>
+<h2>Who that comment is for</h2>
+<p>It&#39;s for a stranger: me, three months from now, after a lot of switching between a job, classes and this project. I won&#39;t remember the three package versions. I will remember that something once broke only in browsers, and that is what the troubleshooting row is keyed on.</p>
+<p>A solo architect working with an agent gets one chance to leave a trail for that stranger, and the cheapest moment is the one where the problem is still fresh in the agent&#39;s context.</p>
+<h2>What I haven&#39;t done</h2>
+<p>I haven&#39;t checked whether the pin can come off. The condition is written down, and a package release could have satisfied it by now. I&#39;d rather say that than imply the issue is closed. A pin with an exit condition is only useful if someone looks at the exit condition.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> make the agent write the exit condition next to every workaround. A workaround without an exit is permanent, and the next session starts without this context.</p>
+</blockquote>
+<p>What&#39;s the strangest dependency conflict you&#39;ve debugged?</p>
+<p><em>Part 12 of 18. Next: opening the app to every library website on the internet.</em></p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../11-nothing-was-deleted/">&larr; Nothing was deleted</a></span>
+<span><a href="../13-one-script-tag/">One script tag &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
