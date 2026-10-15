@@ -46,6 +46,7 @@ export function CitationCard({ data, number }: { data: CitationCardData; number:
         {showStyleSwitcher && (
           <select
             className="citation-card-style-select"
+            aria-label="Citation style"
             value={style}
             onChange={(e) => handleStyleChange(e.target.value)}
           >

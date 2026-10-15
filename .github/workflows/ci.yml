@@ -31,6 +31,17 @@ jobs:
         run: npm run build
         working-directory: ./app
 
+      # Real-browser WCAG 2.1 AA checks (axe-core via Playwright) against the
+      # build above, with the backend mocked: catches what jsdom can't, such
+      # as color contrast. See app/e2e/a11y.spec.ts.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: ./app
+
+      - name: Accessibility checks (Playwright + axe)
+        run: npm run test:e2e
+        working-directory: ./app
+
   site-tests:
     runs-on: ubuntu-24.04
     steps:

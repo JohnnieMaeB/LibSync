@@ -586,8 +586,8 @@ is a system it already has. The decisions below come from research into the curr
 | **E-books** | OverDrive/Libby availability through the library's own Discovery API access | Planned (Tier 8) |
 | **Staff accounts** | "Sign in with Microsoft / Google", using the work accounts staff already have | Planned (Tier 8) |
 | **Patron accounts** | Library card + PIN over SIP2, the cross-ILS standard; never stores the PIN | Planned (Tier 9) |
-| **Accessibility law** | WCAG 2.1 AA under the ADA Title II rule (due April 2027 or 2028, depending on the library's population), with a published conformance report | Planned, before any pilot |
-| **Privacy and AI policy** | ALA's 2026 AI guidance and vendor privacy guidelines: disclose AI use, no training on patron data, defined retention, library can switch AI off | Planned, before any pilot |
+| **Accessibility law** | WCAG 2.1 AA under the ADA Title II rule (due April 2027 or 2028, depending on the library's population), with a published conformance report | Automated checks on every push + [draft conformance report](docs/compliance/ACCESSIBILITY_CONFORMANCE_REPORT.md); manual review pending |
+| **Privacy and AI policy** | ALA's 2026 AI guidance and vendor privacy guidelines: disclose AI use, no training on patron data, defined retention, library can switch AI off | ✅ In the app; [privacy notice](docs/compliance/PRIVACY_NOTICE.md) and [data agreement template](docs/compliance/DATA_PROCESSING_AGREEMENT_TEMPLATE.md) |
 
 ---
 

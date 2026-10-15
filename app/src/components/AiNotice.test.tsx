@@ -29,4 +29,18 @@ describe("AiNotice (Phase 36T)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(opener).toHaveFocus();
   });
+
+  it("keeps Tab focus inside the open dialog", async () => {
+    const user = userEvent.setup();
+    render(<AiNotice helpUrl="https://lib.example/ask" />);
+    await user.click(screen.getByRole("button", { name: "How your data is handled" }));
+    const dialog = screen.getByRole("dialog");
+
+    for (let i = 0; i < 4; i++) {
+      await user.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+    await user.tab({ shift: true });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
 });

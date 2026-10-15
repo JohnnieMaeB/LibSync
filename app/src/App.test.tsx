@@ -293,7 +293,7 @@ describe("LibSync chat", () => {
     await sendViaTextarea(user, "Cite this in APA: 10.1016/j.lindif.2023.102274");
 
     expect(await screen.findByText("Kasneci, E. (2023). ChatGPT for good?")).toBeInTheDocument();
-    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    const select = screen.getByRole("combobox", { name: "Citation style" }) as HTMLSelectElement;
     expect(Array.from(select.options).map((o) => o.value)).toEqual(["apa", "chicago", "mla"]);
 
     (fetch as any).mockResolvedValueOnce({
