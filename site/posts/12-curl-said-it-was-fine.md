@@ -44,7 +44,7 @@ A solo architect working with an agent gets one chance to leave a trail for that
 
 ## Then I checked the exit condition
 
-For a while I'd written the sentence "I haven't checked whether the pin can come off." So I checked, and the exit condition had already been met. Today `logfire` 5.2 and OpenTelemetry instrumentation 0.66b1 resolve together with FastAPI 0.143.2. I reproduced the bug in a scratch environment first: FastAPI 0.137 with `logfire` 4.37 returns 500 on a preflight, and the newer versions return 200.
+An earlier draft of this post said "I haven't checked whether the pin can come off." That was an uncomfortable sentence to leave in, so I checked, and the exit condition had already been met. Today `logfire` 5.2 and OpenTelemetry instrumentation 0.66b1 resolve together with FastAPI 0.143.2. I reproduced the bug in a scratch environment first: FastAPI 0.137 with `logfire` 4.37 returns 500 on a preflight, and the newer versions return 200.
 
 The pin is gone. In its place is a regression test that instruments an app the way the real one does and asserts that a CORS preflight succeeds. It fails with a 500 on the old versions and passes on the new ones.
 
