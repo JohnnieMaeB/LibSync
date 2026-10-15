@@ -10,6 +10,12 @@ Google account, or an emailed link, and control their library's assistant:
   model.
 - **Allowed websites:** only these origins may embed the chat. Leave it empty to allow any.
 - **The embed snippet,** ready to paste.
+- **Policy documents.** Upload PDFs, text, Markdown or HTML (up to 5 MB). The text is split into sections and
+  indexed into the library's own search namespace, and from then on the assistant answers policy questions from
+  these documents instead of LibSync's sample policies. Uploading a file with the same name replaces it, and
+  removing the last document returns the library to the sample policies. **The original file isn't stored**, only
+  its text: less data held, per ALA's data-minimization guidance, so keep your own copies. Scanned PDFs without a
+  text layer can't be read.
 
 Settings apply within a minute; the backend caches them for 60 seconds. They combine with the embed snippet's
 own attributes, and either one can only narrow what the assistant does.
@@ -22,8 +28,8 @@ and falls back to the same defaults. The chat never fails because of the dashboa
 
 1. **Create a Supabase project** (free) at [supabase.com](https://supabase.com).
 2. **Create the tables.** Either paste
-   [`supabase/migrations/20261015000000_tenancy.sql`](../supabase/migrations/20261015000000_tenancy.sql) into the
-   Supabase SQL editor, or, from the repo root:
+   each file in [`supabase/migrations/`](../supabase/migrations/), in order, into the Supabase SQL editor, or,
+   from the repo root:
    ```bash
    npx supabase login
    npx supabase link --project-ref <your-project-ref>

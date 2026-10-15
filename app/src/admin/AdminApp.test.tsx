@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminApp, { parseOrigins, type LibraryRow } from "./AdminApp";
@@ -30,9 +30,15 @@ function mockClient({ session = null as unknown, libraries = [LIBRARY] } = {}) {
   return { client, update };
 }
 
-const SESSION = { user: { email: "staff@springfield.example" } };
+const SESSION = { access_token: "token-1", user: { email: "staff@springfield.example" } };
 
 describe("staff dashboard (Tier 8 Phase 30)", () => {
+  beforeEach(() => {
+    // The documents panel (Phase 31) loads its list on mount.
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => [] })));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   it("says it isn't set up when Supabase isn't configured", () => {
     render(<AdminApp client={null} />);
     expect(screen.getByText(/isn't set up for this deployment/i)).toBeInTheDocument();

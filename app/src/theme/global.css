@@ -1123,3 +1123,25 @@ a.work-card-title:hover {
     background: #181818;
     border-radius: var(--ls-radius-sm);
 }
+
+.admin-documents {
+    padding-left: 0;
+    list-style: none;
+}
+
+.admin-documents li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--ls-border);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
