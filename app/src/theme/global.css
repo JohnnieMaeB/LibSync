@@ -979,6 +979,7 @@ a.work-card-title:hover {
     padding: 20px 22px;
     font-size: 0.9rem;
     line-height: 1.5;
+    text-align: left;
     color: var(--ls-text);
     background: var(--ls-bubble-bot);
     border: 1px solid var(--ls-border);
