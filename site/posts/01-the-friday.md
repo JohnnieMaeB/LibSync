@@ -7,7 +7,7 @@ series: Part 1 of 18
 ---
 On Friday, October 2: CI green, 136 tests passing. I opened the preview of my own app, asked it for a sci-fi audiobook, and got: "All models from FallbackModel failed (2 sub-exceptions)."
 
-I'd love to say monitoring caught it. The monitoring was me, looking.
+I'd love to say monitoring caught it. The monitoring was me, looking. I screenshotted the error and sent Claude Code one line: "we seem to have a bug in the pr."
 
 The architecture had a primary LLM and a fallback, so one provider's bad day couldn't take the app down. Both failed the same way: 404 model_not_found. Groq had retired llama-3.3-70b-versatile. Novita had retired DeepSeek-V3.2-Exp. Production called the same two models, so it was down too, showing patrons a raw exception string.
 
