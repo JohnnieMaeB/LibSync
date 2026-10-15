@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The expert that couldn't check anything | LibSync build log</title>
+<meta name="description" content="In October 2025, my library chatbot's system prompt said: &quot;You are a master of the library's e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).&quot; That was in my first v">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/02-the-expert-that-couldnt-check-anything/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The expert that couldn't check anything">
+<meta property="og:description" content="In October 2025, my library chatbot's system prompt said: &quot;You are a master of the library's e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).&quot; That was in my first v">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/02-the-expert-that-couldnt-check-anything/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 2 of 18</p>
+<h1>The expert that couldn't check anything</h1>
+<p class="meta"><time datetime="2026-10-20">October 20, 2026</time></p>
+<p>In October 2025, my library chatbot&#39;s system prompt said: &quot;You are a master of the library&#39;s e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).&quot; That was in my first version, committed by me, before any coding agent had touched the prompt. It had access to none of those platforms.</p>
+<p>It answered anyway. Ask whether a book was on Libby and you&#39;d get a fluent, cheerful, invented yes or no. In a demo, a confident answer and a correct one look identical.</p>
+<p>The prompt also held something I&#39;m still half proud of: the full text of the RUSA reference-interview guidelines, the ALA Library Bill of Rights and the ALA Core Values, pasted in verbatim. I was a few months into grad school and working a library desk, and encoding the profession&#39;s standards was a library-science instinct. The instinct was right. The implementation was 2,300 tokens of pasted documents. Four days later, Google&#39;s Jules agent wrapped them in tidy XML tags (primary_instructions, guiding_principles, knowledge_source), which made a pile of text look like architecture. Nobody questioned the size. That includes me.</p>
+<p>In July 2026, when I started building with Claude Code, the first document was an audit of what the system actually did, not what the prompt claimed:</p>
+<ul>
+<li>Persona: expertise in several platforms. Data behind it: none. Libby, hoopla and Kanopy have no public API, and OverDrive&#39;s are partner-only.</li>
+<li>Retrieval: a Pinecone index of 10 hardcoded policy strings, behind an endpoint that couldn&#39;t query them.</li>
+<li>Memory: none. One message in, one reply out.</li>
+<li>Observability: print().</li>
+</ul>
+<p>Not a flattering list for a project with &quot;AI&quot; in the pitch. It gave me the rule that has driven every decision since: every answer is grounded in something the system actually retrieved, or it says it doesn&#39;t know. A library patron is the wrong person to hand a confident guess.</p>
+<p>Architect&#39;s note: an agent faithfully implements whatever you put in the prompt, mistakes included. Supplying the domain knowledge is the architect&#39;s job. So is questioning how it gets encoded.</p>
+<p>What did your first AI prototype claim to know that it couldn&#39;t?</p>
+<p>LibSync build log, Part 2 of 18. Next: an endpoint that looked finished and could never have worked.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../01-the-friday/">&larr; The Friday</a></span>
+<span><a href="../03-a-lock-and-no-key/">A lock and no key &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>

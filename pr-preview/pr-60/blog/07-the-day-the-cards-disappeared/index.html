@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The day the cards disappeared | LibSync build log</title>
+<meta name="description" content="The book card appeared for a split second, then vanished. Every unit test was green. They'd been written against an event order that happened not to trigger the bug.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/07-the-day-the-cards-disappeared/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The day the cards disappeared">
+<meta property="og:description" content="The book card appeared for a split second, then vanished. Every unit test was green. They'd been written against an event order that happened not to trigger the bug.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/07-the-day-the-cards-disappeared/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 7 of 18</p>
+<h1>The day the cards disappeared</h1>
+<p class="meta"><time datetime="2026-12-01">December 1, 2026</time></p>
+<p>The book card appeared for a split second, then vanished. Every unit test was green. They&#39;d been written against an event order that happened not to trigger the bug.</p>
+<p>LibSync streams over AG-UI, an event protocol for agent-to-frontend communication. Claude Code and I picked it over MCP Apps: my frontend is first-party and already trusts my backend, and MCP Apps solves rendering a stranger&#39;s tool UI in a sandbox, which isn&#39;t my problem. /agent sits beside /chat, so a bug in the new transport can&#39;t take down the old one. A tool becomes a card by returning ToolReturn(return_value=..., metadata=CustomEvent(...)); search_catalog emits one CUSTOM book_card per result, live.</p>
+<p>Then three bugs that only a real browser, a real conversation and a real provider could produce:</p>
+<ol>
+<li><p>Vanishing cards. The real event order is TOOL_CALL_RESULT, then CUSTOM (the card), then TEXT_MESSAGE_CONTENT (the narration). The handler cleared the bubble on every text event, wiping the card. Fix: clear the placeholder once, on whichever event arrives first.</p>
+</li>
+<li><p>Amnesia from turn two. AGUIAdapter folds the user&#39;s new message into message_history before the run, so result.new_messages() never contains it. Persisting only that dropped every user turn. Fix: store history + the request&#39;s messages + new_messages().</p>
+</li>
+<li><p>Raw provider errors. Groq&#39;s tool_use_failed escaped FallbackModel, which guards stream entry, not iteration of a stream already handed back. About two in three attempts at &quot;Find me a sci-fi audiobook&quot; failed (yes, Part 1&#39;s prompt). Fix: buffer events until the first non-RUN_STARTED one; on a RUN_ERROR before real content, discard and retry the whole turn, up to three times. Never retry once content has streamed.</p>
+</li>
+</ol>
+<p>All three were caught live in a browser, not by the tests, because the tests were written against the world the builder imagined.</p>
+<p>Architect&#39;s note: put &quot;verified in a real browser against real services&quot; in every tier&#39;s definition of done. The definition of done is the architect&#39;s lever, and the agent will hit exactly the bar you set.</p>
+<p>LibSync build log, Part 7 of 18. Next: the attacker never touches my app. They edit a catalog record.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../06-i-cant-check-that/">&larr; I can't check that</a></span>
+<span><a href="../08-the-attacker-edits-a-catalog-record/">The attacker edits a catalog record &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
