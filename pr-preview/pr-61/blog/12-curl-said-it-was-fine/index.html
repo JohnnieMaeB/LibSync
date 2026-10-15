@@ -52,8 +52,10 @@
 <h2>Who that comment is for</h2>
 <p>It&#39;s for a stranger: me, three months from now, after a lot of switching between a job, classes and this project. I won&#39;t remember the three package versions. I will remember that something once broke only in browsers, and that is what the troubleshooting row is keyed on.</p>
 <p>A solo architect working with an agent gets one chance to leave a trail for that stranger, and the cheapest moment is the one where the problem is still fresh in the agent&#39;s context.</p>
-<h2>What I haven&#39;t done</h2>
-<p>I haven&#39;t checked whether the pin can come off. The condition is written down, and a package release could have satisfied it by now. I&#39;d rather say that than imply the issue is closed. A pin with an exit condition is only useful if someone looks at the exit condition.</p>
+<h2>Then I checked the exit condition</h2>
+<p>For a while I&#39;d written the sentence &quot;I haven&#39;t checked whether the pin can come off.&quot; So I checked, and the exit condition had already been met. Today <code>logfire</code> 5.2 and OpenTelemetry instrumentation 0.66b1 resolve together with FastAPI 0.143.2. I reproduced the bug in a scratch environment first: FastAPI 0.137 with <code>logfire</code> 4.37 returns 500 on a preflight, and the newer versions return 200.</p>
+<p>The pin is gone. In its place is a regression test that instruments an app the way the real one does and asserts that a CORS preflight succeeds. It fails with a 500 on the old versions and passes on the new ones.</p>
+<p>That&#39;s a better guard than the pin was. A version cap protects against one cause, and only for as long as someone keeps reading the comment. A test protects against the failure itself, whichever dependency brings it back. It also means the next upgrade can happen without a person remembering why there was ever a cap.</p>
 <blockquote>
 <p><strong>Architect&#39;s note:</strong> make the agent write the exit condition next to every workaround. A workaround without an exit is permanent, and the next session starts without this context.</p>
 </blockquote>
