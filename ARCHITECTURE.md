@@ -309,16 +309,17 @@ lookup.** `crossref_service.lookup_work` caches by DOI/title for a few minutes �
 switcher's endpoint) re-runs only the citeproc formatting step for a DOI already resolved this turn, instead
 of hitting Crossref again for every style a patron clicks through.
 
-**`fastapi<0.137`, pinned deliberately.** FastAPI 0.137 changed how `app.include_router()`-registered routes
-are represented internally (a new `_IncludedRouter` type), which `opentelemetry-instrumentation-fastapi`
-0.63b1 (the version `logfire[fastapi]>=4.37.0` currently resolves to) can't read `.path` off — every CORS
-preflight `OPTIONS` request 500s whenever `LOGFIRE_TOKEN` is set, on _any_ route, since every route in this
-app is registered via `include_router()`. This is real enough to break the deployed demo for real browser
-users (GitHub Pages and Render are different origins, so every chat message triggers a real preflight) — not
-just a local annoyance. A fixed instrumentation release (`0.64b0`) exists, but it requires
-`opentelemetry-semantic-conventions==0.64b0`, which conflicts with `logfire==4.37.0`'s own
-`opentelemetry-sdk<1.43.0` ceiling — so pinning FastAPI below 0.137 was the only fix actually available
-today. See the pin's comment in [`server/pyproject.toml`](server/pyproject.toml) for when it can be lifted.
+**The FastAPI pin that used to be here, and the test that replaced it.** For a while `fastapi` was capped below
+0.137: FastAPI 0.137 wraps `app.include_router()` routes in a new `_IncludedRouter` type, which
+`opentelemetry-instrumentation-fastapi` 0.63b1 (what `logfire` 4.37 resolved to) couldn't read `.path` off, so
+every CORS preflight `OPTIONS` request returned 500 whenever `LOGFIRE_TOKEN` was set. That breaks the deployed
+demo for real browsers (GitHub Pages and Render are different origins, so every chat message starts with a
+preflight) while `curl`, which never sends one, looks healthy. A fixed instrumentation release needed a newer
+`opentelemetry-sdk` than `logfire` 4.37 allowed, so the pin was the only fix at the time. In October 2026
+`logfire` 5.2 and instrumentation 0.66b1 resolve together with current FastAPI, and the pin was lifted.
+[`server/tests/test_cors_preflight_instrumented.py`](server/tests/test_cors_preflight_instrumented.py)
+instruments an app exactly as `main.py` does and asserts a preflight still returns 200 (it fails with a 500
+on FastAPI 0.137 + `logfire` 4.37), so the dependency can't quietly regress without a version cap.
 
 **Tier 3's markdown renderer builds DOM nodes directly instead of ever touching `innerHTML` with interpolated
 text.** Model output is untrusted — it can echo retrieved text or be steered via prompt injection — so
