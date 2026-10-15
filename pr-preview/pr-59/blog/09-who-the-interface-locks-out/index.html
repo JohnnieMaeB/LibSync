@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who the interface quietly locks out | LibSync build log</title>
+<meta name="description" content="Asking a stranger at a desk for help is a skill, and some of us find it genuinely hard. I wanted a library you can ask without paying that cost.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/09-who-the-interface-locks-out/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Who the interface quietly locks out">
+<meta property="og:description" content="Asking a stranger at a desk for help is a skill, and some of us find it genuinely hard. I wanted a library you can ask without paying that cost.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/09-who-the-interface-locks-out/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 9 of 18</p>
+<h1>Who the interface quietly locks out</h1>
+<p class="meta"><time datetime="2026-12-15">December 15, 2026</time></p>
+<p>Asking a stranger at a desk for help is a skill, and some of us find it genuinely hard. I wanted a library you can ask without paying that cost.</p>
+<p>Libraries run on a promise: information for everyone. But available isn&#39;t the same as accessible. Sometimes the barrier isn&#39;t a missing book. It&#39;s the social cost of asking. I&#39;m autistic, and for people like me that cost can be the barrier. LibSync isn&#39;t meant to replace the librarian. It&#39;s meant to make the first question cheaper to ask.</p>
+<p>What that means in code (Claude Code built it, and I told it who it was for):</p>
+<ul>
+<li>A chat log screen readers can hear: role=&quot;log&quot; with aria-live=&quot;polite&quot;, so new replies are announced instead of silently appearing.</li>
+<li>Visible keyboard focus on every control, and a keyboard path through the app: Cmd/Ctrl+K for a new chat, Esc to close the mobile drawer, a Stop button that works at any moment.</li>
+<li>prefers-reduced-motion honored for the streaming cursor, typing dots and card animations.</li>
+<li>No unexplained waiting. A status pill says what it&#39;s doing (&quot;Searching the catalog…&quot;), and errors tell &quot;you&#39;re sending too fast&quot; apart from &quot;the service is down,&quot; each with a Retry that doesn&#39;t duplicate your message.</li>
+<li>Starter prompts for people who don&#39;t know how to begin, gone after the first message.</li>
+<li>A system prompt that says: no assumptions about who&#39;s asking, no judgment about what they ask, plain language instead of jargon.</li>
+</ul>
+<p>Here&#39;s the part I didn&#39;t expect to write. The Tier 3 audit, the same one that found the XSS hole in Part 8, found that my UI had no visible keyboard focus anywhere, and a chat log screen readers never heard. I&#39;ve spent years caring about accessibility, in engineering work and in a university accessibility office. Caring isn&#39;t the same as building it in. An audit does.</p>
+<p>And accessibility without accuracy is a trap. An assistant that&#39;s easy to ask and confidently wrong is worse than a desk that&#39;s hard to approach. That&#39;s why the rule from Part 2 matters (grounded, or &quot;I don&#39;t know&quot;), and why ALA&#39;s AI guidance insists on a clear path to a human. The goal is a lower first step, with a person always one click away.</p>
+<p>I haven&#39;t had it audited by anyone but me, so I won&#39;t call it accessible yet. A WCAG 2.1 AA audit and a conformance report come before any pilot.</p>
+<p>Architect&#39;s note: an agent will add ARIA attributes the moment you ask. It can&#39;t know what being locked out feels like. The architect supplies the lived question (&quot;who can&#39;t use this, and why?&quot;) and the audit that tests the answer.</p>
+<p>Who does your product lock out without anyone noticing?</p>
+<p>LibSync build log, Part 9 of 18. Next: running all of this for $0 a month.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../08-the-attacker-edits-a-catalog-record/">&larr; The attacker edits a catalog record</a></span>
+<span><a href="../10-every-free-tier-has-a-clause/">Every free tier has a clause &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>

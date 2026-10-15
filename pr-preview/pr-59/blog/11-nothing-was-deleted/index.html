@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nothing was deleted | LibSync build log</title>
+<meta name="description" content="Outages are supposed to be a rite of passage at a company. Mine took down a static site with exactly one maintainer, the first time the new pipeline ran. Nothing was deleted.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/11-nothing-was-deleted/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Nothing was deleted">
+<meta property="og:description" content="Outages are supposed to be a rite of passage at a company. Mine took down a static site with exactly one maintainer, the first time the new pipeline ran. Nothing was deleted.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/11-nothing-was-deleted/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 11 of 18</p>
+<h1>Nothing was deleted</h1>
+<p class="meta"><time datetime="2027-01-12">January 12, 2027</time></p>
+<p>Outages are supposed to be a rite of passage at a company. Mine took down a static site with exactly one maintainer, the first time the new pipeline ran. Nothing was deleted.</p>
+<p>Claude Code had built per-PR previews for a GitHub Pages site. Pages serves one committed tree, so production and previews share a gh-pages branch: production at the root, each PR under pr-preview/pr-N/. Two workflows: deploy-pages.yml publishes production on pushes to main, and pr-preview.yml publishes previews on pull requests.</p>
+<p>The ordering problem: deploy-pages.yml only triggers on a push to main, and the workflow files weren&#39;t on main yet. It had never run. gh-pages had never been seeded.</p>
+<p>pr-preview.yml&#39;s fallback was &quot;clone gh-pages; if that fails, git init a fresh branch.&quot; It couldn&#39;t tell &quot;the branch doesn&#39;t exist yet&quot; from any other clone failure. It created gh-pages containing only pr-preview/pr-N/. Pages served that branch&#39;s root, and production returned 404. main&#39;s docs folder was untouched the whole time. The site just pointed at a branch that never had content.</p>
+<p>Claude Code wrote the flaw, and it wrote the fix. Two parts, and the second is the one worth stealing:</p>
+<ol>
+<li><p>Exactly one workflow may create the branch. pr-preview.yml now checks git ls-remote --exit-code --heads and hard-fails instead of creating it. deploy-pages.yml rechecks on every retry of its push loop, because a concurrent run can create the branch mid-loop.</p>
+</li>
+<li><p>Assert the invariant, not the bug. Both workflows now require [ -f index.html ] at the branch root. Previews refuse to publish on a broken root, and production refuses to publish a build with no index.html.</p>
+</li>
+</ol>
+<p>Architect&#39;s note: for any pipeline an agent writes, ask &quot;what happens the first time this runs, with nothing else in place?&quot; And when you fix a failure, make the agent assert what must always be true, not just patch what just broke.</p>
+<p>What invariant does your deploy pipeline assert?</p>
+<p>LibSync build log, Part 11 of 18. Next: every request to my API returned 500 in the browser, and curl said everything was fine.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../10-every-free-tier-has-a-clause/">&larr; Every free tier has a clause</a></span>
+<span><a href="../12-curl-said-it-was-fine/">Curl said it was fine &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>

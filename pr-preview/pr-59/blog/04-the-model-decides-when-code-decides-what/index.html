@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The model decides when, code decides what | LibSync build log</title>
+<meta name="description" content="The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: &quot;Author, A.&amp; Author, B..&quot; A doubled period and a missing space before the ampersand. That was the of">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/04-the-model-decides-when-code-decides-what/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The model decides when, code decides what">
+<meta property="og:description" content="The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: &quot;Author, A.&amp; Author, B..&quot; A doubled period and a missing space before the ampersand. That was the of">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/04-the-model-decides-when-code-decides-what/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 4 of 18</p>
+<h1>The model decides when, code decides what</h1>
+<p class="meta"><time datetime="2026-11-03">November 3, 2026</time></p>
+<p>The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: &quot;Author, A.&amp; Author, B..&quot; A doubled period and a missing space before the ampersand. That was the official processor&#39;s real output.</p>
+<p>It&#39;s why the model never formats a citation in LibSync. Anyone who&#39;s formatted a bibliography by hand knows the rules are fiddly (et al. thresholds, punctuation, page-range dashes, what gets italicized), which is why tools like Zotero exist. So instead of trusting a language model&#39;s memory of the rules, Claude Code built the split I&#39;d want from any engineer: the model decides when a citation is needed and which style the patron asked for. Everything else is deterministic.</p>
+<ol>
+<li>lookup_and_cite(style, doi or title) calls Crossref for the real record.</li>
+<li>crossref_to_csl_json maps it to CSL-JSON, omitting absent optional fields. citeproc-py renders a None field literally, as &quot;(None)&quot;.</li>
+<li>citeproc-py formats it with the real CSL 1.0.1 style files for APA, MLA or Chicago, the same processor family Zotero uses.</li>
+<li>The tool returns a ToolReturn whose metadata is a CUSTOM event, and the UI renders a card.</li>
+</ol>
+<p>The style switcher calls GET /citation/{doi}?style=chicago and re-runs only the citeproc step against a short-TTL Crossref cache. No second LLM call, no second Crossref lookup.</p>
+<p>The other two tools follow the same split: Open Library for books and lending availability, OpenAlex for papers, citation counts and open-access flags. Each returns structured data the model summarizes but can&#39;t invent.</p>
+<p>The golden-file tests pin the processor&#39;s real output, quirk included, and the quirk is documented as known behavior. I&#39;d rather ship a documented imperfection than an invisible guess.</p>
+<p>Architect&#39;s note: describe the invariant (&quot;a citation must be exactly right&quot;), not the implementation, then favor the design that makes the invariant checkable. Where the rules are exact, make deterministic code the default.</p>
+<p>Where should deterministic code have replaced an LLM&#39;s judgment in your stack?</p>
+<p>LibSync build log, Part 4 of 18. Next: two ways my agent decided it was finished when it wasn&#39;t.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../03-a-lock-and-no-key/">&larr; A lock and no key</a></span>
+<span><a href="../05-two-ways-a-non-answer-looked-like-an-answer/">Two ways a non-answer looked like an answer &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
