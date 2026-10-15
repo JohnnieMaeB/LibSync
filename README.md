@@ -581,7 +581,7 @@ is a system it already has. The decisions below come from research into the curr
 | Library system | LibSync's approach | Status |
 |---|---|---|
 | **Library website** (WordPress, Drupal, LibGuides) | One `<script>` tag, iframe-isolated, the same way libraries already embed chat widgets | ✅ Tier 6 |
-| **Policies and FAQs** | Each library's own Pinecone namespace, filled from uploaded documents or its existing Springshare LibAnswers FAQs | Namespaces ✅; upload and FAQ sync planned |
+| **Policies and FAQs** | Each library's own Pinecone namespace, filled from uploaded documents or its existing Springshare LibAnswers FAQs | Namespaces ✅; document upload built (with Supabase); FAQ sync planned |
 | **Catalog (ILS)** | One driver per ILS API, as Aspen Discovery does: Koha first, then Polaris, with SRU as a fallback | Planned (Tier 8) |
 | **Human librarians** | Hand off to the library's existing LibChat (or email/phone), a path ALA's AI guidance requires | Planned (Tier 8) |
 | **Rooms and events** | Real availability from Springshare LibCal | Planned (Tier 8) |

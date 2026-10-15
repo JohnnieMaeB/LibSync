@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase } from "./supabaseClient";
 import { safeHelpUrl } from "../widget";
+import { DocumentsPanel } from "./DocumentsPanel";
 
 // Tier 8 Phase 30: the staff dashboard at #/admin. Staff sign in with their
 // work Microsoft or Google account (or an emailed link), and edit only the
@@ -67,7 +68,7 @@ function SignedInGate({ client }: { client: SupabaseClient }) {
           Sign out
         </button>
       </p>
-      <Libraries client={client} />
+      <Libraries client={client} accessToken={session.access_token} />
     </>
   );
 }
@@ -121,7 +122,7 @@ function SignIn({ client }: { client: SupabaseClient }) {
   );
 }
 
-function Libraries({ client }: { client: SupabaseClient }) {
+function Libraries({ client, accessToken }: { client: SupabaseClient; accessToken: string }) {
   const [libraries, setLibraries] = useState<LibraryRow[] | null>(null);
   const [error, setError] = useState("");
 
@@ -143,7 +144,10 @@ function Libraries({ client }: { client: SupabaseClient }) {
   return (
     <>
       {libraries.map((library) => (
-        <LibrarySettings key={library.id} client={client} library={library} />
+        <div key={library.id}>
+          <LibrarySettings client={client} library={library} />
+          <DocumentsPanel libraryId={library.id} accessToken={accessToken} />
+        </div>
       ))}
     </>
   );

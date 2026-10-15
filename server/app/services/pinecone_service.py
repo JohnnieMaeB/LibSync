@@ -32,9 +32,12 @@ def _get_index():
 
 
 def list_namespaces() -> list[str]:
-    """Names of the namespaces that currently hold records in the index."""
+    """Names of the namespaces that currently hold records in the index. An
+    emptied namespace (a library deleted its last document) is left out, so
+    that library falls back to the shared policies instead of an empty index."""
     stats = _get_index().describe_index_stats()
-    return list(stats.namespaces or {})
+    namespaces = stats.namespaces or {}
+    return [name for name, summary in namespaces.items() if getattr(summary, "vector_count", 1)]
 
 
 def search_pinecone(text: str, top_k: int = 5, namespace: str = DEFAULT_NAMESPACE) -> dict:
@@ -71,3 +74,26 @@ def search_pinecone(text: str, top_k: int = 5, namespace: str = DEFAULT_NAMESPAC
     except Exception as error:
         print("Error searching Pinecone:", error)
         raise RuntimeError("Failed to search Pinecone index.") from error
+
+
+_UPSERT_BATCH = 90  # integrated-embedding upserts accept up to 96 records per call
+
+
+def upsert_chunks(namespace: str, records: list[dict]) -> None:
+    """Embeds and stores document chunks (Tier 8 Phase 31). Blocking."""
+    index = _get_index()
+    for start in range(0, len(records), _UPSERT_BATCH):
+        index.upsert_records(namespace=namespace, records=records[start : start + _UPSERT_BATCH])
+
+
+def delete_by_prefix(namespace: str, prefix: str) -> int:
+    """Deletes every record whose id starts with `prefix`; returns how many. Blocking."""
+    index = _get_index()
+    deleted = 0
+    for page in index.list(prefix=prefix, namespace=namespace):
+        # Pages hold ListItem objects in newer SDKs and plain ids in older ones.
+        ids = [getattr(item, "id", item) for item in page]
+        if ids:
+            index.delete(ids=ids, namespace=namespace)
+            deleted += len(ids)
+    return deleted

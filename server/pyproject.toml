@@ -14,6 +14,8 @@ dependencies = [
     "logfire[fastapi]>=5.2.0",
     "citeproc-py>=0.10.1",
     "citeproc-py-styles>=0.1.6",
+    "pypdf>=6.20.1",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]
