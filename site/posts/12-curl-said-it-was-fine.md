@@ -42,9 +42,13 @@ It's for a stranger: me, three months from now, after a lot of switching between
 
 A solo architect working with an agent gets one chance to leave a trail for that stranger, and the cheapest moment is the one where the problem is still fresh in the agent's context.
 
-## What I haven't done
+## Then I checked the exit condition
 
-I haven't checked whether the pin can come off. The condition is written down, and a package release could have satisfied it by now. I'd rather say that than imply the issue is closed. A pin with an exit condition is only useful if someone looks at the exit condition.
+For a while I'd written the sentence "I haven't checked whether the pin can come off." So I checked, and the exit condition had already been met. Today `logfire` 5.2 and OpenTelemetry instrumentation 0.66b1 resolve together with FastAPI 0.143.2. I reproduced the bug in a scratch environment first: FastAPI 0.137 with `logfire` 4.37 returns 500 on a preflight, and the newer versions return 200.
+
+The pin is gone. In its place is a regression test that instruments an app the way the real one does and asserts that a CORS preflight succeeds. It fails with a 500 on the old versions and passes on the new ones.
+
+That's a better guard than the pin was. A version cap protects against one cause, and only for as long as someone keeps reading the comment. A test protects against the failure itself, whichever dependency brings it back. It also means the next upgrade can happen without a person remembering why there was ever a cap.
 
 > **Architect's note:** make the agent write the exit condition next to every workaround. A workaround without an exit is permanent, and the next session starts without this context.
 
