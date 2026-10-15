@@ -8,8 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agent import get_chat_reply, stream_chat_reply
 from app.rate_limit import RATE_LIMIT, WIDGET_ORIGIN_RATE_LIMIT, get_origin_or_ip, limiter
-from app.tenants import normalize_library_id, parse_enabled_tools
-from app.widget_registry import check_widget_registration
+from app.request_gate import gate_request
 
 router = APIRouter()
 
@@ -18,11 +17,9 @@ router = APIRouter()
 @limiter.limit(RATE_LIMIT)
 @limiter.limit(WIDGET_ORIGIN_RATE_LIMIT, key_func=get_origin_or_ip)
 async def chat(request: Request):
-    registration_error = check_widget_registration(
-        request.headers.get("x-libsync-library"), request.headers.get("origin")
-    )
-    if registration_error:
-        return JSONResponse(status_code=403, content={"error": registration_error})
+    gated = await gate_request(request)
+    if isinstance(gated, JSONResponse):
+        return gated
 
     message, session_id = await _parse_chat_request(request)
     if not message:
@@ -33,8 +30,8 @@ async def chat(request: Request):
             message,
             request.app.state.http_client,
             session_id,
-            library_id=normalize_library_id(request.headers.get("x-libsync-library")),
-            enabled_tools=parse_enabled_tools(request.headers.get("x-libsync-tools")),
+            library_id=gated.library_id,
+            enabled_tools=gated.enabled_tools,
         )
         return {"reply": reply, "session_id": session_id}
     except Exception:
@@ -48,19 +45,17 @@ async def chat(request: Request):
 @limiter.limit(RATE_LIMIT)
 @limiter.limit(WIDGET_ORIGIN_RATE_LIMIT, key_func=get_origin_or_ip)
 async def chat_stream(request: Request):
-    registration_error = check_widget_registration(
-        request.headers.get("x-libsync-library"), request.headers.get("origin")
-    )
-    if registration_error:
-        return JSONResponse(status_code=403, content={"error": registration_error})
+    gated = await gate_request(request)
+    if isinstance(gated, JSONResponse):
+        return gated
 
     message, session_id = await _parse_chat_request(request)
     if not message:
         return JSONResponse(status_code=400, content={"error": "No message provided"})
 
     http_client = request.app.state.http_client
-    library_id = normalize_library_id(request.headers.get("x-libsync-library"))
-    enabled_tools = parse_enabled_tools(request.headers.get("x-libsync-tools"))
+    library_id = gated.library_id
+    enabled_tools = gated.enabled_tools
 
     async def event_source():
         yield _format_sse("session", {"session_id": session_id})

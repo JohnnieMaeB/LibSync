@@ -39,6 +39,21 @@ function textMessageEvents(messageId: string, texts: string[]) {
   return events;
 }
 
+// Answers fetch by URL: the library-settings lookup (Tier 8 Phase 30) gets
+// `library` (404 by default), and /agent gets the given SSE stream.
+function routeFetch(agentResponse: unknown, library: Record<string, unknown> | null = null) {
+  (fetch as any).mockImplementation(async (url: string) => {
+    if (String(url).includes("/libraries/")) {
+      return library ? { ok: true, status: 200, json: async () => library } : { ok: false, status: 404 };
+    }
+    return agentResponse;
+  });
+}
+
+function agentCall() {
+  return (fetch as any).mock.calls.find(([url]: [string]) => String(url).endsWith("/agent"));
+}
+
 // Sets the URL loader.js's iframe would load (see app/public/loader.js) so
 // App() takes the widget branch — see widget.ts's getWidgetConfig().
 function setWidgetUrl(search: string) {
@@ -66,7 +81,7 @@ describe("Widget mode (Tier 6)", () => {
 
   it("posts messages with an X-LibSync-Library header carrying the loader's data-library id", async () => {
     setWidgetUrl("?mode=widget&library=acme-library");
-    (fetch as any).mockResolvedValueOnce(
+    routeFetch(
       makeStreamingResponse([
         aguiEvent({ type: "RUN_STARTED", threadId: "t1", runId: "r1" }),
         ...textMessageEvents("m1", ["widget reply"]),
@@ -82,7 +97,7 @@ describe("Widget mode (Tier 6)", () => {
 
     await screen.findByText("widget reply");
 
-    const [url, options] = (fetch as any).mock.calls[0];
+    const [url, options] = agentCall();
     expect(url).toBe(`${API_BASE_URL}/agent`);
     expect(options.headers["X-LibSync-Library"]).toBe("acme-library");
   });
@@ -92,7 +107,7 @@ describe("Widget mode (Tier 6)", () => {
       "?mode=widget&library=acme-library&tools=policies%2Ccatalog&help=" +
         encodeURIComponent("https://acme.example/ask"),
     );
-    (fetch as any).mockResolvedValueOnce(
+    routeFetch(
       makeStreamingResponse([
         aguiEvent({ type: "RUN_STARTED", threadId: "t1", runId: "r1" }),
         ...textMessageEvents("m1", ["ok"]),
@@ -110,7 +125,7 @@ describe("Widget mode (Tier 6)", () => {
     await user.click(screen.getByRole("button", { name: /send message/i }));
     await screen.findByText("ok");
 
-    const [, options] = (fetch as any).mock.calls[0];
+    const [, options] = agentCall();
     expect(options.headers["X-LibSync-Tools"]).toBe("policies,catalog");
   });
 
@@ -124,6 +139,22 @@ describe("Widget mode (Tier 6)", () => {
     await user.click(screen.getByRole("button", { name: "Close chat" }));
 
     expect(postMessage).toHaveBeenCalledWith({ type: "libsync:close" }, "*");
+  });
+
+  it("shows a librarian contact instead of the chat when the library switched the assistant off", async () => {
+    setWidgetUrl("?mode=widget&library=acme-library");
+    routeFetch(undefined, { id: "acme-library", name: "Acme", help_url: "mailto:ask@acme.example", ai_enabled: false });
+    render(<App />);
+    expect(await screen.findByText(/turned the AI assistant off/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Talk to a librarian" })).toHaveAttribute("href", "mailto:ask@acme.example");
+    expect(screen.queryByLabelText("Type your question")).toBeNull();
+  });
+
+  it("keeps the chat when the settings lookup fails", async () => {
+    setWidgetUrl("?mode=widget&library=acme-library");
+    (fetch as any).mockRejectedValue(new Error("offline"));
+    render(<App />);
+    expect(screen.getByLabelText("Type your question")).toBeInTheDocument();
   });
 
   it("standalone mode (no mode=widget) still renders the full sidebar shell", () => {
