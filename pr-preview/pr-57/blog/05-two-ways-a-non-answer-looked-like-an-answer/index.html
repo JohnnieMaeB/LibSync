@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two ways a non-answer looked like an answer | LibSync build log</title>
+<meta name="description" content="My agent kept finishing early. Twice, for different reasons, it mistook text that only looked like an answer for the answer. Both came from one line in the design Claude Code and I settled on: outputt">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/05-two-ways-a-non-answer-looked-like-an-answer/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Two ways a non-answer looked like an answer">
+<meta property="og:description" content="My agent kept finishing early. Twice, for different reasons, it mistook text that only looked like an answer for the answer. Both came from one line in the design Claude Code and I settled on: outputt">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/05-two-ways-a-non-answer-looked-like-an-answer/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 5 of 18</p>
+<h1>Two ways a non-answer looked like an answer</h1>
+<p class="meta"><time datetime="2026-11-10">November 10, 2026</time></p>
+<p>My agent kept finishing early. Twice, for different reasons, it mistook text that only looked like an answer for the answer. Both came from one line in the design Claude Code and I settled on: output_type=str | BookResult.</p>
+<p>Because str is a valid output type, any text the model produces can end the run. Two ways that went wrong, both observed live against Groq:</p>
+<ol>
+<li><p>Leaked tool calls. The model sometimes wrote its tool call into the reply instead of issuing one: &lt;function=search_catalog{...}, <search_catalog>{...}</search_catalog>, or raw {&quot;type&quot;: &quot;function&quot;, &quot;name&quot;: &quot;search_catalog&quot;, ...} JSON. To the agent that&#39;s a perfectly good str, so a patron would have seen the markup.
+Fix: an output_validator that matches those patterns and raises ModelRetry, with retries=5 to give the model room to converge on a real tool call.</p>
+</li>
+<li><p>Narration that ended the run. Streaming was built on run_stream(), which commits to the first content matching the output type. A model that says &quot;I&#39;ll check the catalog...&quot; before calling a tool had that sentence accepted as the final answer and the tool call dropped.
+Fix: run_stream_events(), which runs the whole graph, plus a client that replaces the cumulative text when a new text part starts.</p>
+</li>
+</ol>
+<p>Neither raised an exception. Neither failed a test. Each produced something shaped like a reply, which makes them the most expensive kind of bug. And neither was visible in the code. They only appeared with real model output, which is why &quot;the tests pass&quot; can&#39;t be where an architect stops.</p>
+<p>Architect&#39;s note: review the type signature, not just the logic. Ask &quot;what&#39;s the cheapest thing that satisfies this type?&quot; Then feed the agent real traffic, because it designs for the happy path unless you show it the unhappy one.</p>
+<p>Where does your agent&#39;s output type let a non-answer through?</p>
+<p>LibSync build log, Part 5 of 18. Next: the hardest feature to build was a sentence.</p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../04-the-model-decides-when-code-decides-what/">&larr; The model decides when, code decides what</a></span>
+<span><a href="../06-i-cant-check-that/">I can't check that &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
