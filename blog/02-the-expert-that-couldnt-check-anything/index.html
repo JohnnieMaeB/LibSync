@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The expert that couldn't check anything | LibSync build log</title>
-<meta name="description" content="In October 2025, my library chatbot's system prompt said: &quot;You are a master of the library's e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).&quot; That was in my first v">
+<meta name="description" content="My first system prompt claimed expertise in platforms the chatbot had no data for. The audit that found it, and the rule that came out of it.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/02-the-expert-that-couldnt-check-anything/">
 <link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
 <link rel="stylesheet" href="../assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:title" content="The expert that couldn't check anything">
-<meta property="og:description" content="In October 2025, my library chatbot's system prompt said: &quot;You are a master of the library's e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).&quot; That was in my first v">
+<meta property="og:description" content="My first system prompt claimed expertise in platforms the chatbot had no data for. The audit that found it, and the rule that came out of it.">
 <meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/02-the-expert-that-couldnt-check-anything/">
 <meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -31,20 +31,64 @@
 <p class="kicker">Part 2 of 18</p>
 <h1>The expert that couldn't check anything</h1>
 <p class="meta"><time datetime="2026-10-20">October 20, 2026</time></p>
-<p>In October 2025, my library chatbot&#39;s system prompt said: &quot;You are a master of the library&#39;s e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).&quot; That was in my first version, committed by me, before any coding agent had touched the prompt. It had access to none of those platforms.</p>
-<p>It answered anyway. Ask whether a book was on Libby and you&#39;d get a fluent, cheerful, invented yes or no. In a demo, a confident answer and a correct one look identical.</p>
-<p>The prompt also held something I&#39;m still half proud of: the full text of the RUSA reference-interview guidelines, the ALA Library Bill of Rights and the ALA Core Values, pasted in verbatim. I was a few months into grad school and working a library desk, and encoding the profession&#39;s standards was a library-science instinct. The instinct was right. The implementation was 2,300 tokens of pasted documents. Four days later, Google&#39;s Jules agent wrapped them in tidy XML tags (primary_instructions, guiding_principles, knowledge_source), which made a pile of text look like architecture. Nobody questioned the size. That includes me.</p>
-<p>In July 2026, when I started building with Claude Code, the first document was an audit of what the system actually did, not what the prompt claimed:</p>
-<ul>
-<li>Persona: expertise in several platforms. Data behind it: none. Libby, hoopla and Kanopy have no public API, and OverDrive&#39;s are partner-only.</li>
-<li>Retrieval: a Pinecone index of 10 hardcoded policy strings, behind an endpoint that couldn&#39;t query them.</li>
-<li>Memory: none. One message in, one reply out.</li>
-<li>Observability: print().</li>
-</ul>
-<p>Not a flattering list for a project with &quot;AI&quot; in the pitch. It gave me the rule that has driven every decision since: every answer is grounded in something the system actually retrieved, or it says it doesn&#39;t know. A library patron is the wrong person to hand a confident guess.</p>
-<p>Architect&#39;s note: an agent faithfully implements whatever you put in the prompt, mistakes included. Supplying the domain knowledge is the architect&#39;s job. So is questioning how it gets encoded.</p>
+<p>In October 2025, my library chatbot&#39;s system prompt said:</p>
+<blockquote>
+<p>You are a master of the library&#39;s e-book, audiobook, and streaming platforms (e.g., Libby/OverDrive, Kanopy, Hoopla).</p>
+</blockquote>
+<p>That line was in my first version, committed by me, before any coding agent had touched the prompt. The chatbot had access to none of those platforms.</p>
+<h2>A fluent, cheerful, invented answer</h2>
+<p>It answered anyway. Ask whether a book was on Libby and you&#39;d get a confident yes or no, delivered with the warmth of someone who&#39;d just checked. Nothing had been checked.</p>
+<p>In a demo, a confident answer and a correct one look identical. That&#39;s the trap. I&#39;d given the model a persona that claimed knowledge, the model did what models do with a persona, and nothing in the system pushed back, because nothing in the system knew the difference.</p>
+<h2>The part I&#39;m still half proud of</h2>
+<p>The prompt also held something I&#39;d defend today in spirit: the full text of the RUSA reference-interview guidelines, the ALA Library Bill of Rights and the ALA Core Values, pasted in verbatim.</p>
+<p>I was a few months into grad school and working a library desk, and encoding the profession&#39;s standards into the assistant was a library-science instinct. I think the instinct was right: a library assistant should behave the way the profession says a library worker should, and those documents are where the profession wrote that down.</p>
+<p>The implementation was the problem. It was about 2,300 tokens of pasted documents, most of it written for human staff standing at a desk, about how to be approachable and how to conduct a reference interview in person. A language model can&#39;t use half of that.</p>
+<p>Four days later, Google&#39;s Jules agent wrapped the pasted text in tidy XML tags, with names like <code>primary_instructions</code>, <code>guiding_principles</code> and <code>knowledge_source</code>. That made a pile of text look like architecture. Nobody questioned the size. That includes me.</p>
+<h2>The audit</h2>
+<p>In July 2026, when I started building with Claude Code, the first document it wrote wasn&#39;t code. It was an audit of what the system actually did, as opposed to what the prompt claimed. Here is the core of it:</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>What the prompt implied</th>
+<th>What was true</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Persona</td>
+<td>Expertise across several platforms</td>
+<td>Libby, hoopla and Kanopy have no public API, and OverDrive&#39;s are partner-only. No data behind the claim.</td>
+</tr>
+<tr>
+<td>Retrieval</td>
+<td>A policy knowledge base</td>
+<td>A Pinecone index of 10 hardcoded policy strings, behind an endpoint that couldn&#39;t query them (next post).</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>A conversation</td>
+<td>None. One message in, one reply out.</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>Production-ready</td>
+<td><code>print()</code> statements.</td>
+</tr>
+</tbody></table>
+<p>That is not a flattering list for a project with &quot;AI&quot; in the pitch. I&#39;m including it anyway because the list is what made the next decision obvious.</p>
+<h2>The rule</h2>
+<p>The audit gave me the rule that has driven every decision since: <strong>every answer is grounded in something the system actually retrieved, or it says it doesn&#39;t know.</strong></p>
+<p>A library patron is the wrong person to hand a confident guess. The whole purpose of a library is that you can trust where the answer came from. An assistant that sounds authoritative and is sometimes invented would damage the thing it&#39;s built to serve.</p>
+<p>That one rule shaped later work. It&#39;s why catalog lookups are backed by Open Library, a real public source. It&#39;s why the assistant says plainly what it can&#39;t check, which is the subject of Part 6. And it&#39;s why I eventually wrote evals that punish confident inventions.</p>
+<h2>What I&#39;d say about my own part in this</h2>
+<p>Two of the three mistakes in this story are mine: the over-claiming persona and the pasted documents. The third, the XML wrapping, was an agent&#39;s contribution. All three predate Claude Code. I&#39;m leading with this because the series is only worth reading if it&#39;s honest about where the errors came from, and &quot;the AI got it wrong&quot; is the easy story.</p>
+<p>What I got right was caring about the profession&#39;s standards. What I got wrong was assuming that writing something into a prompt is the same as the system being able to do it. An agent will faithfully implement whatever you put in a prompt, mistakes included, so supplying the domain knowledge is the architect&#39;s job, and so is questioning how it gets encoded.</p>
+<p>I don&#39;t yet know the best way to carry professional ethics into an AI assistant. A distilled set of principles beats a pasted document (Part 15 returns to this), but I&#39;m not sure a short list captures what a good reference interview actually is. If you teach reference or work a desk, I&#39;d like to know what I&#39;m missing.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> an agent faithfully implements whatever you put in the prompt, mistakes included. Supplying the domain knowledge is the architect&#39;s job. So is questioning how it gets encoded.</p>
+</blockquote>
 <p>What did your first AI prototype claim to know that it couldn&#39;t?</p>
-<p>LibSync build log, Part 2 of 18. Next: an endpoint that looked finished and could never have worked.</p>
+<p><em>Part 2 of 18. Next: an endpoint that looked finished and could never have worked.</em></p>
 
 <nav class="series-nav" aria-label="Series">
 <span><a href="../01-the-friday/">&larr; The Friday</a></span>

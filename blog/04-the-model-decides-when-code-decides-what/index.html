@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The model decides when, code decides what | LibSync build log</title>
-<meta name="description" content="The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: &quot;Author, A.&amp; Author, B..&quot; A doubled period and a missing space before the ampersand. That was the of">
+<meta name="description" content="Why LibSync never lets a language model format a citation, and how a golden-file test caught a bug nobody could fix.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/04-the-model-decides-when-code-decides-what/">
 <link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
 <link rel="stylesheet" href="../assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:title" content="The model decides when, code decides what">
-<meta property="og:description" content="The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: &quot;Author, A.&amp; Author, B..&quot; A doubled period and a missing space before the ampersand. That was the of">
+<meta property="og:description" content="Why LibSync never lets a language model format a citation, and how a golden-file test caught a bug nobody could fix.">
 <meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/04-the-model-decides-when-code-decides-what/">
 <meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -31,20 +31,33 @@
 <p class="kicker">Part 4 of 18</p>
 <h1>The model decides when, code decides what</h1>
 <p class="meta"><time datetime="2026-11-03">November 3, 2026</time></p>
-<p>The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: &quot;Author, A.&amp; Author, B..&quot; A doubled period and a missing space before the ampersand. That was the official processor&#39;s real output.</p>
-<p>It&#39;s why the model never formats a citation in LibSync. Anyone who&#39;s formatted a bibliography by hand knows the rules are fiddly (et al. thresholds, punctuation, page-range dashes, what gets italicized), which is why tools like Zotero exist. So instead of trusting a language model&#39;s memory of the rules, Claude Code built the split I&#39;d want from any engineer: the model decides when a citation is needed and which style the patron asked for. Everything else is deterministic.</p>
+<p>The first time I pinned my citation output in a golden-file test, it caught a bug nobody could fix: <code>Author, A.&amp; Author, B..</code> A doubled period, and a missing space before the ampersand.</p>
+<p>That was the official citation processor&#39;s real output. It wasn&#39;t a mistake in my code, and I couldn&#39;t patch it without lying about what the tool produces.</p>
+<p>It&#39;s also the reason the model never formats a citation in LibSync.</p>
+<h2>Why not just ask the model?</h2>
+<p>Anyone who has formatted a bibliography by hand knows the rules are fiddly: when &quot;et al.&quot; kicks in, where the punctuation goes, how page ranges are dashed, what gets italicized. They differ between APA, MLA and Chicago, and between editions of each. That&#39;s why tools like Zotero exist.</p>
+<p>A language model has seen a great many citations, so it can produce one that looks right. &quot;Looks right&quot; is the problem. The plan for this tier made the point plainly: the model doesn&#39;t reliably know that Chicago uses a different page-range dash than APA, or which style governs &quot;et al.&quot; thresholds. With a real style processor, a citation is either right or the style file is missing. With a model, it&#39;s plausible-sounding, and plausible-sounding is the hardest kind of wrong to notice.</p>
+<p>So the design splits the job. <strong>The model decides <em>when</em> a citation is needed and <em>which style</em> the patron asked for. Deterministic code does everything else.</strong></p>
+<h2>How the split works</h2>
 <ol>
-<li>lookup_and_cite(style, doi or title) calls Crossref for the real record.</li>
-<li>crossref_to_csl_json maps it to CSL-JSON, omitting absent optional fields. citeproc-py renders a None field literally, as &quot;(None)&quot;.</li>
-<li>citeproc-py formats it with the real CSL 1.0.1 style files for APA, MLA or Chicago, the same processor family Zotero uses.</li>
-<li>The tool returns a ToolReturn whose metadata is a CUSTOM event, and the UI renders a card.</li>
+<li><strong><code>lookup_and_cite(style, doi or title)</code></strong> calls Crossref, the registry where publishers deposit scholarly metadata, for the real record.</li>
+<li><strong><code>crossref_to_csl_json</code></strong> maps that record into CSL-JSON, the structured format citation tools share. It omits optional fields that are absent. That detail is deliberate: <code>citeproc-py</code> renders a <code>None</code> field literally, so a missing volume number shows up as &quot;(None)&quot; in the output.</li>
+<li><strong><code>citeproc-py</code></strong> formats the record using the real CSL 1.0.1 style files for APA, MLA or Chicago. That&#39;s the same processor family Zotero uses.</li>
+<li><strong>The tool returns a <code>ToolReturn</code></strong> whose metadata is a custom event, and the interface turns it into a citation card.</li>
 </ol>
-<p>The style switcher calls GET /citation/{doi}?style=chicago and re-runs only the citeproc step against a short-TTL Crossref cache. No second LLM call, no second Crossref lookup.</p>
-<p>The other two tools follow the same split: Open Library for books and lending availability, OpenAlex for papers, citation counts and open-access flags. Each returns structured data the model summarizes but can&#39;t invent.</p>
-<p>The golden-file tests pin the processor&#39;s real output, quirk included, and the quirk is documented as known behavior. I&#39;d rather ship a documented imperfection than an invisible guess.</p>
-<p>Architect&#39;s note: describe the invariant (&quot;a citation must be exactly right&quot;), not the implementation, then favor the design that makes the invariant checkable. Where the rules are exact, make deterministic code the default.</p>
+<p>The style switcher on the card calls <code>GET /citation/{doi}?style=chicago</code> and re-runs only the formatting step. Crossref results are cached for a few minutes, so switching from APA to MLA to Chicago costs no second language-model call and no second lookup.</p>
+<p>The other two tools follow the same pattern. Open Library supplies books and lending availability. OpenAlex supplies papers, citation counts and open-access flags. Each returns structured data the model can summarize but can&#39;t invent.</p>
+<h2>Pinning the quirk</h2>
+<p>The golden-file tests pin the processor&#39;s real output, quirk included. The quirk is written down as known behavior in the demo script rather than patched.</p>
+<p>I&#39;m comfortable with that, but I want to be clear about why. If I &quot;fixed&quot; the double period with a string replace, I&#39;d be maintaining a private fork of a citation style in my own code, with my own bugs and no one checking it. If I pin the quirk, I have a test that tells me the moment the upstream processor changes its behavior, and a documented imperfection I can explain. I&#39;d rather ship a documented imperfection than an invisible guess.</p>
+<p>I&#39;m less sure that&#39;s the right call for a real library. A patron who copies that citation into a paper will carry the double period with them. If you work with students on citations, I&#39;d like to know whether you&#39;d want it fixed at the cost of drifting from the processor.</p>
+<h2>What the agent did well here</h2>
+<p>This is a &quot;what it got right&quot; post, and I want to credit that. Claude Code built the split I&#39;d want from any engineer: the model handles judgment, and exact rules go to code that can be tested. It&#39;s also the way around I&#39;d recommend directing an agent. State the invariant (&quot;a citation must be exactly right&quot;) and favor the design that makes it checkable, rather than dictating the implementation.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> describe the invariant (&quot;a citation must be exactly right&quot;), not the implementation, then favor the design that makes the invariant checkable. Where the rules are exact, make deterministic code the default.</p>
+</blockquote>
 <p>Where should deterministic code have replaced an LLM&#39;s judgment in your stack?</p>
-<p>LibSync build log, Part 4 of 18. Next: two ways my agent decided it was finished when it wasn&#39;t.</p>
+<p><em>Part 4 of 18. Next: two ways my agent decided it was finished when it wasn&#39;t.</em></p>
 
 <nav class="series-nav" aria-label="Series">
 <span><a href="../03-a-lock-and-no-key/">&larr; A lock and no key</a></span>

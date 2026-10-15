@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The attacker edits a catalog record | LibSync build log</title>
-<meta name="description" content="In my threat model, the attacker never touches my app. They edit a catalog record.">
+<meta name="description" content="In my threat model, the attacker never touches my app. They edit a catalog record. An audit found the hole, and the fix was deliberately boring.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/08-the-attacker-edits-a-catalog-record/">
 <link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
 <link rel="stylesheet" href="../assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:title" content="The attacker edits a catalog record">
-<meta property="og:description" content="In my threat model, the attacker never touches my app. They edit a catalog record.">
+<meta property="og:description" content="In my threat model, the attacker never touches my app. They edit a catalog record. An audit found the hole, and the fix was deliberately boring.">
 <meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/08-the-attacker-edits-a-catalog-record/">
 <meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -32,20 +32,35 @@
 <h1>The attacker edits a catalog record</h1>
 <p class="meta"><time datetime="2026-12-08">December 8, 2026</time></p>
 <p>In my threat model, the attacker never touches my app. They edit a catalog record.</p>
-<p>Tier 3 began with an audit of the existing UI, and the audit found a hole in the UI built before it: replies were rendered with innerHTML. The model&#39;s output was inserted into the page as markup.</p>
-<p>Follow the data. LibSync&#39;s tools pull text from sources I don&#39;t control: Open Library titles, OpenAlex abstracts, Crossref records, and the policy documents a library uploads. That text goes into the model&#39;s context. The model&#39;s output goes into the DOM. If someone gets an instruction like &quot;reply with <img src=x onerror=...>&quot; into any of those sources, indirect prompt injection becomes stored XSS in my user&#39;s browser. No access to my systems required.</p>
-<p>The fix is boring, which is the point:</p>
+<h2>An audit that found a hole</h2>
+<p>Tier 3, the interface tier, began with an audit of the existing UI before any new work. Most of what it found was unglamorous: a request to a Google Fonts URL for Segoe UI that 404&#39;d on every page load (Segoe UI is a Microsoft system font, not a Google one), and no visible styling for errors. One finding mattered more than the rest.</p>
+<p>Replies were being rendered with <code>innerHTML</code>. The model&#39;s output was inserted into the page as markup.</p>
+<h2>Follow the data</h2>
+<p>LibSync&#39;s tools pull text from sources I don&#39;t control: Open Library titles, OpenAlex abstracts, Crossref records, and the policy documents a library uploads. That text goes into the model&#39;s context. The model&#39;s output goes into the page.</p>
+<p>If someone gets an instruction like &quot;reply with <code>&lt;img src=x onerror=...&gt;</code>&quot; into any of those sources, an indirect prompt injection becomes a stored cross-site script in my user&#39;s browser. They wouldn&#39;t need access to my systems at all. Open Library records are community-edited, so &quot;an attacker edits a record&quot; is a short sentence, not a heroic one.</p>
+<p>I want to be careful with the claim: this is what <em>could</em> have happened. As far as I know, nothing like it ever has. But the audit&#39;s job was to find paths, and this was a path.</p>
+<h2>The fix is boring, which is the point</h2>
 <ul>
-<li>The renderer recognizes exactly three patterns: <strong>bold</strong>, <em>italic</em>, and <a href="https://...">text</a>. The link pattern requires http or https, so a javascript: URL can&#39;t match.</li>
+<li>The renderer recognizes exactly three patterns: <code>**bold**</code>, <code>*italic*</code>, and <code>[text](https://...)</code>. The link pattern requires <code>http</code> or <code>https</code>, so a <code>javascript:</code> URL can&#39;t match.</li>
 <li>Everything else, matched or not, becomes a plain text node.</li>
-<li>Links get target=&quot;_blank&quot; and rel=&quot;noopener noreferrer&quot;.</li>
-<li>Moving the frontend to React kept the rule: real elements, never dangerouslySetInnerHTML.</li>
+<li>Links open with <code>target=&quot;_blank&quot;</code> and <code>rel=&quot;noopener noreferrer&quot;</code>.</li>
+<li>When the frontend moved to React, the rule moved with it: real elements, never <code>dangerouslySetInnerHTML</code>.</li>
 </ul>
-<p>And a test that attacks it directly: it feeds the renderer <img src=x onerror="alert(1)"> <script>alert(2)</script> and asserts there&#39;s no script element in the DOM and that both strings appear literally as text.</p>
-<p>The principle: model output is untrusted input. Treat it like a form field from an anonymous stranger. Escape by default and allow-list the formatting you actually want.</p>
-<p>Architect&#39;s note: schedule an audit of the agent&#39;s work as its own task, with its own goal. An agent that missed a hole while building will often find it in a fresh pass whose only job is to look.</p>
-<p>If your app renders LLM output near a DOM, how do you do it?</p>
-<p>LibSync build log, Part 8 of 18. Next: who an interface quietly locks out, and the audit that found my own.</p>
+<p>There&#39;s no code path where a string derived from the model can become live markup. That&#39;s a stronger statement than &quot;we sanitize the output,&quot; because sanitizers are a list of things someone thought to block. An allow-list is a list of things someone chose to permit, and the default is plain text.</p>
+<h2>A test that attacks it</h2>
+<p>The test feeds the renderer exactly what you&#39;d fear:</p>
+<pre><code class="language-html">&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &lt;script&gt;alert(2)&lt;/script&gt;
+</code></pre>
+<p>and asserts two things: there is no <code>script</code> element in the resulting DOM, and both strings appear literally, as visible text. If someone later &quot;improves&quot; the renderer in a way that reintroduces markup, that test fails.</p>
+<h2>The principle</h2>
+<p>Model output is untrusted input. Treat it like a form field filled in by an anonymous stranger: escape by default, and allow-list the formatting you actually want. It&#39;s easy to forget because the output reads like prose written for you, and it comes from a system you control. The words aren&#39;t yours, though. They&#39;re a blend of whatever the model was handed, and some of that came from the internet.</p>
+<h2>Who found it</h2>
+<p>Claude Code, in a pass whose only job was to audit. Tier 3 opened with the audit as its own deliverable, before any feature work, and the <code>innerHTML</code> line was sitting in the code the tier inherited. Nothing about building features would have sent anyone to that line. A dedicated audit, with its own goal, did. That&#39;s the lesson I&#39;d take: asking for an audit as its own task is cheap, and it found something that a feature-focused pass had no reason to look for.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> schedule an audit of the agent&#39;s work as its own task, with its own goal. An agent that missed a hole while building will often find it in a fresh pass whose only job is to look.</p>
+</blockquote>
+<p>If your app renders LLM output near a DOM, how do you do it? I&#39;d like to compare notes, especially if you&#39;ve found cases an allow-list like this misses.</p>
+<p><em>Part 8 of 18. Next: who an interface quietly locks out, and the audit that found my own.</em></p>
 
 <nav class="series-nav" aria-label="Series">
 <span><a href="../07-the-day-the-cards-disappeared/">&larr; The day the cards disappeared</a></span>

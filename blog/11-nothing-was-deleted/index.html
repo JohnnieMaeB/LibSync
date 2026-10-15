@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nothing was deleted | LibSync build log</title>
-<meta name="description" content="Outages are supposed to be a rite of passage at a company. Mine took down a static site with exactly one maintainer, the first time the new pipeline ran. Nothing was deleted.">
+<meta name="description" content="My first-ever deployment pipeline run took a static site with exactly one maintainer offline. Nothing was deleted. The site pointed at a branch that never had content.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/11-nothing-was-deleted/">
 <link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
 <link rel="stylesheet" href="../assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Nothing was deleted">
-<meta property="og:description" content="Outages are supposed to be a rite of passage at a company. Mine took down a static site with exactly one maintainer, the first time the new pipeline ran. Nothing was deleted.">
+<meta property="og:description" content="My first-ever deployment pipeline run took a static site with exactly one maintainer offline. Nothing was deleted. The site pointed at a branch that never had content.">
 <meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/11-nothing-was-deleted/">
 <meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -32,19 +32,30 @@
 <h1>Nothing was deleted</h1>
 <p class="meta"><time datetime="2027-01-12">January 12, 2027</time></p>
 <p>Outages are supposed to be a rite of passage at a company. Mine took down a static site with exactly one maintainer, the first time the new pipeline ran. Nothing was deleted.</p>
-<p>Claude Code had built per-PR previews for a GitHub Pages site. Pages serves one committed tree, so production and previews share a gh-pages branch: production at the root, each PR under pr-preview/pr-N/. Two workflows: deploy-pages.yml publishes production on pushes to main, and pr-preview.yml publishes previews on pull requests.</p>
-<p>The ordering problem: deploy-pages.yml only triggers on a push to main, and the workflow files weren&#39;t on main yet. It had never run. gh-pages had never been seeded.</p>
-<p>pr-preview.yml&#39;s fallback was &quot;clone gh-pages; if that fails, git init a fresh branch.&quot; It couldn&#39;t tell &quot;the branch doesn&#39;t exist yet&quot; from any other clone failure. It created gh-pages containing only pr-preview/pr-N/. Pages served that branch&#39;s root, and production returned 404. main&#39;s docs folder was untouched the whole time. The site just pointed at a branch that never had content.</p>
-<p>Claude Code wrote the flaw, and it wrote the fix. Two parts, and the second is the one worth stealing:</p>
-<ol>
-<li><p>Exactly one workflow may create the branch. pr-preview.yml now checks git ls-remote --exit-code --heads and hard-fails instead of creating it. deploy-pages.yml rechecks on every retry of its push loop, because a concurrent run can create the branch mid-loop.</p>
-</li>
-<li><p>Assert the invariant, not the bug. Both workflows now require [ -f index.html ] at the branch root. Previews refuse to publish on a broken root, and production refuses to publish a build with no index.html.</p>
-</li>
-</ol>
-<p>Architect&#39;s note: for any pipeline an agent writes, ask &quot;what happens the first time this runs, with nothing else in place?&quot; And when you fix a failure, make the agent assert what must always be true, not just patch what just broke.</p>
+<h2>The setup</h2>
+<p>Claude Code had built per-pull-request previews for the LibSync site. Every PR gets its own URL, so I can look at a change before it merges, which is how I found the bug in Part 1.</p>
+<p>The site is hosted on GitHub Pages, which serves one committed tree. So production and previews share a single branch called <code>gh-pages</code>: production at the root, each PR under <code>pr-preview/pr-N/</code>. Two workflows share it:</p>
+<ul>
+<li><code>deploy-pages.yml</code> publishes production when something is pushed to <code>main</code>.</li>
+<li><code>pr-preview.yml</code> publishes a preview when a pull request opens.</li>
+</ul>
+<h2>The ordering problem</h2>
+<p><code>deploy-pages.yml</code> only triggers on a push to <code>main</code>, and the workflow files weren&#39;t on <code>main</code> yet. They were in the PR that introduced them. So the production workflow had never run, and <code>gh-pages</code> had never been seeded with a real site.</p>
+<p>When the PR opened, <code>pr-preview.yml</code> ran. Its fallback logic was: clone <code>gh-pages</code>, and if that fails, create a fresh branch with <code>git init</code>. The flaw is that it couldn&#39;t tell &quot;the branch doesn&#39;t exist yet&quot; from any other clone failure.</p>
+<p>So it created <code>gh-pages</code> from scratch, containing <em>only</em> <code>pr-preview/pr-N/</code>. No root page at all. GitHub Pages serves a branch&#39;s root, so production returned a 404.</p>
+<p><code>main</code> was untouched the whole time, and its docs folder was exactly as I&#39;d left it. The site just pointed at a branch that never had any content. That&#39;s why this post is called what it is: it&#39;s a different kind of outage than data loss, and it&#39;s easy to overlook because &quot;I didn&#39;t delete anything&quot; is true and unhelpful.</p>
+<h2>The same author wrote the flaw and the fix</h2>
+<p>Claude Code wrote both. The fix has two parts, and the second one is the one worth stealing.</p>
+<p><strong>1. Exactly one workflow may create the branch.</strong> <code>pr-preview.yml</code> now runs <code>git ls-remote --exit-code --heads</code> to check whether <code>gh-pages</code> exists, and if it doesn&#39;t, it fails with a clear error instead of creating the branch. <code>deploy-pages.yml</code> re-checks on every retry of its push loop, not once up front, because a concurrent run could create the branch in the middle.</p>
+<p><strong>2. Assert the invariant, not the bug.</strong> Both workflows now require that <code>index.html</code> exists at the branch root. A preview refuses to publish on top of a broken root, and production refuses to publish a build that doesn&#39;t have an <code>index.html</code>.</p>
+<p>The second fix is worth pausing on. The first one patches the way it broke last time. The second states what must <em>always</em> be true about the site, so it catches the next failure too, including ones nobody has imagined: a bad build, a mistaken <code>rsync</code> exclude, an empty output folder.</p>
+<h2>An echo, months later</h2>
+<p>The same site returned a 404 again in October, for an unrelated reason. When I made the repository public, the GitHub Pages configuration was removed as a side effect, and the demo went dark until the configuration was restored through the API the same day. Nobody had planned for that. I&#39;m telling you because &quot;fixed&quot; for a deployment pipeline means &quot;fixed for the failures I know about.&quot; The invariant check wouldn&#39;t have caught that one: <code>gh-pages</code> was fine, and Pages simply wasn&#39;t pointed at it.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> for any pipeline an agent writes, ask &quot;what happens the first time this runs, with nothing else in place?&quot; And when you fix a failure, make the agent assert what must always be true, not just patch what just broke.</p>
+</blockquote>
 <p>What invariant does your deploy pipeline assert?</p>
-<p>LibSync build log, Part 11 of 18. Next: every request to my API returned 500 in the browser, and curl said everything was fine.</p>
+<p><em>Part 11 of 18. Next: every request to my API returned 500 in the browser, and curl said everything was fine.</em></p>
 
 <nav class="series-nav" aria-label="Series">
 <span><a href="../10-every-free-tier-has-a-clause/">&larr; Every free tier has a clause</a></span>
