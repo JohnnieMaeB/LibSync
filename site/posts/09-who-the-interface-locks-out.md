@@ -7,7 +7,7 @@ series: Part 9 of 18
 ---
 Asking a stranger at a desk for help is a skill, and some of us find it genuinely hard. I wanted a library you can ask without paying that cost.
 
-Libraries run on a promise: information for everyone. But available isn't the same as accessible. Sometimes the barrier isn't a missing book. It's the social cost of asking. I'm autistic, and for people like me that cost can be the barrier. LibSync isn't meant to replace the librarian. It's meant to make the first question cheaper to ask.
+Libraries run on a promise: information for everyone. But available isn't the same as accessible. Sometimes the barrier isn't a missing book. It's the social cost of asking. I'm autistic, and for people like me that cost can be the barrier. I've worked a patron desk and I've stood on the other side of one, so I know that cost from both directions. LibSync isn't meant to replace the librarian. It's meant to make the first question cheaper to ask.
 
 What that means in code (Claude Code built it, and I told it who it was for):
 - A chat log screen readers can hear: role="log" with aria-live="polite", so new replies are announced instead of silently appearing.
