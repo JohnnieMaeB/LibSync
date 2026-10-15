@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://johnniemaeb.github.io/LibSync/"><b>Live Demo</b></a> ·
+  <a href="https://johnniemaeb.github.io/LibSync/blog/"><b>Build Log</b></a> ·
   <a href="#-target-experience">Where It's Headed</a> ·
   <a href="#-local-setup">Local Setup</a> ·
   <a href="#-future-enhancements">Roadmap</a>
@@ -465,10 +466,14 @@ LibSync/
 │   └── vite.config.ts        # outDir: 'dist' (gitignored); also configures vite-plugin-pwa
 │                                (manifest + service worker) — published by scripts/build-site.js,
 │                                not hand-committed
+├── site/                 # Build-log site (zero-framework static generator; markdown in, HTML out).
+│   │                         # Published at /blog/ next to the app. posts/*.md are the build-log
+│   │                         # posts; docs/writeups/*.md are published as case studies.
+│   └── publish-post.js   # copies one local LinkedIn draft into posts/ (only its post text)
 ├── scripts/
 │   └── build-site.js        # runs `vite build` in app/ into an output dir, with an optional
-│                             # VITE_API_BASE_URL override — used by both the prod publish and
-│                             # PR-preview workflows (see below)
+│                             # VITE_API_BASE_URL override, and builds site/ into <out>/blog/ —
+│                             # used by both the prod publish and PR-preview workflows (see below)
 ├── server/              # Python/FastAPI + PydanticAI backend (uv-managed)
 │   ├── app/
 │   │   ├── main.py          # FastAPI app, lifespan (shared httpx client), CORS, rate limiting, Logfire

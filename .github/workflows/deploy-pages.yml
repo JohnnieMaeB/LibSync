@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "site/**"
+      - "docs/writeups/**"
       - "scripts/build-site.js"
   workflow_dispatch:
 
@@ -36,6 +38,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: ./app
+
+      - name: Install blog dependencies
+        run: npm ci
+        working-directory: ./site
 
       - name: Build site
         run: node scripts/build-site.js --out "$RUNNER_TEMP/site"
