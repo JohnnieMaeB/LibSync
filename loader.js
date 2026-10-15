@@ -12,6 +12,11 @@
  *   <script src="https://embed.libsync.app/loader.js" data-library="example-library"
  *           data-accent="#ffd166" data-position="bottom-right" async></script>
  *
+ * Optional: data-help-url="https://library.example/ask" (where "Talk to a
+ * librarian" goes: a chat page, mailto: or tel: link), and
+ * data-tools="policies,catalog" (only these tool groups; the others are
+ * research and citations).
+ *
  * See TIER6_PLAN.md for the full design (iframe isolation, postMessage
  * contract, per-origin rate limiting on the backend).
  */
@@ -38,6 +43,12 @@
   // (.../pr-preview/pr-42/), not just a root domain.
   var baseUrl = new URL(".", thisScript.src).href;
   var iframeSrc = baseUrl + "?mode=widget&library=" + encodeURIComponent(libraryId);
+  // Optional, library-controlled (TIER8_PLAN.md §2.8): where "Talk to a
+  // librarian" points, and which tool groups the assistant may use.
+  var helpUrl = thisScript.getAttribute("data-help-url");
+  var tools = thisScript.getAttribute("data-tools");
+  if (helpUrl) iframeSrc += "&help=" + encodeURIComponent(helpUrl);
+  if (tools) iframeSrc += "&tools=" + encodeURIComponent(tools);
 
   var SIDE_OFFSET = "20px";
   var sideStyle = position === "bottom-left" ? "left:" + SIDE_OFFSET : "right:" + SIDE_OFFSET;
