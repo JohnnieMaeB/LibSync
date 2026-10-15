@@ -32,10 +32,10 @@
 <h1>The scorecard</h1>
 <p class="meta"><time datetime="2027-03-02">March 2, 2027</time></p>
 <p>Eighteen posts ago I said this was about trust, one layer at a time. Here&#39;s the scorecard after six tiers: Claude Code as builder, me as architect.</p>
-<p>What Claude Code was good at: turning each free-tier clause into a design, writing a decision record for every choice, researching with sources, auditing its own work when asked, and, when the evals failed, diagnosing in layers instead of patching the first symptom.</p>
+<p>What Claude Code was good at: turning each free-tier clause into a design, writing a decision record for every choice, auditing its own work when asked, and diagnosing failures in layers instead of patching the first symptom.</p>
 <p>What it got wrong: tests that shared its own assumptions. A demo script claiming the index held 34 records while the live index held 10. An output type that let non-answers through, a pipeline that took production down on its first run, a quota modeled in the wrong unit, and evals that spent production&#39;s budget. Even this series: the first draft said 107 tests. It was 136.</p>
 <p>What I got wrong: I pasted 2,300 tokens of reference documents into a prompt, merged an endpoint that could never work, and left a manual step with no owner.</p>
-<p>What the architect actually did: set the $0 rule, brought the library knowledge and the reason to care, learned library technology hands-on by building against it, asked &quot;is this how libraries really do it?&quot; until the plan changed, chose MIT over the AI&#39;s AGPL recommendation, kept the irreversible calls (license, going public, merges) in human hands, and rejected two drafts of this series before it got good.</p>
+<p>What the architect actually did: set the $0 rule, brought the library knowledge and the reason to care, learned library technology hands-on by building against it, asked &quot;is this how libraries really do it?&quot; until the plan changed, chose MIT over the AI&#39;s AGPL recommendation, kept the irreversible calls (license, going public, merges) in human hands, and rejected two drafts of this series before it got good. Day to day it&#39;s steering more than prompting: I give a goal in plain language, Claude Code builds, I check the result in the browser, and when something looks wrong I send a screenshot and one sentence.</p>
 <p>If I had to give anyone directing an AI coding agent five rules:</p>
 <ol>
 <li>Separate the author from the checker: evals, a real browser, real data.</li>
@@ -44,7 +44,7 @@
 <li>Tell it which budgets belong to production.</li>
 <li>Question the frame, not just the code.</li>
 </ol>
-<p>Where it stands: Tiers 1 to 6 of nine are built, a weekly eval run guards it, and everything is MIT licensed in the open. Next: staff sign-in, a trust-and-compliance phase (AI disclosure, zero data retention, a per-library off switch, a WCAG audit), then document upload and the Koha and Polaris drivers. All at $0 a month, with two flagged exceptions: app-store fees and SAML single sign-on.</p>
+<p>Where it stands: Tiers 1 to 6 of nine are built, a weekly eval run guards it, and everything is MIT licensed in the open. Next: staff sign-in, a trust-and-compliance phase (AI disclosure, zero data retention, a per-library off switch, a WCAG audit), then document upload and the Koha and Polaris drivers. All at $0 a month, bar app-store fees and SAML single sign-on.</p>
 <p>The AI conversation keeps splitting into hype and panic. This project is my third option: build small, check everything, keep a human one click away, and ask the people it&#39;s for.</p>
 <p>I started this series because I was learning in a vacuum. The most useful thing you can do with it is correct me: librarians, accessibility specialists, engineers, anyone who knows where this is naive. And if you run a library that would like to try it, I&#39;d love a pilot. Everything&#39;s here: <a href="https://github.com/JohnnieMaeB/LibSync">https://github.com/JohnnieMaeB/LibSync</a></p>
 <p>If you work in a library: what would an AI assistant have to prove before you&#39;d put it at your desk?</p>
