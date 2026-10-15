@@ -18,6 +18,11 @@ body {
     height: 100dvh;
     width: 100%;
     overflow: hidden;
+    /* Notches and home indicators (Tier 7 native shell, and installed PWAs
+       with viewport-fit=cover). Zero everywhere else. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+    box-sizing: border-box;
 }
 
 /* On mobile the sidebar is a fixed-position drawer overlaying the full

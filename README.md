@@ -263,6 +263,8 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 - Trust by default, per ALA's 2026 AI guidance: an always-visible "you're chatting with an AI" notice, a
   plain-language "How your data is handled" explanation, a "Talk to a librarian" link, per-library tool switches,
   and patron messages kept out of traces unless `LOGFIRE_INCLUDE_CONTENT=1` is set for debugging
+- Android and iOS apps (Tier 7): the same app in a Capacitor shell, with a sideloadable Android APK built in CI
+  on every change and an iOS project that builds for the simulator. See [docs/MOBILE.md](docs/MOBILE.md)
 - Cloud deployment for remote access
 
 ---
@@ -643,7 +645,7 @@ embeddable widget:
 | 4 | **✅ Complete** — React migration — behavior-preserving move to React + AG-UI transport, the shared component library Tiers 5–9 build on | [TIER4_PLAN.md](TIER4_PLAN.md) | [planning/TIER4_PLAN.html](planning/TIER4_PLAN.html) | [rendered](https://claude.ai/code/artifact/18dd2d0c-9a27-4000-94c1-b49b05a87632) |
 | 5 | **✅ Complete** — Standalone web app — dynamic responsive layout, PWA installability, and **multi-conversation chat history** (client-side, IndexedDB) | [TIER5_PLAN.md](TIER5_PLAN.md) | [planning/TIER5_PLAN.html](planning/TIER5_PLAN.html) | [rendered](https://claude.ai/code/artifact/501ca3cc-b4c9-4f9a-a233-54a43134eb5a) |
 | 6 | **✅ Complete** — Embeddable widget — a two-line snippet for library websites, iframe-isolated, reusing the Tier 4 components | [TIER6_PLAN.md](TIER6_PLAN.md) | [planning/TIER6_PLAN.html](planning/TIER6_PLAN.html) | [rendered](https://claude.ai/code/artifact/bdb8c64e-4019-4c39-bf6f-7d05538e3b30) |
-| 7 | Mobile apps — Capacitor wraps the Tier 5 app for iOS/Android; $0-complete via sideload, store publication marked as an explicit paid exception | [TIER7_PLAN.md](TIER7_PLAN.md) | [planning/TIER7_PLAN.html](planning/TIER7_PLAN.html) | [rendered](https://claude.ai/code/artifact/807f868c-4dda-4507-8960-84c4c93ea233) |
+| 7 | **✅ Complete ($0 tier)** — [Android APK + iOS build](docs/MOBILE.md); store publishing (Phase 29) is a separate paid decision — Mobile apps — Capacitor wraps the Tier 5 app for iOS/Android; $0-complete via sideload, store publication marked as an explicit paid exception | [TIER7_PLAN.md](TIER7_PLAN.md) | [planning/TIER7_PLAN.html](planning/TIER7_PLAN.html) | [rendered](https://claude.ai/code/artifact/807f868c-4dda-4507-8960-84c4c93ea233) |
 | 8 | **🚧 In progress** (tenant groundwork: per-library policy namespaces, `library_id` on every trace) — Developer/manager/statistics dashboard — real multi-tenancy (Supabase + Pinecone namespaces), integration with what libraries already run (ILS drivers starting with Koha and Polaris, Springshare, OverDrive), Microsoft/Google staff sign-in, a trust-and-compliance phase (ALA AI guidance, WCAG 2.1 AA) before any pilot, Logfire-powered usage stats, for library staff — **with dashboard/connector mockups** | [TIER8_PLAN.md](TIER8_PLAN.md) | [planning/TIER8_PLAN.html](planning/TIER8_PLAN.html) | [rendered](https://claude.ai/code/artifact/79654d95-bdfa-44df-af27-c9a46e41fc1b) |
 | 9 | Patron accounts — dual-mode auth (real library card via SIP2 or the ILS patron API, or email fallback), optional and additive, never a wall in front of the chat | [TIER9_PLAN.md](TIER9_PLAN.md) | [planning/TIER9_PLAN.html](planning/TIER9_PLAN.html) | [rendered](https://claude.ai/code/artifact/e760505b-d41b-4f04-94e4-d8d7c413131b) |
 

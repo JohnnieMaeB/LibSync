@@ -76,6 +76,12 @@ flowchart TB
 | **28** | Native polish: app icons, splash screen, status bar theming to match LibSync's black/amber brand, safe-area handling | 2–3 days | $0 |
 | **29** *(optional, explicit decision point)* | Pay the Apple/Google fees and submit to the App Store / Google Play | 1–2 days + review time | **$99/yr + $25 one-time** |
 
+**Status (October 2026):** Phases 26–28 are built. Capacitor 8 wraps the app; CI builds a sideloadable debug
+APK and an unsigned iOS simulator build on every change ([`mobile.yml`](.github/workflows/mobile.yml)); icons,
+splash, status bar and safe areas are in place. Installing on an iPhone needs a Mac (see
+[docs/MOBILE.md](docs/MOBILE.md)). Phase 29 (paid store publishing) has not been started and needs an explicit
+decision.
+
 **Done when ($0 bar):** a sideloaded Android APK and a personally-signed iOS build both run the full Tier 5
 app natively, matching its web behavior.
 **Done when (published, optional):** the app is live and installable from the App Store and Google Play — only
