@@ -54,6 +54,10 @@ jobs:
         run: npm ci
         working-directory: ./app
 
+      - name: Install blog dependencies
+        run: npm ci
+        working-directory: ./site
+
       - name: Build preview site
         run: |
           node scripts/build-site.js --out "$RUNNER_TEMP/site" \

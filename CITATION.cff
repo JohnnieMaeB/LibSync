@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use LibSync in your work, please cite it as below."
+title: "LibSync: an AI assistant for public libraries"
+type: software
+authors:
+  - family-names: Boutwell
+    given-names: Johnnie
+repository-code: "https://github.com/JohnnieMaeB/LibSync"
+url: "https://johnniemaeb.github.io/LibSync/"
+license: MIT
+abstract: >-
+  LibSync is an open-source AI assistant for public libraries. It answers
+  library-desk questions from a library's own policies and from open catalogs
+  (Open Library, OpenAlex, Crossref), says so when it cannot check something,
+  and is built to integrate with the systems libraries already run. It runs on
+  free tiers (PydanticAI, Groq, Pinecone) and is evaluated weekly against
+  known-answer cases. Nearly all of the code is written by Claude Code under
+  the author's direction.
+keywords:
+  - libraries
+  - library technology
+  - ai agents
+  - retrieval-augmented generation
+  - llm evaluation
+  - accessibility

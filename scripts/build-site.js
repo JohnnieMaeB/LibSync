@@ -6,9 +6,12 @@
 //   - the PR-preview workflow (--api-base-url <dev backend URL>), output ->
 //     gh-pages branch's pr-preview/pr-<N>/
 //
-// Assumes `npm ci` has already been run in app/ — the calling workflow does
-// that as its own step (matching ci.yml's pattern); this script only builds
-// and copies, it doesn't manage dependencies.
+// It also builds the build-log site (site/) into <out>/blog/, so the blog is
+// published and previewed by the same workflows as the app.
+//
+// Assumes `npm ci` has already been run in app/ and site/ — the calling
+// workflow does that as its own steps (matching ci.yml's pattern); this script
+// only builds and copies, it doesn't manage dependencies.
 "use strict";
 
 const fs = require("fs");
@@ -17,6 +20,7 @@ const { execFileSync } = require("child_process");
 
 const APP_DIR = path.join(__dirname, "..", "app");
 const APP_BUILD_DIR = path.join(APP_DIR, "dist");
+const SITE_DIR = path.join(__dirname, "..", "site");
 
 function parseArgs(argv) {
   const args = { outDir: null, apiBaseUrl: null };
@@ -51,7 +55,12 @@ function copyBuildOutput(dest) {
   fs.cpSync(APP_BUILD_DIR, dest, { recursive: true });
 }
 
+function buildBlog(dest) {
+  execFileSync("node", ["build.js", "--out", path.join(dest, "blog")], { cwd: SITE_DIR, stdio: "inherit" });
+}
+
 const { outDir, apiBaseUrl } = parseArgs(process.argv.slice(2));
 buildApp(apiBaseUrl);
 copyBuildOutput(outDir);
+buildBlog(outDir);
 console.log(`Built ${APP_DIR} -> ${outDir}${apiBaseUrl ? ` (VITE_API_BASE_URL=${apiBaseUrl})` : ""}`);
