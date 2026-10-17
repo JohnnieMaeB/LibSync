@@ -14,7 +14,7 @@ import anyio
 import httpx
 from ag_ui.core import CustomEvent
 from pydantic_ai import Agent, AgentRunResultEvent, ModelRetry, RunContext
-from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta, ToolReturn
+from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta, ToolReturn, ToolReturnPart
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.groq import GroqModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
@@ -26,8 +26,9 @@ from app.bot_context.identity import PERSONA_PROMPT
 from app.bot_context.service_principles import SERVICE_PRINCIPLES
 from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
-from app.schemas import BookResult, Citation, ResearchResult, ScholarlyWork
-from app.services import citation_service, crossref_service, open_library_service, openalex_service
+from app.schemas import Book, BookResult, Citation, ResearchResult, ScholarlyWork
+from app.library_config import LibraryConfig
+from app.services import catalog, citation_service, crossref_service, openalex_service
 from app.services.pinecone_service import search_pinecone
 from app.tenants import TOOL_GROUPS, policy_namespace
 from app.session_store import session_store
@@ -58,8 +59,9 @@ that, suggest asking library staff, and never invent a policy or service.
 
 For any question about a specific book or author — "is X available?", "who
 wrote X?", "when did X come out?" — call `search_catalog` and ground your
-answer in what it returns. `search_catalog` is backed by the real Open
-Library catalog, not by Libby/OverDrive/Kanopy/Hoopla — those platforms have
+answer in what it returns. `search_catalog` searches this library's own
+catalog when it's connected, and the real Open Library catalog otherwise
+(its result says which); it is not backed by Libby/OverDrive/Kanopy/Hoopla — those platforms have
 no public API, so never claim to check them directly or invent availability
 for them. If a patron asks about those specific apps, answer from your
 general knowledge of how they work, and be clear you can't check real-time
@@ -167,6 +169,43 @@ def _reject_leaked_tool_call_syntax(data: str | BookResult) -> str | BookResult:
     return data
 
 
+def _catalog_books_seen(messages) -> dict[str, dict]:
+    """Every book `search_catalog` returned this run, keyed by folded title,
+    read from the book_card events it attached to its tool returns."""
+    seen: dict[str, dict] = {}
+    for message in messages:
+        for part in getattr(message, "parts", []):
+            if not isinstance(part, ToolReturnPart) or part.tool_name != "search_catalog":
+                continue
+            events = part.metadata if isinstance(part.metadata, list) else [part.metadata]
+            for event in events:
+                if isinstance(event, CustomEvent) and event.name == "book_card":
+                    seen.setdefault(event.value["title"].casefold().strip(), event.value)
+    return seen
+
+
+@chat_agent.output_validator
+def _ground_book_results(ctx: RunContext[LibSyncDeps], data: str | BookResult) -> str | BookResult:
+    """Structured book answers carry exactly what the catalog said. The model
+    restates book data when it builds a BookResult, and has been observed
+    upgrading "in catalog" to "available"; every fact the patron could act
+    on (availability, year, links, cover, author) is overwritten from the tool
+    result, and a book the catalog never returned is sent back as a retry."""
+    if not isinstance(data, BookResult):
+        return data
+    seen = _catalog_books_seen(ctx.messages)
+    grounded = []
+    for book in data.books:
+        source = seen.get(book.title.casefold().strip())
+        if source is None:
+            raise ModelRetry(
+                f'"{book.title}" was not in the search_catalog results. List only books search_catalog '
+                "returned, with their titles exactly as returned, or answer in plain text."
+            )
+        grounded.append(Book(**{key: source.get(key) for key in Book.model_fields}))
+    return data.model_copy(update={"books": grounded})
+
+
 def _tool_group_switch(group: str):
     """A `prepare` hook that hides a tool from the model when the embedding
     library switched its group off (TIER8_PLAN.md §2.8). Hidden, not refused:
@@ -208,22 +247,30 @@ async def search_library_policies(ctx: RunContext[LibSyncDeps], query: str) -> s
 
 @chat_agent.tool(prepare=_tool_group_switch("catalog"))
 async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn:
-    """Search the real Open Library catalog for a book or author, including
-    its lending/full-text availability via Internet Archive.
+    """Search for a book or author in this library's own catalog when one is
+    connected (Tier 8 Phase 32), otherwise the real Open Library catalog,
+    including availability.
 
     Args:
         query: A book title and/or author name, in plain language.
     """
     try:
-        results = await open_library_service.search_catalog(ctx.deps.http_client, query, limit=3)
+        search = await catalog.search_catalog(ctx.deps.http_client, ctx.deps.library_config, query, limit=3)
     except Exception as error:
         print("Catalog search error:", error)
         return ToolReturn(return_value="Catalog lookup is temporarily unavailable.")
 
+    results = search.results
     if not results:
-        return ToolReturn(return_value="No matching titles were found in Open Library.")
+        return ToolReturn(return_value=f"No matching titles were found in {search.source}.")
 
-    lines = []
+    lines = [f"Results from {search.source}:"]
+    if search.fell_back:
+        lines.insert(
+            0,
+            "Note: the library's own catalog didn't respond, so these come from Open Library and don't show "
+            "this library's copies. Tell the patron that.",
+        )
     for book in results:
         year = f" ({book['first_publish_year']})" if book.get("first_publish_year") else ""
         lines.append(f'- "{book["title"]}" by {book["author"]}{year} — availability: {book["availability"]}')
@@ -325,6 +372,7 @@ async def get_chat_reply(
     session_id: str,
     library_id: str | None = None,
     enabled_tools: frozenset[str] | None = None,
+    library_config: LibraryConfig | None = None,
 ) -> str | BookResult:
     """Send a user's message to the chat agent and return its reply — plain
     text, or a `BookResult` when the agent grounds its answer in concrete
@@ -339,7 +387,12 @@ async def get_chat_reply(
     """
     try:
         print("Received message:", message)
-        deps = LibSyncDeps(http_client=http_client, library_id=library_id, enabled_tools=enabled_tools)
+        deps = LibSyncDeps(
+            http_client=http_client,
+            library_id=library_id,
+            enabled_tools=enabled_tools,
+            library_config=library_config,
+        )
         history = session_store.get(session_id)
         result = await chat_agent.run(message, deps=deps, message_history=history)
         session_store.append(session_id, result.new_messages())
@@ -358,6 +411,7 @@ async def stream_chat_reply(
     session_id: str,
     library_id: str | None = None,
     enabled_tools: frozenset[str] | None = None,
+    library_config: LibraryConfig | None = None,
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream a chat turn as `(event_name, data)` pairs for SSE delivery.
 
@@ -382,7 +436,12 @@ async def stream_chat_reply(
     `BookResult`, sent once, complete, when the turn resolves to one), "done"
     once the turn is complete and saved to the session store, or "error".
     """
-    deps = LibSyncDeps(http_client=http_client, library_id=library_id, enabled_tools=enabled_tools)
+    deps = LibSyncDeps(
+            http_client=http_client,
+            library_id=library_id,
+            enabled_tools=enabled_tools,
+            library_config=library_config,
+        )
     history = session_store.get(session_id)
     try:
         current_text: str | None = None

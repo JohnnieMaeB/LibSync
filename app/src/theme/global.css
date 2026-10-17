@@ -813,6 +813,7 @@ a.work-card-title:hover {
 }
 
 .book-card-availability--lendable,
+.book-card-availability--available,
 .book-card-availability--borrowable,
 .book-card-availability--public,
 .book-card-availability--full-access {

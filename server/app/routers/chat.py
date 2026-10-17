@@ -32,6 +32,7 @@ async def chat(request: Request):
             session_id,
             library_id=gated.library_id,
             enabled_tools=gated.enabled_tools,
+            library_config=gated.config,
         )
         return {"reply": reply, "session_id": session_id}
     except Exception:
@@ -56,11 +57,17 @@ async def chat_stream(request: Request):
     http_client = request.app.state.http_client
     library_id = gated.library_id
     enabled_tools = gated.enabled_tools
+    library_config = gated.config
 
     async def event_source():
         yield _format_sse("session", {"session_id": session_id})
         async for event_name, data in stream_chat_reply(
-            message, http_client, session_id, library_id=library_id, enabled_tools=enabled_tools
+            message,
+            http_client,
+            session_id,
+            library_id=library_id,
+            enabled_tools=enabled_tools,
+            library_config=library_config,
         ):
             yield _format_sse(event_name, data)
 
