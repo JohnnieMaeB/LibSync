@@ -11,12 +11,15 @@ export function ChatBox({
   onSelectSuggestion,
   onRegenerate,
   onRetry,
+  onFeedback,
 }: {
   entries: ChatEntry[];
   chipsHidden: boolean;
   onSelectSuggestion: (prompt: string) => void;
   onRegenerate: (id: string) => void;
   onRetry: (id: string) => void;
+  // Set only when the library collects feedback (Tier 8 Phase 34).
+  onFeedback?: (id: string) => Promise<boolean>;
 }) {
   const { containerRef, showScrollButton, scrollToBottom, handleScroll } = useAutoScroll(entries);
 
@@ -36,7 +39,13 @@ export function ChatBox({
           entry.kind === "user" ? (
             <UserBubble key={entry.id} text={entry.text} />
           ) : (
-            <BotBubble key={entry.id} entry={entry} onRegenerate={onRegenerate} onRetry={onRetry} />
+            <BotBubble
+              key={entry.id}
+              entry={entry}
+              onRegenerate={onRegenerate}
+              onRetry={onRetry}
+              onFeedback={onFeedback}
+            />
           ),
         )}
       </main>

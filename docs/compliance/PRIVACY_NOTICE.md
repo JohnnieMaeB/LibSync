@@ -18,6 +18,7 @@ Intelligence in Libraries](https://www.ala.org/tools/standards-and-guidelines/gu
 | Search terms the assistant chooses (not the whole conversation) | Pinecone (policy search); Open Library, OpenAlex, Crossref (books, papers, citations) | To ground answers in real data | Governed by each service's terms; no account or patron identifier is sent |
 | Diagnostics (timing, tool names, token counts, errors, `library_id`) | Logfire, if the operator enables tracing | To find and fix failures | Logfire retention. **Message text is excluded** unless `LOGFIRE_INCLUDE_CONTENT` is turned on for local debugging |
 | IP address, request metadata | GitHub Pages and Render (hosting) | Delivering the site | Hosting providers' logs |
+| One question and answer, **only when the patron chooses "Not helpful"** in a library's chat that collects feedback | The library's own feedback webhook | So staff can follow up and improve answers | LibSync forwards it and keeps no copy; the library's own retention applies |
 | Conversation history (standalone app) | The patron's own browser (IndexedDB) | So patrons can return to conversations | Until the patron deletes it from the sidebar or clears site data |
 
 LibSync has **no patron accounts, no advertising, no analytics trackers and no tracking cookies**. The widget on a

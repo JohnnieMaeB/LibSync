@@ -15,6 +15,8 @@ import { useLibraryConfig } from "./libraryConfig";
 // downloads the dashboard or the Supabase client.
 const AdminApp = lazy(() => import("./admin/AdminApp"));
 import type { ChatEntry } from "./types";
+import { API_BASE_URL } from "./config";
+import { blocksToPlainText } from "./lib/plainText";
 
 // Owns one conversation's live chat state. Keyed by conversationId in
 // App() below, so switching conversations remounts this (resetting
@@ -27,6 +29,7 @@ function ChatConversation({
   libraryId,
   tools,
   helpUrl,
+  feedbackEnabled = false,
   onClose,
 }: {
   conversationId: string;
@@ -35,6 +38,7 @@ function ChatConversation({
   libraryId?: string | null;
   tools?: string | null;
   helpUrl: string | null;
+  feedbackEnabled?: boolean;
   onClose?: () => void;
 }) {
   const [capabilityDismissed, setCapabilityDismissed] = useState(false);
@@ -47,6 +51,31 @@ function ChatConversation({
   });
   const chipsHidden = entries.length > 0;
 
+  // Phase 34: send one exchange (the reply and the question just before it)
+  // to the library's feedback webhook, only after the patron asks to.
+  const sendFeedback = useCallback(
+    async (botId: string) => {
+      const index = entries.findIndex((e) => e.id === botId);
+      const bot = entries[index];
+      const question = entries
+        .slice(0, index)
+        .reverse()
+        .find((e) => e.kind === "user");
+      if (!bot || bot.kind !== "bot" || !question || question.kind !== "user" || !libraryId) return false;
+      try {
+        const response = await fetch(`${API_BASE_URL}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-LibSync-Library": libraryId },
+          body: JSON.stringify({ question: question.text, answer: blocksToPlainText(bot.blocks) }),
+        });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    [entries, libraryId],
+  );
+
   return (
     <>
       <Header onClose={onClose} />
@@ -57,6 +86,7 @@ function ChatConversation({
         onSelectSuggestion={sendMessage}
         onRegenerate={regenerate}
         onRetry={retry}
+        onFeedback={feedbackEnabled ? sendFeedback : undefined}
       />
       <Composer isStreaming={isStreaming} onSend={sendMessage} onStop={stop} />
       <AiNotice helpUrl={helpUrl} />
@@ -120,6 +150,7 @@ function WidgetApp({ config }: { config: WidgetConfig }) {
             libraryId={config.libraryId}
             tools={config.tools}
             helpUrl={helpUrl}
+            feedbackEnabled={library?.feedbackEnabled ?? false}
             onClose={handleClose}
           />
         )}

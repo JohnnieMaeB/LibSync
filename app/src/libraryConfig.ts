@@ -10,6 +10,7 @@ export interface PublicLibraryConfig {
   name: string;
   helpUrl: string | null;
   aiEnabled: boolean;
+  feedbackEnabled: boolean;
 }
 
 export async function fetchLibraryConfig(libraryId: string): Promise<PublicLibraryConfig | null> {
@@ -22,6 +23,7 @@ export async function fetchLibraryConfig(libraryId: string): Promise<PublicLibra
       name: data.name,
       helpUrl: safeHelpUrl(data.help_url),
       aiEnabled: data.ai_enabled !== false,
+      feedbackEnabled: data.feedback_enabled === true,
     };
   } catch {
     return null; // offline or backend asleep: never block the chat on settings

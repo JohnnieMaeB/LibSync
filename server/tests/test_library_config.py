@@ -84,7 +84,8 @@ async def test_unknown_library_is_none(supabase_on):
 
 def test_public_view_never_exposes_catalog_config():
     config = library_config._parse({**ROW, "catalog_config": {"base_url": "https://koha.example"}})
-    assert set(config.public()) == {"id", "name", "help_url", "enabled_tools", "ai_enabled"}
+    # feedback_enabled is a yes/no flag; the webhook URL itself stays private.
+    assert set(config.public()) == {"id", "name", "help_url", "enabled_tools", "ai_enabled", "feedback_enabled"}
 
 
 @pytest.mark.parametrize(

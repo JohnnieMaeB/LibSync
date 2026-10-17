@@ -150,6 +150,50 @@ describe("Widget mode (Tier 6)", () => {
     expect(screen.queryByLabelText("Type your question")).toBeNull();
   });
 
+  it("offers 'not helpful' only when the library collects feedback, and sends the exchange", async () => {
+    setWidgetUrl("?mode=widget&library=acme-library");
+    const feedbackBodies: unknown[] = [];
+    (fetch as any).mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).includes("/libraries/")) {
+        return { ok: true, json: async () => ({ id: "acme-library", name: "Acme", ai_enabled: true, feedback_enabled: true }) };
+      }
+      if (String(url).endsWith("/feedback")) {
+        feedbackBodies.push(JSON.parse(String(init?.body)));
+        return { ok: true, json: async () => ({ sent: true }) };
+      }
+      return makeStreamingResponse([
+        aguiEvent({ type: "RUN_STARTED", threadId: "t1", runId: "r1" }),
+        ...textMessageEvents("m1", ["We close at 8."]),
+        aguiEvent({ type: "RUN_FINISHED", threadId: "t1", runId: "r1" }),
+      ]);
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByLabelText("Type your question"), "When do you close?");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+    await screen.findByText("We close at 8.");
+    await user.click(await screen.findByRole("button", { name: /Not helpful: send this question and answer/ }));
+    expect(await screen.findByText(/Sent to library staff/)).toBeInTheDocument();
+    expect(feedbackBodies).toEqual([{ question: "When do you close?", answer: "We close at 8." }]);
+  });
+
+  it("does not offer 'not helpful' without library feedback", async () => {
+    setWidgetUrl("?mode=widget&library=acme-library");
+    routeFetch(
+      makeStreamingResponse([
+        aguiEvent({ type: "RUN_STARTED", threadId: "t1", runId: "r1" }),
+        ...textMessageEvents("m1", ["ok"]),
+        aguiEvent({ type: "RUN_FINISHED", threadId: "t1", runId: "r1" }),
+      ]),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByLabelText("Type your question"), "Hi");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+    await screen.findByText("ok");
+    expect(screen.queryByRole("button", { name: /Not helpful/ })).toBeNull();
+  });
+
   it("keeps the chat when the settings lookup fails", async () => {
     setWidgetUrl("?mode=widget&library=acme-library");
     (fetch as any).mockRejectedValue(new Error("offline"));
