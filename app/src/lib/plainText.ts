@@ -15,6 +15,14 @@ export function blocksToPlainText(blocks: Block[]): string {
       if (block.type === "citation") {
         return block.data.formatted;
       }
+      if (block.type === "account") {
+        const { items } = block.data;
+        return [
+          `Checked out: ${(items.charged ?? []).join(", ") || "none"}`,
+          `Overdue: ${(items.overdue ?? []).join(", ") || "none"}`,
+          `On hold: ${(items.holds ?? []).join(", ") || "none"}`,
+        ].join(". ");
+      }
       // research
       const intro = block.intro || "";
       const works = block.works

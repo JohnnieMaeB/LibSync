@@ -33,7 +33,18 @@ export type Block =
   | { type: "text"; key: string; text: string }
   | { type: "book"; key: string; number: number; data: BookCardData }
   | { type: "research"; key: string; intro?: string; works: NumberedWork[] }
-  | { type: "citation"; key: string; number: number; data: CitationCardData };
+  | { type: "citation"; key: string; number: number; data: CitationCardData }
+  | { type: "account"; key: string; data: AccountSummaryData };
+
+// Tier 9 Phase 38: a signed-in patron's own account, straight from the
+// library's ILS. Rendered in the patron's browser only; the titles are never
+// sent to the AI model.
+export interface AccountSummaryData {
+  counts: Record<string, number>;
+  items: { charged?: string[]; overdue?: string[]; holds?: string[] };
+  fees?: string | null;
+  message?: string | null;
+}
 
 export type BotStatus = "loading" | "tool" | "streaming" | "done" | "error" | "stopped";
 

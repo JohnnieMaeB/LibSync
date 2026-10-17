@@ -120,6 +120,7 @@ async def agent_endpoint(request: Request):
         library_id=gated.library_id,
         enabled_tools=gated.enabled_tools,
         library_config=gated.config,
+        patron=gated.patron,
     )
 
     # AGUIAdapter.run_stream_native folds the frontend's sent messages onto

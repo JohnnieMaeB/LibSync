@@ -30,6 +30,7 @@ from app.schemas import Book, BookResult, Citation, ResearchResult, ScholarlyWor
 from app.library_config import LibraryConfig
 from app.library_config import get_library_secret
 from app.services import catalog, citation_service, crossref_service, libcal, openalex_service, overdrive
+from app.services.sip2 import SIP2Client
 from app.services.pinecone_service import search_pinecone
 from app.tenants import TOOL_GROUPS, policy_namespace
 from app.session_store import session_store
@@ -148,6 +149,7 @@ _TOOL_NAMES = (
     "lookup_and_cite",
     "check_ebook_availability",
     "check_room_availability",
+    "check_my_account",
 )
 _LEAKED_TOOL_CALL_PATTERN = re.compile(
     r"<function=" r"|<(?:" + "|".join(_TOOL_NAMES) + r")\b" r'|"name"\s*:\s*"(?:' + "|".join(_TOOL_NAMES) + r')"'
@@ -312,6 +314,12 @@ def _library_instructions(ctx: RunContext[LibSyncDeps]) -> str | None:
             "questions, call `check_ebook_availability` and report its live copy and hold counts instead of saying "
             "you can't check Libby."
         )
+    patron = ctx.deps.patron
+    if patron is not None and patron.kind == "card" and config.integration("sip2"):
+        lines.append(
+            "The patron is signed in with their library card. For questions about their own checkouts, due dates, "
+            "holds or fees, call `check_my_account`; it shows them the titles directly, so only discuss the counts."
+        )
     if config.integration("libcal"):
         lines.append(
             "For questions about free study or meeting rooms on a date, call `check_room_availability` and point "
@@ -391,6 +399,47 @@ async def check_room_availability(ctx: RunContext[LibSyncDeps], date: str) -> st
         for room in rooms
     ]
     return f"Free times on {date}:\n" + "\n".join(lines) + footer
+
+
+async def _when_signed_in_with_card(ctx: RunContext[LibSyncDeps], tool_def: ToolDefinition) -> ToolDefinition | None:
+    """Only for a patron signed in with their card, at a library with SIP2,
+    unless the library switched the "account" group off (Tier 9 Phase 38)."""
+    patron, config = ctx.deps.patron, ctx.deps.library_config
+    if patron is None or patron.kind != "card" or not patron.card or config is None or not config.integration("sip2"):
+        return None
+    return await _tool_group_switch("account")(ctx, tool_def)
+
+
+@chat_agent.tool(prepare=_when_signed_in_with_card)
+async def check_my_account(ctx: RunContext[LibSyncDeps]) -> ToolReturn:
+    """Look up the signed-in patron's own library account: how many items are
+    checked out, overdue, or on hold, and any fees. Use only when the patron
+    asks about their own account."""
+    config, patron = ctx.deps.library_config, ctx.deps.patron
+    try:
+        password = await get_library_secret(ctx.deps.http_client, config.id, "sip2_password")
+        async with SIP2Client(config.integration("sip2"), password) as sip:
+            info = await sip.patron_information(patron.card)
+    except Exception as error:
+        print("Account lookup failed:", type(error).__name__)  # never log the card
+        return ToolReturn(return_value="The library's account system didn't respond. Suggest asking library staff.")
+
+    counts = info.counts
+    # Privacy by design: the model (and so the AI provider) gets only counts.
+    # The titles, which are library records protected by state law, go
+    # straight to the patron's own screen in the account card's CUSTOM event.
+    summary = (
+        f"The patron has {counts.get('charged', 0)} item(s) checked out, {counts.get('overdue', 0)} overdue, "
+        f"{counts.get('holds', 0)} hold(s), and fees of {info.fee_amount or '0.00'}. "
+        "The titles are shown to the patron in an account card; don't ask them to repeat them, and don't guess them."
+    )
+    card = {
+        "counts": counts,
+        "items": info.items,
+        "fees": info.fee_amount,
+        "message": info.screen_message,
+    }
+    return ToolReturn(return_value=summary, metadata=_custom_event("account_summary", card))
 
 
 @chat_agent.tool(prepare=_tool_group_switch("research"))
