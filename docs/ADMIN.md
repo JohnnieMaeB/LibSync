@@ -23,6 +23,12 @@ Google account, or an emailed link, and control their library's assistant:
   for its library without the browser-only checks, but can't use an assistant the library switched off.
 - **Patron feedback.** Set an https webhook and patrons in your website's chat get a "Not helpful" option that,
   when they choose it, sends that question and answer to the webhook. LibSync keeps no copy.
+- **Patron sign-in (optional).** Under Integrations → Patron sign-in (SIP2), enter your SIP2 server and a SIP
+  account for LibSync; patrons can then sign in with their library card and PIN, checked by your ILS. With
+  Supabase on, email sign-in is offered too (LibSync creates the patron's account and emails the link). Needs
+  `PATRON_SESSION_SECRET` on the backend (any long random string). Patrons are never required to sign in.
+  For a library-branded copy of the full app, link to `…/LibSync/?library=<your-id>` (remembered on that device)
+  or set `VITE_LIBRARY_ID` on a dedicated deployment.
 - **Usage.** Questions answered, errors and what the assistant looked up, by day, over 7, 30 or 90 days. Counted
   from diagnostic traces, which never contain what patrons wrote. Needs `LOGFIRE_READ_TOKEN` on the backend: a
   Logfire *read* token (Logfire → Settings → Read tokens), separate from the write token used for tracing.

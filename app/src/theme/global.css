@@ -1174,3 +1174,56 @@ a.work-card-title:hover {
     text-align: left;
     border-bottom: 1px solid var(--ls-border);
 }
+
+/* Tier 9: optional patron account, at the foot of the sidebar. */
+.sidebar-footer {
+    margin-top: auto;
+    padding: 12px;
+    border-top: 1px solid var(--ls-border);
+}
+
+.patron-account {
+    font-size: 0.85rem;
+    color: var(--ls-text);
+}
+
+.patron-account form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.patron-account input {
+    padding: 6px 8px;
+    font: inherit;
+    color: var(--ls-text);
+    background: var(--ls-bubble-bot);
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-sm);
+}
+
+.patron-account form button {
+    padding: 6px 12px;
+    font: inherit;
+    color: #000;
+    background: var(--ls-accent);
+    border: none;
+    border-radius: var(--ls-radius-pill);
+    cursor: pointer;
+}
+
+.patron-link {
+    padding: 0;
+    font: inherit;
+    color: var(--ls-accent);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.patron-hint {
+    margin: 4px 0 0;
+    color: var(--ls-text-muted);
+}

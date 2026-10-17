@@ -8,7 +8,7 @@ import { API_BASE_URL } from "../config";
 // The assistant only gets a vendor's tool when that vendor is filled in here.
 
 interface VendorSpec {
-  id: "overdrive" | "libcal" | "libanswers";
+  id: "overdrive" | "libcal" | "libanswers" | "sip2";
   title: string;
   note: string;
   fields: { key: string; label: string; placeholder?: string }[];
@@ -37,6 +37,20 @@ export const VENDORS: VendorSpec[] = [
       { key: "booking_url", label: "Booking page URL", placeholder: "https://yourlibrary.libcal.com/reserve" },
     ],
     secret: { name: "libcal_client_secret", label: "API client secret" },
+  },
+  {
+    id: "sip2",
+    title: "Patron sign-in (SIP2)",
+    note: "Lets patrons sign in with their library card and PIN, checked by your ILS. Use TLS or a VPN: SIP2 replies include patron details. LibSync never stores PINs.",
+    fields: [
+      { key: "host", label: "SIP2 server host" },
+      { key: "port", label: "SIP2 port", placeholder: "6001" },
+      { key: "tls", label: 'TLS ("true" or "false")', placeholder: "true" },
+      { key: "institution_id", label: "Institution ID (AO)" },
+      { key: "login_user", label: "SIP2 login user (CN)" },
+      { key: "location", label: "Location code (CP, optional)" },
+    ],
+    secret: { name: "sip2_password", label: "SIP2 login password (CO)" },
   },
   {
     id: "libanswers",

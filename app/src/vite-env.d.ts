@@ -8,4 +8,6 @@ interface ImportMetaEnv {
   // Staff dashboard (Tier 8). Both public by design; unset = dashboard off.
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
+  // Tier 9: a deployment dedicated to one library.
+  readonly VITE_LIBRARY_ID?: string;
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ConversationSummary } from "../types";
 import { SidebarConversationItem } from "./SidebarConversationItem";
 
@@ -12,6 +13,7 @@ export function Sidebar({
   onSelect,
   onRename,
   onDelete,
+  footer,
 }: {
   conversations: ConversationSummary[];
   activeId: string | null;
@@ -23,6 +25,7 @@ export function Sidebar({
   onSelect: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  footer?: ReactNode;
 }) {
   return (
     <nav className={`sidebar${collapsed ? " collapsed" : ""}${open ? " open" : ""}`} aria-label="Conversations">
@@ -59,6 +62,7 @@ export function Sidebar({
           ))}
         </ul>
       )}
+      {footer && !collapsed && <div className="sidebar-footer">{footer}</div>}
     </nav>
   );
 }
