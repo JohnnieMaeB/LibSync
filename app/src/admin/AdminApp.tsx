@@ -4,6 +4,7 @@ import { getSupabase } from "./supabaseClient";
 import { safeHelpUrl } from "../widget";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { CatalogPanel } from "./CatalogPanel";
+import { StatsPanel } from "./StatsPanel";
 
 // Tier 8 Phase 30: the staff dashboard at #/admin. Staff sign in with their
 // work Microsoft or Google account (or an emailed link), and edit only the
@@ -152,6 +153,7 @@ function Libraries({ client, accessToken }: { client: SupabaseClient; accessToke
           <LibrarySettings client={client} library={library} />
           <DocumentsPanel libraryId={library.id} accessToken={accessToken} />
           <CatalogPanel client={client} library={library} />
+          <StatsPanel libraryId={library.id} accessToken={accessToken} />
         </div>
       ))}
     </>
