@@ -11,6 +11,8 @@ export interface PublicLibraryConfig {
   helpUrl: string | null;
   aiEnabled: boolean;
   feedbackEnabled: boolean;
+  // Tier 9: patron sign-in options ("card", "email"); empty = anonymous only.
+  patronSignIn: string[];
 }
 
 export async function fetchLibraryConfig(libraryId: string): Promise<PublicLibraryConfig | null> {
@@ -24,6 +26,7 @@ export async function fetchLibraryConfig(libraryId: string): Promise<PublicLibra
       helpUrl: safeHelpUrl(data.help_url),
       aiEnabled: data.ai_enabled !== false,
       feedbackEnabled: data.feedback_enabled === true,
+      patronSignIn: Array.isArray(data.patron_sign_in) ? data.patron_sign_in : [],
     };
   } catch {
     return null; // offline or backend asleep: never block the chat on settings

@@ -8,7 +8,9 @@ import { AppShell } from "./components/AppShell";
 import { useAgentStream } from "./hooks/useAgentStream";
 import { useConversations } from "./hooks/useConversations";
 import { generateId } from "./lib/id";
-import { getWidgetConfig, standaloneHelpUrl, type WidgetConfig } from "./widget";
+import { getWidgetConfig, standaloneHelpUrl, standaloneLibraryId, type WidgetConfig } from "./widget";
+import { PatronAccount } from "./components/PatronAccount";
+import { consumeMagicLink, loadSession, type PatronSession } from "./patron";
 import { useLibraryConfig } from "./libraryConfig";
 
 // Loaded only when a staff member opens #/admin, so the patron app never
@@ -170,6 +172,12 @@ function StandaloneApp() {
     removeConversation,
     persistActiveEntries,
   } = useConversations();
+  const [libraryId] = useState(() => standaloneLibraryId());
+  const library = useLibraryConfig(libraryId);
+  const [patron, setPatron] = useState<PatronSession | null>(() => loadSession(libraryId));
+  useEffect(() => {
+    consumeMagicLink(libraryId).then((session) => session && setPatron(session));
+  }, [libraryId]);
 
   return (
     <AppShell
@@ -179,6 +187,16 @@ function StandaloneApp() {
       onSelectConversation={selectConversation}
       onRenameConversation={renameConversation}
       onDeleteConversation={removeConversation}
+      sidebarFooter={
+        library && libraryId ? (
+          <PatronAccount
+            libraryId={libraryId}
+            methods={library.patronSignIn}
+            session={patron}
+            onSessionChange={setPatron}
+          />
+        ) : null
+      }
     >
       <div className="container">
         <ChatConversation
@@ -186,7 +204,10 @@ function StandaloneApp() {
           conversationId={activeId}
           initialEntries={activeEntries}
           onEntriesChange={persistActiveEntries}
-          helpUrl={standaloneHelpUrl()}
+          // Only claim a library that actually has settings: an unknown id
+          // would count against Tier 6's unregistered-embed grace quota.
+          libraryId={library ? libraryId : null}
+          helpUrl={library?.helpUrl ?? standaloneHelpUrl()}
         />
       </div>
     </AppShell>

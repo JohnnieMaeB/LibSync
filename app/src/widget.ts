@@ -37,6 +37,25 @@ export function getWidgetConfig(search: string = window.location.search): Widget
   };
 }
 
+// Tier 9: the standalone app can belong to a library (for patron accounts),
+// from ?library= (remembered) or a per-deployment VITE_LIBRARY_ID.
+const LIBRARY_PATTERN = /^[a-z0-9][a-z0-9-]{0,62}$/;
+export function standaloneLibraryId(search: string = window.location.search): string | null {
+  const fromUrl = new URLSearchParams(search).get("library")?.trim().toLowerCase();
+  try {
+    if (fromUrl && LIBRARY_PATTERN.test(fromUrl)) {
+      localStorage.setItem("libsync:library", fromUrl);
+      return fromUrl;
+    }
+    const stored = localStorage.getItem("libsync:library");
+    if (stored && LIBRARY_PATTERN.test(stored)) return stored;
+  } catch {
+    if (fromUrl && LIBRARY_PATTERN.test(fromUrl)) return fromUrl;
+  }
+  const fromEnv = import.meta.env.VITE_LIBRARY_ID?.trim().toLowerCase();
+  return fromEnv && LIBRARY_PATTERN.test(fromEnv) ? fromEnv : null;
+}
+
 // The standalone app's "Talk to a librarian" link, set per deployment.
 export function standaloneHelpUrl(): string | null {
   return safeHelpUrl(import.meta.env.VITE_LIBRARY_HELP_URL);

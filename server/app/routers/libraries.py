@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.library_config import get_library_config
 from app.rate_limit import RATE_LIMIT, limiter
+from app.routers.patrons import sign_in_methods
 from app.tenants import normalize_library_id
 
 router = APIRouter()
@@ -22,4 +23,5 @@ async def library_public_config(request: Request, library_id: str):
     config = await get_library_config(request.app.state.http_client, normalize_library_id(library_id))
     if config is None:
         return JSONResponse(status_code=404, content={"error": "No settings for this library."})
-    return config.public()
+    # Tier 9: which patron sign-in options to offer (empty = anonymous only).
+    return {**config.public(), "patron_sign_in": sign_in_methods(config)}

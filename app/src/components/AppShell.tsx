@@ -12,6 +12,7 @@ export function AppShell({
   onSelectConversation,
   onRenameConversation,
   onDeleteConversation,
+  sidebarFooter,
   children,
 }: {
   compact?: boolean;
@@ -21,6 +22,8 @@ export function AppShell({
   onSelectConversation: (id: string) => void;
   onRenameConversation: (id: string, title: string) => void;
   onDeleteConversation: (id: string) => void;
+  // Tier 9: the optional patron account panel.
+  sidebarFooter?: ReactNode;
   children: ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -58,6 +61,7 @@ export function AppShell({
         onSelect={onSelectConversation}
         onRename={onRenameConversation}
         onDelete={onDeleteConversation}
+        footer={sidebarFooter}
       />
       <div className="main-column">{children}</div>
     </div>

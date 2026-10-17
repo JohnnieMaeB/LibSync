@@ -19,9 +19,12 @@ Intelligence in Libraries](https://www.ala.org/tools/standards-and-guidelines/gu
 | Diagnostics (timing, tool names, token counts, errors, `library_id`) | Logfire, if the operator enables tracing | To find and fix failures | Logfire retention. **Message text is excluded** unless `LOGFIRE_INCLUDE_CONTENT` is turned on for local debugging |
 | IP address, request metadata | GitHub Pages and Render (hosting) | Delivering the site | Hosting providers' logs |
 | One question and answer, **only when the patron chooses "Not helpful"** in a library's chat that collects feedback | The library's own feedback webhook | So staff can follow up and improve answers | LibSync forwards it and keeps no copy; the library's own retention applies |
+| Library card number + PIN, **only if the patron chooses to sign in** | The library's own ILS, over SIP2 (encrypted), to check them | To confirm the card belongs to the patron | Neither is stored. LibSync returns an encrypted session token, held in the patron's browser for up to 12 hours, containing a one-way patron reference and the card number (encrypted, readable only by LibSync's server). The PIN is never stored, logged or put in the token |
+| Email address, **only if the patron chooses email sign-in** | Supabase Auth | To send a sign-in link | Until the patron's account is deleted |
 | Conversation history (standalone app) | The patron's own browser (IndexedDB) | So patrons can return to conversations | Until the patron deletes it from the sidebar or clears site data |
 
-LibSync has **no patron accounts, no advertising, no analytics trackers and no tracking cookies**. The widget on a
+Patron accounts are **optional** and off unless the library enables them. LibSync has **no advertising, no
+analytics trackers and no tracking cookies**. The widget on a
 library's website keeps nothing after the page is closed. Patrons are asked not to share card numbers, PINs or
 other personal details in the chat.
 

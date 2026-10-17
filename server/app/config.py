@@ -27,6 +27,9 @@ SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/") or None
 # Tier 8 (optional): a Logfire *read* token for per-library usage stats in the
 # dashboard. Unset = the stats panel says it isn't set up.
 LOGFIRE_READ_TOKEN = os.getenv("LOGFIRE_READ_TOKEN") or None
+# Tier 9 (optional): signs and encrypts patron sessions. Unset = patron
+# sign-in is off and the app stays fully anonymous, as before.
+PATRON_SESSION_SECRET = os.getenv("PATRON_SESSION_SECRET") or None
 SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY") or None
 # Patron messages and model replies stay out of traces unless explicitly
 # turned on for debugging: library records are confidential by law in 48

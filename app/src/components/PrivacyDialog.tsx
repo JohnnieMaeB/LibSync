@@ -81,8 +81,13 @@ export function PrivacyDialog({ helpUrl, onClose }: { helpUrl: string | null; on
             answer are sent to your library's staff. LibSync keeps no copy.
           </li>
           <li>
-            <strong>No accounts, ads or tracking cookies.</strong> Please don't share your library card number, PIN,
-            passwords or other personal details in the chat.
+            <strong>Signing in is optional.</strong> If your library offers it, you can sign in with your library card
+            (your library's own system checks your card and PIN; LibSync never keeps your PIN) or by email. You stay
+            signed in on this device for up to 12 hours.
+          </li>
+          <li>
+            <strong>No ads or tracking cookies.</strong> Please don't put your library card number, PIN, passwords or
+            other personal details in the chat itself.
           </li>
         </ul>
         <p>
