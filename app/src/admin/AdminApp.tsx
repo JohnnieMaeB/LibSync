@@ -157,7 +157,7 @@ function Libraries({ client, accessToken }: { client: SupabaseClient; accessToke
           <LibrarySettings client={client} library={library} />
           <DocumentsPanel libraryId={library.id} accessToken={accessToken} />
           <CatalogPanel client={client} library={library} />
-          <IntegrationsPanel client={client} library={library} />
+          <IntegrationsPanel client={client} library={library} accessToken={accessToken} />
           <StatsPanel libraryId={library.id} accessToken={accessToken} />
         </div>
       ))}
