@@ -14,7 +14,9 @@ export function useAutoScroll(entries: ChatEntry[]) {
 
   const isNearBottom = () => {
     const el = containerRef.current;
-    if (!el) return true;
+    // Before layout settles the box can measure 0 tall, which made any content
+    // look "scrolled away" and showed the button on an empty chat.
+    if (!el || el.clientHeight === 0) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_THRESHOLD;
   };
 
@@ -28,7 +30,9 @@ export function useAutoScroll(entries: ChatEntry[]) {
   useEffect(() => {
     const isNewEntry = entries.length !== prevLengthRef.current;
     prevLengthRef.current = entries.length;
-    if (isNewEntry) {
+    if (entries.length === 0) {
+      setShowScrollButton(false); // nothing to scroll to
+    } else if (isNewEntry) {
       scrollToBottom();
     } else if (isNearBottom()) {
       scrollToBottom();
