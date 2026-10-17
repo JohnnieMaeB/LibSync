@@ -583,9 +583,9 @@ is a system it already has. The decisions below come from research into the curr
 | **Library website** (WordPress, Drupal, LibGuides) | One `<script>` tag, iframe-isolated, the same way libraries already embed chat widgets | ✅ Tier 6 |
 | **Policies and FAQs** | Each library's own Pinecone namespace, filled from uploaded documents or its existing Springshare LibAnswers FAQs | Namespaces ✅; document upload built (with Supabase); FAQ sync planned |
 | **Catalog (ILS)** | One driver per ILS API, as Aspen Discovery does: Koha, Polaris and SRU, chosen per library in the dashboard, falling back to Open Library if a catalog fails | Built: SRU live-tested; Koha and Polaris await a sandbox |
-| **Human librarians** | Hand off to the library's existing LibChat (or email/phone), a path ALA's AI guidance requires | Planned (Tier 8) |
-| **Rooms and events** | Real availability from Springshare LibCal | Planned (Tier 8) |
-| **E-books** | OverDrive/Libby availability through the library's own Discovery API access | Planned (Tier 8) |
+| **Human librarians** | Hand off to the library's existing LibChat (or email/phone), a path ALA's AI guidance requires | ✅ "Talk to a librarian" link, also offered by the assistant when it can't help |
+| **Rooms and events** | Real availability from Springshare LibCal | Built (dashboard Integrations); awaits a LibCal account to verify |
+| **E-books** | OverDrive/Libby availability through the library's own Discovery API access | Built (dashboard Integrations); awaits OverDrive API access to verify |
 | **Staff accounts** | "Sign in with Microsoft / Google", using the work accounts staff already have, in a [staff dashboard](docs/ADMIN.md) for per-library settings | Built; switches on when Supabase is configured |
 | **Patron accounts** | Library card + PIN over SIP2, the cross-ILS standard; never stores the PIN | Planned (Tier 9) |
 | **Accessibility law** | WCAG 2.1 AA under the ADA Title II rule (due April 2027 or 2028, depending on the library's population), with a published conformance report | Automated checks on every push + [draft conformance report](docs/compliance/ACCESSIBILITY_CONFORMANCE_REPORT.md); manual review pending |

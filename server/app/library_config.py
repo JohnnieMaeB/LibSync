@@ -19,7 +19,9 @@ from app.config import SUPABASE_SECRET_KEY, SUPABASE_URL
 _CACHE_TTL_SECONDS = 60
 _cache: dict[str, tuple[float, "LibraryConfig | None"]] = {}
 
-_PUBLIC_COLUMNS = "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config"
+_PUBLIC_COLUMNS = (
+    "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config,integrations"
+)
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,12 @@ class LibraryConfig:
     allowed_origins: frozenset[str] | None = None
     catalog_driver: str = "openlibrary"
     catalog_config: dict | None = None
+    # Non-secret vendor settings (Phase 37T): {"overdrive": {...}, "libcal": {...}}.
+    integrations: dict | None = None
+
+    def integration(self, name: str) -> dict | None:
+        settings = (self.integrations or {}).get(name)
+        return settings if isinstance(settings, dict) and settings else None
 
     def public(self) -> dict:
         """What the patron app may see (never secrets or catalog config)."""
@@ -69,6 +77,7 @@ def _parse(row: dict) -> LibraryConfig:
         allowed_origins=frozenset(origins) if origins else None,
         catalog_driver=row.get("catalog_driver") or "openlibrary",
         catalog_config=row.get("catalog_config") or {},
+        integrations=row.get("integrations") or {},
     )
 
 

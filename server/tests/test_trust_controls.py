@@ -10,7 +10,8 @@ from app.agent import chat_agent
 from app.deps import LibSyncDeps
 from app.tenants import TOOL_GROUPS, parse_enabled_tools
 
-ALL_TOOLS = set(TOOL_GROUPS.values())
+# The two vendor tools (Phase 37T) are hidden unless the library configured them.
+ALL_TOOLS = set(TOOL_GROUPS.values()) - {"check_ebook_availability", "check_room_availability"}
 
 
 @pytest.mark.parametrize(

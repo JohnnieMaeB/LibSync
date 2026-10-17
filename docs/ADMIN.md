@@ -10,6 +10,11 @@ Google account, or an emailed link, and control their library's assistant:
   model.
 - **Allowed websites:** only these origins may embed the chat. Leave it empty to allow any.
 - **The embed snippet,** ready to paste.
+- **Integrations.** Connect OverDrive/Libby (the assistant then reports live copies and holds instead of saying it
+  can't check Libby) and Springshare LibCal (it can say which rooms are free on a day and link to your booking page).
+  Each needs that vendor's API credentials; the secrets are stored write-only. If the library's "Talk to a
+  librarian" link is set, the assistant also offers it whenever it can't help or a patron asks for a person. The
+  OverDrive and LibCal connections are written to the vendors' documented APIs but haven't been run against them yet.
 - **Usage.** Questions answered, errors and what the assistant looked up, by day, over 7, 30 or 90 days. Counted
   from diagnostic traces, which never contain what patrons wrote. Needs `LOGFIRE_READ_TOKEN` on the backend: a
   Logfire *read* token (Logfire → Settings → Read tokens), separate from the write token used for tracing.

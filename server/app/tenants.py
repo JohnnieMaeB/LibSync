@@ -61,6 +61,9 @@ TOOL_GROUPS: dict[str, str] = {
     "catalog": "search_catalog",
     "research": "search_scholarly_works",
     "citations": "lookup_and_cite",
+    # Phase 37T: only offered at all when the library configured the vendor.
+    "ebooks": "check_ebook_availability",
+    "rooms": "check_room_availability",
 }
 
 
