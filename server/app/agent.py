@@ -34,7 +34,7 @@ from app.bot_context.identity import PERSONA_PROMPT
 from app.bot_context.service_principles import SERVICE_PRINCIPLES
 from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
-from app.schemas import Book, BookResult, Citation, ResearchResult, ScholarlyWork
+from app.schemas import CATALOG_BOOKS_CONTEXT, BookResult, Citation, ResearchResult, ScholarlyWork
 from app.library_config import LibraryConfig
 from app.grounding import unsupported_quantities
 from app.library_config import get_library_secret
@@ -146,6 +146,10 @@ chat_agent = Agent(
     # stats (TIER8_PLAN.md §2.3) are a query over existing traces rather
     # than a second logging pipeline.
     metadata=lambda ctx: {"library_id": ctx.deps.library_id or "default"},
+    # Grounds structured book answers in the catalog's own results, via a
+    # Pydantic validator on BookResult. A lambda, so the helper (defined
+    # further down, after the tools) is looked up at validation time.
+    validation_context=lambda ctx: _validation_context(ctx),
 )
 
 # Some Llama models served via Groq occasionally leak a tool call into the
@@ -262,26 +266,11 @@ def _catalog_books_seen(messages) -> dict[str, dict]:
     return seen
 
 
-@chat_agent.output_validator
-def _ground_book_results(ctx: RunContext[LibSyncDeps], data: str | BookResult) -> str | BookResult:
-    """Structured book answers carry exactly what the catalog said. The model
-    restates book data when it builds a BookResult, and has been observed
-    upgrading "in catalog" to "available"; every fact the patron could act
-    on (availability, year, links, cover, author) is overwritten from the tool
-    result, and a book the catalog never returned is sent back as a retry."""
-    if not isinstance(data, BookResult):
-        return data
-    seen = _catalog_books_seen(ctx.messages)
-    grounded = []
-    for book in data.books:
-        source = seen.get(book.title.casefold().strip())
-        if source is None:
-            raise ModelRetry(
-                f'"{book.title}" was not in the search_catalog results. List only books search_catalog '
-                "returned, with their titles exactly as returned, or answer in plain text."
-            )
-        grounded.append(Book(**{key: source.get(key) for key in Book.model_fields}))
-    return data.model_copy(update={"books": grounded})
+def _validation_context(ctx: RunContext[LibSyncDeps]) -> dict:
+    """Pydantic validation context for structured outputs. pydantic-ai rebuilds
+    it at every step, so by the time the final BookResult is validated it holds
+    every book `search_catalog` returned this run (schemas.BookResult)."""
+    return {CATALOG_BOOKS_CONTEXT: _catalog_books_seen(ctx.messages)}
 
 
 def _tool_group_switch(group: str):
