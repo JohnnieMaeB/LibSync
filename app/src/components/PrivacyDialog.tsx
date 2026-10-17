@@ -83,7 +83,9 @@ export function PrivacyDialog({ helpUrl, onClose }: { helpUrl: string | null; on
           <li>
             <strong>Signing in is optional.</strong> If your library offers it, you can sign in with your library card
             (your library's own system checks your card and PIN; LibSync never keeps your PIN) or by email. You stay
-            signed in on this device for up to 12 hours.
+            signed in on this device for up to 12 hours. While signed in, conversations you have are also saved to your
+            account so they follow you to other devices; they're deleted after 90 days without use, or whenever you
+            delete them.
           </li>
           <li>
             <strong>No ads or tracking cookies.</strong> Please don't put your library card number, PIN, passwords or

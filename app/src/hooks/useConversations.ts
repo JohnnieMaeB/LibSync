@@ -11,11 +11,20 @@ function titleFromFirstMessage(text: string): string {
   return `${trimmed.slice(0, TITLE_MAX_LENGTH).trimEnd()}…`;
 }
 
+// Tier 9 Phase 37: optional server sync for signed-in patrons. IndexedDB stays
+// the source of truth for the UI; sync is best-effort, so being offline never
+// breaks the chat.
+export interface ConversationSync {
+  pull(): Promise<Conversation[]>;
+  push(conversation: Conversation): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 function toSummary(conversation: Conversation): ConversationSummary {
   return { id: conversation.id, title: conversation.title, updatedAt: conversation.updatedAt };
 }
 
-export function useConversations() {
+export function useConversations(sync: ConversationSync | null = null) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   // Every mount starts on a fresh, not-yet-persisted conversation (matching
   // ChatGPT/Claude's "new chat by default" behavior) — past conversations
@@ -25,10 +34,23 @@ export function useConversations() {
 
   useEffect(() => {
     void (async () => {
+      if (sync) {
+        // Bring this patron's synced conversations onto the device; the newer
+        // copy of each wins. Local-only conversations are left alone (they
+        // were made before signing in and aren't uploaded unasked).
+        try {
+          for (const remote of await sync.pull()) {
+            const local = await getConversation(remote.id);
+            if (!local || remote.updatedAt > local.updatedAt) await putConversation(remote);
+          }
+        } catch {
+          /* offline: keep what's on the device */
+        }
+      }
       const list = await listConversations();
       setConversations(list.map(toSummary));
     })();
-  }, []);
+  }, [sync]);
 
   const createConversation = useCallback(() => {
     const id = generateId();
@@ -46,21 +68,23 @@ export function useConversations() {
   const renameConversation = useCallback(async (id: string, title: string) => {
     const conversation = await getConversation(id);
     if (!conversation) return;
-    const updated = { ...conversation, title };
+    const updated = { ...conversation, title, updatedAt: Date.now() };
     await putConversation(updated);
+    sync?.push(updated).catch(() => {});
     setConversations((prev) => prev.map((c) => (c.id === id ? toSummary(updated) : c)));
-  }, []);
+  }, [sync]);
 
   const removeConversation = useCallback(
     async (id: string) => {
       await deleteConversation(id);
+      sync?.remove(id).catch(() => {});
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (activeId === id) {
         setActiveId(generateId());
         setActiveEntries([]);
       }
     },
-    [activeId],
+    [activeId, sync],
   );
 
   // Called by the conversation-scoped chat stream whenever its entries
@@ -79,11 +103,12 @@ export function useConversations() {
       entries,
     };
     await putConversation(conversation);
+    sync?.push(conversation).catch(() => {});
     setConversations((prev) => {
       const withoutThis = prev.filter((c) => c.id !== id);
       return [toSummary(conversation), ...withoutThis].sort((a, b) => b.updatedAt - a.updatedAt);
     });
-  }, []);
+  }, [sync]);
 
   return {
     conversations,

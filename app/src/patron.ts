@@ -1,4 +1,6 @@
 import { API_BASE_URL } from "./config";
+import type { ConversationSync } from "./hooks/useConversations";
+import type { Conversation } from "./types";
 
 // Tier 9 Phase 36: an optional patron session. The token is opaque (encrypted
 // and signed by the backend); it holds no PIN, and nothing in it is readable
@@ -81,4 +83,32 @@ export async function consumeMagicLink(libraryId: string | null): Promise<Patron
   } catch {
     return null;
   }
+}
+
+// Tier 9 Phase 37: the server side of a signed-in patron's history.
+export function conversationSync(session: PatronSession): ConversationSync {
+  const base = `${API_BASE_URL}/patron/conversations`;
+  const headers = { "X-LibSync-Patron": session.token };
+  async function check(response: Response) {
+    if (!response.ok) throw new Error(`sync failed (${response.status})`);
+    return response;
+  }
+  return {
+    async pull() {
+      return (await check(await fetch(base, { headers }))).json() as Promise<Conversation[]>;
+    },
+    async push(conversation) {
+      const { id, title, createdAt, updatedAt, entries } = conversation;
+      await check(
+        await fetch(`${base}/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ title, createdAt, updatedAt, entries }),
+        }),
+      );
+    },
+    async remove(id) {
+      await check(await fetch(`${base}/${encodeURIComponent(id)}`, { method: "DELETE", headers }));
+    },
+  };
 }

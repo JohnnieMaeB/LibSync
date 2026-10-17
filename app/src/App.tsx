@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "./components/Header";
 import { CapabilityLine } from "./components/CapabilityLine";
 import { AiNotice } from "./components/AiNotice";
@@ -10,7 +10,7 @@ import { useConversations } from "./hooks/useConversations";
 import { generateId } from "./lib/id";
 import { getWidgetConfig, standaloneHelpUrl, standaloneLibraryId, type WidgetConfig } from "./widget";
 import { PatronAccount } from "./components/PatronAccount";
-import { consumeMagicLink, loadSession, type PatronSession } from "./patron";
+import { consumeMagicLink, conversationSync, loadSession, type PatronSession } from "./patron";
 import { useLibraryConfig } from "./libraryConfig";
 
 // Loaded only when a staff member opens #/admin, so the patron app never
@@ -162,6 +162,14 @@ function WidgetApp({ config }: { config: WidgetConfig }) {
 }
 
 function StandaloneApp() {
+  const [libraryId] = useState(() => standaloneLibraryId());
+  const library = useLibraryConfig(libraryId);
+  const [patron, setPatron] = useState<PatronSession | null>(() => loadSession(libraryId));
+  useEffect(() => {
+    consumeMagicLink(libraryId).then((session) => session && setPatron(session));
+  }, [libraryId]);
+  // Phase 37: a signed-in patron's history also syncs to their account.
+  const sync = useMemo(() => (patron ? conversationSync(patron) : null), [patron]);
   const {
     conversations,
     activeId,
@@ -171,13 +179,7 @@ function StandaloneApp() {
     renameConversation,
     removeConversation,
     persistActiveEntries,
-  } = useConversations();
-  const [libraryId] = useState(() => standaloneLibraryId());
-  const library = useLibraryConfig(libraryId);
-  const [patron, setPatron] = useState<PatronSession | null>(() => loadSession(libraryId));
-  useEffect(() => {
-    consumeMagicLink(libraryId).then((session) => session && setPatron(session));
-  }, [libraryId]);
+  } = useConversations(sync);
 
   return (
     <AppShell
