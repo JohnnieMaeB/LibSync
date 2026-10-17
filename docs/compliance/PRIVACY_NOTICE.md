@@ -39,9 +39,13 @@ other personal details in the chat.
 
 ## Patron rights
 
-Patrons can delete their saved conversations at any time from the app's sidebar. Because LibSync keeps no chat
-database and no accounts, there is no server-side copy to request, correct or delete beyond the up-to-one-hour
-in-memory session, which expires on its own.
+Every patron can delete any conversation, or **all conversations on their device**, from the app's sidebar
+(with a confirmation step). Anonymous patrons have no server-side copy beyond the up-to-one-hour in-memory
+session, which expires on its own.
+
+Signed-in patrons also see **Your data** in the sidebar, which explains what's kept and for how long, and can
+**delete all of their synced history** across devices in one step. Synced history is deleted automatically after
+90 days without use. Signing out removes the session from the device; sessions expire after 12 hours.
 
 ## Operator checklist
 

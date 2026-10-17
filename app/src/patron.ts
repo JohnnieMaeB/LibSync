@@ -112,3 +112,12 @@ export function conversationSync(session: PatronSession): ConversationSync {
     },
   };
 }
+
+// Tier 9 Phase 39: delete everything synced to the patron's account.
+export async function deleteSyncedHistory(session: PatronSession): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/patron/conversations`, {
+    method: "DELETE",
+    headers: { "X-LibSync-Patron": session.token },
+  });
+  if (!response.ok) throw new Error("Couldn't delete your synced history. Try again.");
+}

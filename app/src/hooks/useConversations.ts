@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { deleteConversation, getConversation, listConversations, putConversation } from "../lib/db";
+import { clearConversations, deleteConversation, getConversation, listConversations, putConversation } from "../lib/db";
 import { generateId } from "../lib/id";
 import type { ChatEntry, Conversation, ConversationSummary } from "../types";
 
@@ -110,7 +110,17 @@ export function useConversations(sync: ConversationSync | null = null) {
     });
   }, [sync]);
 
+  // Phase 39: removes every conversation from this device only (a signed-in
+  // patron's synced copies are deleted separately, from "Your data").
+  const clearDevice = useCallback(async () => {
+    await clearConversations();
+    setConversations([]);
+    setActiveId(generateId());
+    setActiveEntries([]);
+  }, []);
+
   return {
+    clearDevice,
     conversations,
     activeId,
     activeEntries,
