@@ -595,6 +595,9 @@ is a system it already has. The decisions below come from research into the curr
 
 ## 🛠️ Future Enhancements
 
+**Next up:** research on what to build after Tier 9 (grounding, real-system verification, information literacy,
+readers' advisory, language access, an MCP server) is in [NEXT_FEATURES.md](NEXT_FEATURES.md).
+
 Planning for everything below lives in nine tiered documents rather than this section, so the detail stays
 up to date without bloating the README. Each is a standalone Markdown doc with an accompanying visual plan —
 the visual plans are self-contained HTML (no build step, no external requests) checked into
