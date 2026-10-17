@@ -1146,3 +1146,31 @@ a.work-card-title:hover {
     clip: rect(0 0 0 0);
     white-space: nowrap;
 }
+
+.admin-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.admin-stats dd {
+    margin: 0;
+    font-size: 1.4rem;
+    color: var(--ls-accent);
+}
+
+.admin table {
+    margin-top: 12px;
+    border-collapse: collapse;
+}
+
+.admin caption {
+    text-align: left;
+    font-weight: 600;
+}
+
+.admin th,
+.admin td {
+    padding: 4px 16px 4px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--ls-border);
+}

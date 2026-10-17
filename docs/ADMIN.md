@@ -10,6 +10,9 @@ Google account, or an emailed link, and control their library's assistant:
   model.
 - **Allowed websites:** only these origins may embed the chat. Leave it empty to allow any.
 - **The embed snippet,** ready to paste.
+- **Usage.** Questions answered, errors and what the assistant looked up, by day, over 7, 30 or 90 days. Counted
+  from diagnostic traces, which never contain what patrons wrote. Needs `LOGFIRE_READ_TOKEN` on the backend: a
+  Logfire *read* token (Logfire → Settings → Read tokens), separate from the write token used for tracing.
 - **Catalog.** Point book search at the library's own catalog: Koha (REST API), Polaris (PAPI) or any SRU server.
   Credentials are stored write-only. If the catalog doesn't answer, LibSync falls back to Open Library and tells the
   patron those results don't show the library's copies. The Koha and Polaris drivers are written to their vendors'
