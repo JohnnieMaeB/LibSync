@@ -36,7 +36,7 @@ A case passes only if all of its checks pass.
 
 ## The dataset
 
-[`dataset.py`](dataset.py) holds 22 cases across policy (each fact traced to a seed record id in
+[`dataset.py`](dataset.py) holds 23 cases across policy (each fact traced to a seed record id in
 `pinecone-scripts/upsert_pinecone_records.py`), catalog, research, citation, honesty boundaries, persona,
 multi-turn continuity, and prompt-injection resistance. Most mirror a turn in [DEMO_SCRIPT.md](../../DEMO_SCRIPT.md).
 When you change the seed data or the system prompt, update the affected cases in the same PR.
