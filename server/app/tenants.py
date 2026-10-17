@@ -64,6 +64,8 @@ TOOL_GROUPS: dict[str, str] = {
     # Phase 37T: only offered at all when the library configured the vendor.
     "ebooks": "check_ebook_availability",
     "rooms": "check_room_availability",
+    # Tier 9: only for patrons signed in with their card, at a SIP2 library.
+    "account": "check_my_account",
 }
 
 

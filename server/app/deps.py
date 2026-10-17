@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.library_config import LibraryConfig
+from app.patron_auth import PatronSession
 
 
 @dataclass
@@ -20,3 +21,5 @@ class LibSyncDeps:
     # The library's dashboard settings (Tier 8 Phase 30), or None — drives the
     # catalog driver (Phase 32).
     library_config: LibraryConfig | None = None
+    # Tier 9: the signed-in patron, if any (and only for this library).
+    patron: PatronSession | None = None

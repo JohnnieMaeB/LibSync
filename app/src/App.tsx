@@ -32,6 +32,7 @@ function ChatConversation({
   tools,
   helpUrl,
   feedbackEnabled = false,
+  patronToken = null,
   onClose,
 }: {
   conversationId: string;
@@ -41,6 +42,7 @@ function ChatConversation({
   tools?: string | null;
   helpUrl: string | null;
   feedbackEnabled?: boolean;
+  patronToken?: string | null;
   onClose?: () => void;
 }) {
   const [capabilityDismissed, setCapabilityDismissed] = useState(false);
@@ -50,6 +52,7 @@ function ChatConversation({
     onEntriesChange,
     libraryId,
     tools,
+    patronToken,
   });
   const chipsHidden = entries.length > 0;
 
@@ -68,7 +71,11 @@ function ChatConversation({
         const response = await fetch(`${API_BASE_URL}/feedback`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-LibSync-Library": libraryId },
-          body: JSON.stringify({ question: question.text, answer: blocksToPlainText(bot.blocks) }),
+          // A patron's own account card stays out of feedback.
+          body: JSON.stringify({
+            question: question.text,
+            answer: blocksToPlainText(bot.blocks.filter((b) => b.type !== "account")),
+          }),
         });
         return response.ok;
       } catch {
@@ -209,6 +216,7 @@ function StandaloneApp() {
           // Only claim a library that actually has settings: an unknown id
           // would count against Tier 6's unregistered-embed grace quota.
           libraryId={library ? libraryId : null}
+          patronToken={patron?.token ?? null}
           helpUrl={library?.helpUrl ?? standaloneHelpUrl()}
         />
       </div>

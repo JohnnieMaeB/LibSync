@@ -85,7 +85,8 @@ export function PrivacyDialog({ helpUrl, onClose }: { helpUrl: string | null; on
             (your library's own system checks your card and PIN; LibSync never keeps your PIN) or by email. You stay
             signed in on this device for up to 12 hours. While signed in, conversations you have are also saved to your
             account so they follow you to other devices; they're deleted after 90 days without use, or whenever you
-            delete them.
+            delete them. If you ask about your own account (what you have checked out, holds, fees), the titles come
+            straight from your library to your screen; the AI only sees how many there are.
           </li>
           <li>
             <strong>No ads or tracking cookies.</strong> Please don't put your library card number, PIN, passwords or

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from app import patron_auth
 from app.api_keys import library_for_key
 from app.library_config import LibraryConfig, effective_tools, get_library_config
 from app.tenants import normalize_library_id, parse_enabled_tools
@@ -25,6 +26,7 @@ class RequestLibrary:
     library_id: str | None
     enabled_tools: frozenset[str] | None
     config: LibraryConfig | None
+    patron: patron_auth.PatronSession | None = None
 
 
 async def gate_request(request: Request) -> RequestLibrary | JSONResponse:
@@ -53,7 +55,11 @@ async def gate_request(request: Request) -> RequestLibrary | JSONResponse:
             return JSONResponse(status_code=403, content={"error": registration_error})
 
     header_tools = parse_enabled_tools(request.headers.get("x-libsync-tools"))
-    return RequestLibrary(library_id, effective_tools(header_tools, config), config)
+    # A patron session only counts for the library it was issued for.
+    patron = patron_auth.verify(request.headers.get("x-libsync-patron"))
+    if patron is not None and patron.library_id != library_id:
+        patron = None
+    return RequestLibrary(library_id, effective_tools(header_tools, config), config, patron)
 
 
 async def _gate_api_key(request: Request, api_key: str) -> RequestLibrary | JSONResponse:

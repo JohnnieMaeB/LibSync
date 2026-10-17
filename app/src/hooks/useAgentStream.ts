@@ -93,8 +93,13 @@ function entriesToMessages(entries: ChatEntry[]): { id: string; role: string; co
   return messages;
 }
 
-function requestHeaders(libraryId: string | null, tools: string | null): Record<string, string> | undefined {
+function requestHeaders(
+  libraryId: string | null,
+  tools: string | null,
+  patronToken: string | null = null,
+): Record<string, string> | undefined {
   const headers: Record<string, string> = {};
+  if (patronToken) headers["X-LibSync-Patron"] = patronToken;
   if (libraryId) headers["X-LibSync-Library"] = libraryId;
   if (tools) headers["X-LibSync-Tools"] = tools;
   return Object.keys(headers).length ? headers : undefined;
@@ -106,6 +111,7 @@ export function useAgentStream({
   onEntriesChange,
   libraryId = null,
   tools = null,
+  patronToken = null,
 }: {
   conversationId: string;
   initialEntries: ChatEntry[];
@@ -117,6 +123,8 @@ export function useAgentStream({
   // Tool groups the embedding library allows (widget.ts), sent as
   // X-LibSync-Tools; null means all. TIER8_PLAN.md §2.8.
   tools?: string | null;
+  // Tier 9: the signed-in patron's opaque session token, if any.
+  patronToken?: string | null;
 }) {
   const [entries, setEntriesState] = useState<ChatEntry[]>(initialEntries);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -281,6 +289,19 @@ export function useAgentStream({
                 cardCount: finalCount,
                 blocks: [...e.blocks, { type: "research", key, intro: value.intro, works }],
               }));
+            } else if (name === "account_summary") {
+              const key = generateId();
+              patchBot(botId, (e) => ({
+                ...e,
+                blocks: [
+                  ...e.blocks,
+                  {
+                    type: "account",
+                    key,
+                    data: { counts: value.counts ?? {}, items: value.items ?? {}, fees: value.fees, message: value.message },
+                  },
+                ],
+              }));
             } else if (name === "citation") {
               cardCount += 1;
               const number = cardCount;
@@ -330,7 +351,7 @@ export function useAgentStream({
         const agent = new HttpAgent({
           url: `${API_BASE_URL}/agent`,
           threadId: input.threadId,
-          headers: requestHeaders(libraryId, tools),
+          headers: requestHeaders(libraryId, tools, patronToken),
         });
         agentRef.current = agent;
         const result = await runAgentOnce(agent, input, onEvent);
@@ -377,7 +398,7 @@ export function useAgentStream({
 
       setIsStreaming(false);
     },
-    [commitEntries, conversationId, patchBot, libraryId, tools],
+    [commitEntries, conversationId, patchBot, libraryId, tools, patronToken],
   );
 
   const sendMessage = useCallback(

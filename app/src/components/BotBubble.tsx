@@ -5,6 +5,7 @@ import { BookCard } from "./BookCard";
 import { ResearchResult } from "./ResearchResult";
 import { CitationCard } from "./CitationCard";
 import { MessageActions } from "./MessageActions";
+import { AccountCard } from "./AccountCard";
 
 const FALLBACK_TEXT = "Sorry, I couldn’t find an answer right now.";
 
@@ -68,6 +69,8 @@ export function BotBubble({
             return <ResearchResult key={block.key} intro={block.intro} works={block.works} />;
           case "citation":
             return <CitationCard key={block.key} data={block.data} number={block.number} />;
+          case "account":
+            return <AccountCard key={block.key} data={block.data} />;
           default:
             return null;
         }

@@ -1227,3 +1227,33 @@ a.work-card-title:hover {
     margin: 4px 0 0;
     color: var(--ls-text-muted);
 }
+
+/* Tier 9 Phase 38: a signed-in patron's own account card. */
+.account-card {
+    margin-top: 8px;
+    padding: 12px 14px;
+    background: #181818;
+    border: 1px solid var(--ls-border);
+    border-radius: var(--ls-radius-md);
+}
+
+.account-card h3 {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    color: var(--ls-accent);
+}
+
+.account-card ul {
+    margin: 0 0 8px;
+    padding-left: 1.1rem;
+}
+
+.account-card-section p {
+    margin: 0 0 8px;
+    color: var(--ls-text-muted);
+}
+
+.account-card-fees {
+    margin: 0;
+    font-weight: 600;
+}
