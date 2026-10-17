@@ -85,7 +85,7 @@ account" — signing in is a choice offered, not a wall blocking the chat.
 | Phase | Scope | Est. |
 |---|---|---|
 | **36** | *Built: card + PIN over SIP2 and Supabase email magic links, both ending in an encrypted, signed 12-hour LibSync session (Fernet) that never holds the PIN; an optional sign-in panel in the standalone app's sidebar for libraries that offer it; PIN-guessing rate limit. Needs PATRON_SESSION_SECRET.* Dual-mode auth: Supabase magic-link fallback + ILS card-number/PIN auth via SIP2 (default) or the ILS patron API (Koha REST, Polaris PAPI), built on Tier 8 Phase 35's SIP2 plumbing | 5–8 days |
-| **37** | Synced chat history: Tier 5's IndexedDB store gains a Supabase-backed sync layer for signed-in patrons; stays local-only for anonymous ones | 3–5 days |
+| **37** | *Built: conversations had while signed in sync to `patron_conversations` (backend-only table, one-way patron reference, 90-day retention, size and count caps); IndexedDB stays the UI's source of truth and sync is best-effort; pre-sign-in conversations are never uploaded unasked.* Synced chat history: Tier 5's IndexedDB store gains a Supabase-backed sync layer for signed-in patrons; stays local-only for anonymous ones | 3–5 days |
 | **38** | `patron_status` tool — real checkouts/holds/due dates, ILS-backed accounts only | 3–4 days |
 | **39** | Privacy controls: view/delete stored history, retention policy surfaced in-app, tied to the ALA privacy values already in the persona | 2–3 days |
 

@@ -16,7 +16,19 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import LOGFIRE_INCLUDE_CONTENT, LOGFIRE_TOKEN
 from app.rate_limit import limiter
-from app.routers import agent, chat, developer, documents, faq_sync, libraries, patrons, pinecone_query, stats, widget
+from app.routers import (
+    agent,
+    chat,
+    developer,
+    documents,
+    faq_sync,
+    libraries,
+    patron_history,
+    patrons,
+    pinecone_query,
+    stats,
+    widget,
+)
 
 
 @asynccontextmanager
@@ -69,3 +81,4 @@ app.include_router(stats.router)
 app.include_router(faq_sync.router)
 app.include_router(developer.router)
 app.include_router(patrons.router)
+app.include_router(patron_history.router)
