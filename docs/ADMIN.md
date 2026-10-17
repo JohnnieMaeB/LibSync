@@ -10,6 +10,9 @@ Google account, or an emailed link, and control their library's assistant:
   model.
 - **Allowed websites:** only these origins may embed the chat. Leave it empty to allow any.
 - **The embed snippet,** ready to paste.
+- **LibAnswers FAQs.** Connect LibAnswers under Integrations and press **Sync FAQs now**: your FAQs are copied into
+  the assistant's policy knowledge as one document, "LibAnswers FAQs" (each question kept with its answer). Sync
+  again after you edit FAQs; each sync replaces the previous copy.
 - **Integrations.** Connect OverDrive/Libby (the assistant then reports live copies and holds instead of saying it
   can't check Libby) and Springshare LibCal (it can say which rooms are free on a day and link to your booking page).
   Each needs that vendor's API credentials; the secrets are stored write-only. If the library's "Talk to a

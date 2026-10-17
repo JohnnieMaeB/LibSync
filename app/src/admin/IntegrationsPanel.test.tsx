@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntegrationsPanel } from "./IntegrationsPanel";
@@ -18,7 +18,7 @@ function setup(integrations: LibraryRow["integrations"] = {}) {
     allowed_origins: null,
     integrations,
   };
-  render(<IntegrationsPanel client={client as never} library={library} />);
+  render(<IntegrationsPanel client={client as never} library={library} accessToken="tok" />);
   return { update, upsert };
 }
 
@@ -45,5 +45,25 @@ describe("IntegrationsPanel (Tier 8 Phase 37T)", () => {
     await user.click(screen.getByRole("button", { name: "Save Springshare LibCal" }));
     expect(update).toHaveBeenCalledWith({ integrations: {} });
     expect(await screen.findByText("Disconnected.")).toBeInTheDocument();
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("syncs LibAnswers FAQs and reports how many", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ faq_count: 12, name: "LibAnswers FAQs" }) }));
+    vi.stubGlobal("fetch", fetchMock);
+    setup({ libanswers: { site: "lib.libanswers.com" } });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Sync FAQs now" }));
+    expect(await screen.findByText(/Synced 12 FAQs/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/admin/libraries/springfield-pl/faq-sync"), expect.objectContaining({ method: "POST" }));
+  });
+
+  it("shows why a sync couldn't run", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({ detail: "Connect LibAnswers under Integrations first." }) })));
+    setup();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Sync FAQs now" }));
+    expect(await screen.findByText("Connect LibAnswers under Integrations first.")).toBeInTheDocument();
   });
 });

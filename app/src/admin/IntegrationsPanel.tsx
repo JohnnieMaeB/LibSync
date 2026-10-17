@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LibraryRow } from "./AdminApp";
+import { API_BASE_URL } from "../config";
 
 // Tier 8 Phase 37T: services the library already subscribes to. Settings go in
 // libraries.integrations; client secrets go in library_secrets (write-only).
 // The assistant only gets a vendor's tool when that vendor is filled in here.
 
 interface VendorSpec {
-  id: "overdrive" | "libcal";
+  id: "overdrive" | "libcal" | "libanswers";
   title: string;
   note: string;
   fields: { key: string; label: string; placeholder?: string }[];
@@ -37,7 +38,48 @@ export const VENDORS: VendorSpec[] = [
     ],
     secret: { name: "libcal_client_secret", label: "API client secret" },
   },
+  {
+    id: "libanswers",
+    title: "Springshare LibAnswers",
+    note: "Copies your LibAnswers FAQs into the assistant's policy knowledge. Sync again whenever you change them.",
+    fields: [
+      { key: "site", label: "LibAnswers site", placeholder: "yourlibrary.libanswers.com" },
+      { key: "iid", label: "FAQ group ID (optional)" },
+      { key: "client_id", label: "API client ID" },
+    ],
+    secret: { name: "libanswers_client_secret", label: "API client secret" },
+  },
 ];
+
+function FaqSyncButton({ libraryId, accessToken }: { libraryId: string; accessToken: string }) {
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function sync() {
+    setBusy(true);
+    setStatus("Syncing FAQs…");
+    const response = await fetch(`${API_BASE_URL}/admin/libraries/${encodeURIComponent(libraryId)}/faq-sync`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).catch(() => null);
+    setBusy(false);
+    const body = response ? await response.json().catch(() => ({})) : {};
+    setStatus(
+      response?.ok
+        ? `Synced ${body.faq_count} FAQs. They now appear as "${body.name}" in your documents.`
+        : (body.detail ?? "Couldn't reach LibSync. Try again."),
+    );
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={sync} disabled={busy}>
+        {busy ? "Syncing…" : "Sync FAQs now"}
+      </button>
+      <p role="status">{status}</p>
+    </div>
+  );
+}
 
 function VendorForm({ client, library, vendor }: { client: SupabaseClient; library: LibraryRow; vendor: VendorSpec }) {
   const [values, setValues] = useState<Record<string, string>>(library.integrations?.[vendor.id] ?? {});
@@ -103,13 +145,24 @@ function VendorForm({ client, library, vendor }: { client: SupabaseClient; libra
   );
 }
 
-export function IntegrationsPanel({ client, library }: { client: SupabaseClient; library: LibraryRow }) {
+export function IntegrationsPanel({
+  client,
+  library,
+  accessToken,
+}: {
+  client: SupabaseClient;
+  library: LibraryRow;
+  accessToken: string;
+}) {
   return (
     <section aria-labelledby={`integrations-${library.id}`} className="admin-library">
       <h2 id={`integrations-${library.id}`}>Integrations</h2>
       <p>Connect services your library already uses. Clear a section's fields and save to disconnect it.</p>
       {VENDORS.map((vendor) => (
-        <VendorForm key={vendor.id} client={client} library={library} vendor={vendor} />
+        <div key={vendor.id}>
+          <VendorForm client={client} library={library} vendor={vendor} />
+          {vendor.id === "libanswers" && <FaqSyncButton libraryId={library.id} accessToken={accessToken} />}
+        </div>
       ))}
     </section>
   );

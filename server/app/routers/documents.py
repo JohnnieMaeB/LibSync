@@ -71,6 +71,12 @@ async def upload_document(request: Request, library_id: str, file: UploadFile):
     except DocumentError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
+    return await index_document(request, library_id, name, chunks, staff.user_id)
+
+
+async def index_document(request: Request, library_id: str, name: str, chunks: list[str], user_id: str) -> dict:
+    """Indexes `chunks` as document `name`, replacing any same-named one.
+    Shared by file upload and the LibAnswers FAQ sync (Phase 37T)."""
     doc_id = new_document_id()
     try:
         await anyio.to_thread.run_sync(upsert_chunks, library_id, chunk_records(doc_id, name, chunks))
@@ -84,7 +90,7 @@ async def upload_document(request: Request, library_id: str, file: UploadFile):
         request,
         "POST",
         "library_documents",
-        json={"id": doc_id, "library_id": library_id, "name": name, "chunk_count": len(chunks), "uploaded_by": staff.user_id},
+        json={"id": doc_id, "library_id": library_id, "name": name, "chunk_count": len(chunks), "uploaded_by": user_id},
     )
     for old in await _documents(request, library_id, name=name):
         if old["id"] != doc_id:
