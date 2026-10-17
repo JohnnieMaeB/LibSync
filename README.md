@@ -78,7 +78,7 @@ The project is currently in **active development**, focusing on technical experi
 - **Citation formatting:** [Crossref REST API](https://api.crossref.org/) (free, keyless) for bibliographic records, formatted by [citeproc-py](https://github.com/brechtm/citeproc-py) against real CSL 1.0.1 style files (APA/MLA/Chicago) — the same processor family Zotero uses
 - **Session continuity:** In-process, TTL-bounded session store keyed by the AG-UI thread id
 - **Observability:** [Logfire](https://logfire.pydantic.dev/) (free Hobby tier), opt-in via `LOGFIRE_TOKEN`
-- **Agent evals:** [pydantic-evals](https://ai.pydantic.dev/evals/) suite of 22 known-answer cases run against the real model and tools (grounded policy facts, catalog, research, citations, honesty boundaries, prompt-injection resistance), weekly in CI and on demand — see [server/evals/README.md](server/evals/README.md)
+- **Agent evals:** [pydantic-evals](https://ai.pydantic.dev/evals/) suite of 23 known-answer cases run against the real model and tools (grounded policy facts, catalog, research, citations, honesty boundaries, prompt-injection resistance), weekly in CI and on demand — see [server/evals/README.md](server/evals/README.md)
 - **Package Management:** [uv](https://docs.astral.sh/uv/) for the Python backend and IaC scripts
 - **Automation & DevOps:** GitHub Actions for CI/CD, Infrastructure as Code (IaC), automated GitHub Pages publishing with per-PR previews, and a weekly free-tier keep-alive ping
 - **Cloud Deployment:** Render
@@ -112,7 +112,7 @@ The project is currently in **active development**, focusing on technical experi
   history through an in-process, TTL-bounded session store, keyed by the AG-UI thread id.
 - **Observability:** Logfire traces tool calls and model usage when `LOGFIRE_TOKEN` is set, with every agent
   run tagged by `library_id`.
-- **Agent evals:** 22 known-answer cases run against the real model and tools, weekly and on demand, so
+- **Agent evals:** 23 known-answer cases run against the real model and tools, weekly and on demand, so
   provider breakage (like a retired model) and grounding regressions surface before patrons see them.
 - **Automation:** GitHub Actions provisions/updates Pinecone vectors (IaC), publishes `app/`'s build to
   GitHub Pages (production on push to `main`, isolated previews per open PR), and pings Pinecone/Render

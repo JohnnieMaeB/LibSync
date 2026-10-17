@@ -67,6 +67,18 @@ CASES: list[Case[EvalInput, EvalOutput, dict]] = [
         metadata={"category": "policy", "records": "pol3"},
         evaluators=(CalledTools(required=(POLICY,)), MentionsAll(facts=(("0.25", "25 cents"),))),
     ),
+    Case(
+        # Regression: production once answered "usually up to 2 additional
+        # three-week periods" when the policy says three renewals (pol14).
+        name="loan-and-renewals-combined",
+        inputs=EvalInput(question="How long can I borrow a book, and how many times can I renew it?"),
+        metadata={"category": "policy", "records": "pol2, pol14"},
+        evaluators=(
+            CalledTools(required=(POLICY,)),
+            MentionsAll(facts=(("three weeks", "3 weeks", "21 days"), ("three times", "3 times", "three renewals"))),
+            MentionsNone(phrases=("2 additional", "two additional", "up to 2 ", "up to two")),
+        ),
+    ),
     # --- Real catalog data (Open Library) ---
     Case(
         name="book-availability",

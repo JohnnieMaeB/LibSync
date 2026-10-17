@@ -14,7 +14,15 @@ import anyio
 import httpx
 from ag_ui.core import CustomEvent
 from pydantic_ai import Agent, AgentRunResultEvent, ModelRetry, RunContext
-from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPart, TextPartDelta, ToolReturn, ToolReturnPart
+from pydantic_ai.messages import (
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+    ToolReturn,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.groq import GroqModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
@@ -28,6 +36,7 @@ from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
 from app.schemas import Book, BookResult, Citation, ResearchResult, ScholarlyWork
 from app.library_config import LibraryConfig
+from app.grounding import unsupported_quantities
 from app.library_config import get_library_secret
 from app.services import catalog, citation_service, crossref_service, libcal, openalex_service, overdrive
 from app.services.sip2 import SIP2Client
@@ -58,6 +67,10 @@ several prices or tiers (for example black-and-white and color copies), give
 every one. If it returns nothing
 that answers the question, say plainly that you don't have information on
 that, suggest asking library staff, and never invent a policy or service.
+Say only what the policy text says: no numbers, services, steps, exceptions
+or "usually" qualifiers it doesn't contain. If a patron asks about something
+the policy leaves out (for example, whether a renewal can be done in person),
+say the policy doesn't cover it.
 
 For any question about a specific book or author — "is X available?", "who
 wrote X?", "when did X come out?" — call `search_catalog` and ground your
@@ -177,6 +190,61 @@ def _reject_leaked_tool_call_syntax(data: str | BookResult) -> str | BookResult:
             "answer in plain prose with no function/tool-call syntax of any kind."
         )
     return data
+
+
+# How many times the model may rephrase a policy answer before the patron gets
+# the policy text itself (grounded by construction) instead of an error.
+POLICY_GROUNDING_RETRIES = 2
+
+
+def _policy_turn_sources(messages) -> tuple[list[str], list[str]]:
+    """(policy text returned in the current turn, every tool result and patron
+    message in the conversation). The first decides whether the check applies;
+    the second is what a number in the answer may come from."""
+    last_prompt = max(
+        (i for i, m in enumerate(messages) for p in getattr(m, "parts", []) if isinstance(p, UserPromptPart)),
+        default=-1,
+    )
+    policy_now: list[str] = []
+    sources: list[str] = []
+    for index, message in enumerate(messages):
+        for part in getattr(message, "parts", []):
+            if isinstance(part, ToolReturnPart):
+                content = part.content if isinstance(part.content, str) else str(part.content)
+                sources.append(content)
+                if part.tool_name == "search_library_policies" and index > last_prompt:
+                    policy_now.append(content)
+            elif isinstance(part, UserPromptPart):
+                sources.append(part.content if isinstance(part.content, str) else str(part.content))
+    return policy_now, sources
+
+
+@chat_agent.output_validator
+def _ground_policy_numbers(ctx: RunContext[LibSyncDeps], data: str | BookResult) -> str | BookResult:
+    """Every number in a policy answer must come from what the policy search
+    returned (NEXT_FEATURES.md P0.1; app/grounding.py). On a miss the model is
+    told exactly which number and retries; if it still can't, the patron gets
+    the retrieved policy text verbatim rather than a wrong number or an error."""
+    if not isinstance(data, str):
+        return data
+    policy_now, sources = _policy_turn_sources(ctx.messages)
+    if not policy_now:
+        return data
+    unsupported = unsupported_quantities(data, sources)
+    if not unsupported:
+        return data
+    if ctx.retry < POLICY_GROUNDING_RETRIES:
+        raise ModelRetry(
+            f"Your answer states {', '.join(repr(q) for q in unsupported)}, which isn't in the library policy text "
+            "you retrieved. Only state numbers (amounts, limits, time periods, counts) that the policy gives. If the "
+            "policy doesn't say, tell the patron that and suggest asking library staff."
+        )
+    print("Policy answer fell back to verbatim policy text; unsupported:", unsupported)
+    return (
+        "Here's what the library's policy says:\n\n"
+        + "\n".join(policy_now)
+        + "\n\nFor anything the policy doesn't cover, please ask library staff."
+    )
 
 
 def _catalog_books_seen(messages) -> dict[str, dict]:

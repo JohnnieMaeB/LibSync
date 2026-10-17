@@ -71,7 +71,8 @@ catalog or policy MCP servers turned up.
 
 ### P0: make what exists trustworthy and real
 
-1. **Policy grounding guard** (closes the known embellishment problem).
+1. ✅ **Policy grounding guard** (closes the known embellishment problem). *Built: `app/grounding.py` plus an
+   output validator and a prompt rule; HHEM offline eval not yet added.*
    - A deterministic check that every number, price and duration in a policy answer appears in the retrieved
      policy text, the same approach as the book guard in #67. On a mismatch, the model retries.
    - A prompt rule: say only what the policy says, and suggest staff for anything else.

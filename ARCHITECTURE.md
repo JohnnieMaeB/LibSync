@@ -382,6 +382,17 @@ timing, tool names, token counts, errors and `library_id`. `LOGFIRE_INCLUDE_CONT
 local debugging only. The same phase hides switched-off tools from the model through each tool's `prepare` hook
 (`X-LibSync-Tools`, from the embed snippet's `data-tools`), so the model can't promise a lookup it can't do.
 
+**Policy answers may only state numbers the policy returned, checked deterministically.** Production once told a
+patron renewals were "up to 2" when the policy says three. `app/grounding.py` collects every quantity the policy
+search returned this turn (and any in the patron's question), with equivalent forms ("three weeks" = "21 days",
+"$0.25" = "25 cents"), and flags any number in the answer that isn't among them. Money is matched only against
+money. An `@chat_agent.output_validator` sends a flagged answer back with the exact numbers named; after two
+tries the patron gets the retrieved policy text verbatim instead of an error. It's an output validator rather
+than a Pydantic validator because policy answers are streamed plain text: a Pydantic `@field_validator` (via
+pydantic-ai's `validation_context`) would need a structured `PolicyAnswer` output, which would end streaming. The
+rule itself is plain functions, so it can move into a Pydantic validator if answers ever become structured. A
+prompt rule covers what numbers can't (invented services or steps), and the eval suite has a regression case.
+
 **Integrate with what libraries already run.** Supabase, Render and Pinecone are LibSync's own infrastructure,
 invisible to a library. Everything a library *touches* should be a system it already has. Research in October
 2026 ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026),
