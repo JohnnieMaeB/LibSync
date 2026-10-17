@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What our first agent evals caught in one day | LibSync build log</title>
+<meta name="description" content="LibSync is a $0/month library-assistant agent: PydanticAI on Groq's free tier, with Pinecone for policy retrieval and Open Library, OpenAlex and Crossref as its tools. By Tier 6 it had 100+ unit tests">
+
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/case-studies/2026-10-first-agent-evals/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../../feed.xml">
+<link rel="stylesheet" href="../../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What our first agent evals caught in one day">
+<meta property="og:description" content="LibSync is a $0/month library-assistant agent: PydanticAI on Groq's free tier, with Pinecone for policy retrieval and Open Library, OpenAlex and Crossref as its tools. By Tier 6 it had 100+ unit tests">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/case-studies/2026-10-first-agent-evals/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../../about/">About</a></li>
+<li><a href="../../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Case study</p>
+<h1>What our first agent evals caught in one day</h1>
+<p class="meta">October 2026 · <a href="https://github.com/JohnnieMaeB/LibSync/blob/main/docs/writeups/2026-10-first-agent-evals.md">source in the repo</a></p>
+<p><em>LibSync engineering notes, October 2026</em></p>
+<p>LibSync is a $0/month library-assistant agent: PydanticAI on Groq&#39;s free tier, with Pinecone for policy
+retrieval and Open Library, OpenAlex and Crossref as its tools. By Tier 6 it had 100+ unit tests, and every
+one of them passed. Unit tests mock every model and API, though. They show the code is correct, not that
+the agent is.</p>
+<p>So we wrote 22 known-answer cases with <a href="https://ai.pydantic.dev/evals/">pydantic-evals</a> and ran them
+against the real stack: the real model, real tools and real seed data. Each case checks behavior
+deterministically. Did the agent call the right tool? Does the answer contain the actual fact from the
+policy record (e.g. &quot;$0.25 per day&quot;, &quot;capped at $5&quot;)? Did it admit a gap instead of inventing a policy? No
+LLM-as-judge, so every failure has a concrete, reproducible reason.</p>
+<p>The first day of running them turned up five separate problems, and none of them was visible to the unit
+tests.</p>
+<h2>1. 0/22: both models had been retired</h2>
+<p>The very first run failed every case at the provider. Groq had retired <code>llama-3.3-70b-versatile</code>, and
+novita had retired the fallback, <code>DeepSeek-V3.2-Exp</code>. Both returned <code>404 model_not_found</code>. <code>FallbackModel</code>
+can route around one dead provider, but not two, so <strong>every chat turn in production was failing</strong>. To make
+it worse, patrons saw the raw exception text: <em>&quot;All models from FallbackModel failed (2 sub-exceptions)&quot;</em>.</p>
+<p><strong>Fix:</strong> current models, vetted by running the eval suite against each candidate before swapping it in. A
+failed turn now shows patrons a plain &quot;unable to reach the AI service&quot; message; the real error goes to the
+server log.</p>
+<p><strong>Lesson:</strong> a provider can retire a model without warning. A scheduled run against the real model is the
+only test that notices.</p>
+<h2>2. 12/22: the index held 10 of its 34 records</h2>
+<p>With working models, policy questions still failed in a strange way: the agent called the right tool,
+then answered without the fact. A direct Pinecone query explained it. Only records <code>pol1</code>–<code>pol10</code> ever
+came back. The index held <strong>10 vectors; the seed script defines 34.</strong> The upload workflow only runs when
+triggered by hand, and nobody ran it after the policy set was expanded from 10 to 34. So ever since Tier 1, the
+live assistant hadn&#39;t known about fine caps, renewal limits, holds, hotspots or replacement cards. It
+answered from what it was given, and politely left those out.</p>
+<p><strong>Fix:</strong> re-ran the (idempotent) upload. The suite went from 12/22 to 17/22 with no code change.</p>
+<p><strong>Lesson:</strong> &quot;the tool was called&quot; is a weak check. Checking for the <em>specific fact</em> in the reply is what
+caught a half-empty index.</p>
+<h2>3. The prompt was mostly reference documents</h2>
+<p>Groq&#39;s free tier caps <code>gpt-oss-120b</code> at <strong>8,000 tokens per minute and 200,000 per day</strong>. One request was
+about 3,800 tokens, which meant about two requests a minute and about 50 a day. Measuring the system prompt
+showed where they went: 64% of it was the RUSA reference guidelines, the ALA Library Bill of Rights and the
+ALA Core Values, pasted in word for word. Most of that text is written for desk staff (&quot;is easily
+identifiable as a staff member&quot;, &quot;shares the search screen&quot;) and is useless to a chatbot.</p>
+<p><strong>Fix:</strong> a distilled set of service principles the model can actually act on (clarify ambiguous questions,
+no judgment, intellectual freedom, privacy, refer to staff when out of scope), with the sources cited. The
+same pass fixed persona lines that invited made-up answers: &quot;aware of <em>all</em> library workshops&quot; became &quot;only
+ones the policy search returns&quot;. Requests dropped to about 2,200 tokens, so about 40% more requests fit in the daily budget.</p>
+<h2>4. The evals used up the fallback&#39;s credit</h2>
+<p>This one was our own fault. The suite first ran through the production <code>FallbackModel</code>, so every time Groq
+rate-limited an eval turn, the request quietly spilled onto the Hugging Face fallback. Its free credit is
+about $0.10 a month. One full suite run used it all up, leaving production with no working fallback.</p>
+<p><strong>Fixes:</strong></p>
+<ul>
+<li>Evals now target the primary model alone by default (<code>--with-fallback</code> to opt in).</li>
+<li>Production now chains <strong>three Groq models</strong>: <code>gpt-oss-120b</code>, then <code>qwen3.8-27b</code> (19/22 on the suite),
+then <code>gpt-oss-20b</code> (18/22). Groq limits each model separately, so that&#39;s three daily quotas before the
+paid-credit fallback. We verified the switch live by putting a model that 404s first in the chain.</li>
+<li>The weekly run moved to a low-traffic hour, since it shares the production model&#39;s daily budget.</li>
+</ul>
+<h2>5. A CI run that said nothing for 30 minutes</h2>
+<p>The first scheduled run hit the 30-minute job limit with an empty log. Python buffers output when it isn&#39;t
+writing to a terminal, and the progress bar doesn&#39;t render in Actions. Once we could see output, the cause
+was obvious. Groq&#39;s daily-limit errors say <em>&quot;try again in 7m30s&quot;</em>, and the retry code read that as 30
+seconds. It retried every case three times into a wall.</p>
+<p><strong>Fixes:</strong> unbuffered, line-per-case logging; Groq&#39;s minute- and hour-scale wait times parsed correctly;
+waits too long to be the per-minute limit fail the case immediately; and a 3-minute limit per case.</p>
+<h2>6. The first scheduled run went red, and mostly the model was right</h2>
+<p>The Monday run scored 16/22 (73%), under the 85% gate. The harness worked; what failed was more instructive:</p>
+<ul>
+<li><strong>Four &quot;failures&quot; were my checker.</strong> gpt-oss writes a narrow no-break space (U+202F) between a number and its unit
+(&quot;7 days&quot;) and curly apostrophes (&quot;doesn’t&quot;). The phrase checks compared plain ASCII, so correct replies, including
+an honest &quot;I&#39;m not seeing piano-lesson programming listed,&quot; were scored as misses. Checks now normalize first (NFKC,
+curly quotes and non-breaking hyphens to ASCII, collapsed whitespace), with tests for each.</li>
+<li><strong>One was stale data.</strong> The live record for <code>pol7</code> still said only &quot;$0.10 per page.&quot; The seed file added the color
+price on July 11, but the upsert script only inserted ids missing from the index, so edits to existing records never
+arrived (<code>pol9</code> too). The model was being honest. The script now updates changed records, and the runner has a
+deterministic pre-flight that compares the live index to the seed file before any LLM call.</li>
+<li><strong>One was real.</strong> On the Libby question the model called <code>search_catalog</code> and returned book cards instead of saying
+it can&#39;t check Libby. The prompt now routes those questions to a plain-text answer.</li>
+</ul>
+<p><strong>Lesson:</strong> evals have bugs, and so does the data they check. A red run is a prompt to look at all three: the agent,
+the checks, and the data.</p>
+<h2>Takeaways</h2>
+<ul>
+<li><strong>Mocked tests and live evals answer different questions.</strong> Both are needed. The unit suite stayed green
+through every problem above.</li>
+<li><strong>Check facts, not just tool calls.</strong> The most valuable check was &quot;does the reply contain the number from
+record <code>pol11</code>?&quot;</li>
+<li><strong>On a free tier, quotas are a design input.</strong> Prompt size, fallback order and eval scheduling all came
+down to Groq&#39;s per-model daily limits.</li>
+<li><strong>Evals have bugs too.</strong> Compare meaning, not bytes, and verify the data underneath them.</li>
+<li><strong>Evals cost money too.</strong> A test suite that shares production&#39;s budget can take production down, so
+isolate what it touches.</li>
+</ul>
+<p>The suite lives in <a href="https://github.com/JohnnieMaeB/LibSync/blob/main/server/evals/README.md"><code>server/evals/</code></a> and runs weekly in
+<a href="https://github.com/JohnnieMaeB/LibSync/blob/main/.github/workflows/agent-evals.yml">Agent Evals</a>.</p>
+
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
