@@ -14,6 +14,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from app import agent as agent_module
+from app.services import open_library_service
 from app import tenants
 from app.agent import chat_agent
 
@@ -137,7 +138,7 @@ async def catalog_tool_calling_model_function(messages: list[ModelMessage], info
 
 @pytest.fixture()
 def catalog_tool_calling_agent(monkeypatch):
-    monkeypatch.setattr(agent_module.open_library_service, "search_catalog", fake_search_catalog)
+    monkeypatch.setattr(open_library_service, "search_catalog", fake_search_catalog)
     with chat_agent.override(model=FunctionModel(catalog_tool_calling_model_function)):
         yield
 
@@ -162,20 +163,32 @@ BOOK_RESULT_ARGS = {
             "author": "Andy Weir",
             "first_publish_year": 2021,
             "cover_url": "https://covers.openlibrary.org/b/id/12345-M.jpg",
-            "availability": "lendable",
+            # Deliberately not what the catalog said ("lendable"): the
+            # grounding validator must replace it with the tool's value.
+            "availability": "available",
         }
     ],
 }
 
 
 async def structured_book_result_model_function(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
-    """Answers directly with the structured BookResult output tool, skipping
-    search_catalog — this test is only about the output_type plumbing."""
+    """Searches the catalog, then answers with the structured BookResult
+    output tool — restating one book with a wrong availability."""
+    for message in reversed(messages):
+        for part in message.parts:
+            if isinstance(part, ToolReturnPart) and part.tool_name == "search_catalog":
+                return ModelResponse(parts=[ToolCallPart(tool_name="final_result", args=BOOK_RESULT_ARGS)])
+    return ModelResponse(parts=[ToolCallPart(tool_name="search_catalog", args={"query": "Project Hail Mary"})])
+
+
+async def invented_book_model_function(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    """Answers with a book the catalog never returned, every time."""
     return ModelResponse(parts=[ToolCallPart(tool_name="final_result", args=BOOK_RESULT_ARGS)])
 
 
 @pytest.fixture()
-def structured_book_result_agent():
+def structured_book_result_agent(monkeypatch):
+    monkeypatch.setattr(open_library_service, "search_catalog", fake_search_catalog)
     with chat_agent.override(model=FunctionModel(structured_book_result_model_function)):
         yield
 
@@ -299,7 +312,13 @@ class TestChatEndpoint:
         assert isinstance(reply, dict)
         assert reply["intro"] == "Found one match:"
         assert reply["books"][0]["title"] == "Project Hail Mary"
+        # The catalog's value, not the model's restated "available".
         assert reply["books"][0]["availability"] == "lendable"
+
+    def test_a_book_the_catalog_never_returned_is_rejected(self, client):
+        with chat_agent.override(model=FunctionModel(invented_book_model_function)):
+            response = client.post("/chat", json={"message": "Is Project Hail Mary available?"})
+        assert response.status_code == 500  # retries exhausted rather than shipping an invented book
 
 
 class TestSessionContinuity:

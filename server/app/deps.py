@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.library_config import LibraryConfig
+
 
 @dataclass
 class LibSyncDeps:
@@ -15,3 +17,6 @@ class LibSyncDeps:
     # or None for all of them. TIER8_PLAN.md §2.8: a library can switch AI
     # features off.
     enabled_tools: frozenset[str] | None = None
+    # The library's dashboard settings (Tier 8 Phase 30), or None — drives the
+    # catalog driver (Phase 32).
+    library_config: LibraryConfig | None = None

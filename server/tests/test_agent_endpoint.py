@@ -11,6 +11,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolRetu
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 
 from app import agent as agent_module
+from app.services import open_library_service
 from app.agent import chat_agent
 from app.widget_registry import widget_registry
 from app.routers.agent import PATRON_ERROR_MESSAGE
@@ -288,7 +289,7 @@ class TestAgentEndpoint:
                 }
             ]
 
-        monkeypatch.setattr(agent_module.open_library_service, "search_catalog", fake_search_catalog)
+        monkeypatch.setattr(open_library_service, "search_catalog", fake_search_catalog)
 
         with chat_agent.override(model=FunctionModel(stream_function=tool_calling_stream_function)):
             response = client.post("/agent", json=_run_agent_input(thread_id="thread-3", content="Is Project Hail Mary available?"))
@@ -323,7 +324,7 @@ class TestAgentEndpoint:
                 },
             ]
 
-        monkeypatch.setattr(agent_module.open_library_service, "search_catalog", fake_search_catalog)
+        monkeypatch.setattr(open_library_service, "search_catalog", fake_search_catalog)
 
         with chat_agent.override(model=FunctionModel(stream_function=tool_calling_stream_function)):
             response = client.post("/agent", json=_run_agent_input(thread_id="thread-6", content="Any Andy Weir books?"))

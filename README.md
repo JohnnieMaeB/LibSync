@@ -582,7 +582,7 @@ is a system it already has. The decisions below come from research into the curr
 |---|---|---|
 | **Library website** (WordPress, Drupal, LibGuides) | One `<script>` tag, iframe-isolated, the same way libraries already embed chat widgets | ✅ Tier 6 |
 | **Policies and FAQs** | Each library's own Pinecone namespace, filled from uploaded documents or its existing Springshare LibAnswers FAQs | Namespaces ✅; document upload built (with Supabase); FAQ sync planned |
-| **Catalog (ILS)** | One driver per ILS API, as Aspen Discovery does: Koha first, then Polaris, with SRU as a fallback | Planned (Tier 8) |
+| **Catalog (ILS)** | One driver per ILS API, as Aspen Discovery does: Koha, Polaris and SRU, chosen per library in the dashboard, falling back to Open Library if a catalog fails | Built: SRU live-tested; Koha and Polaris await a sandbox |
 | **Human librarians** | Hand off to the library's existing LibChat (or email/phone), a path ALA's AI guidance requires | Planned (Tier 8) |
 | **Rooms and events** | Real availability from Springshare LibCal | Planned (Tier 8) |
 | **E-books** | OverDrive/Libby availability through the library's own Discovery API access | Planned (Tier 8) |

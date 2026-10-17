@@ -7,6 +7,8 @@ catalog_config:
   version         SRU version (default 1.1)
   query_template  CQL with {q}; default '"{q}"' (the server's default index)
   record_url      optional link template with {id}, {lccn} or {isbn}
+  items_tag       "952" for a Koha (Zebra) SRU server, to read item availability;
+                  leave unset elsewhere (other catalogs use 952 for other data)
 """
 
 import xml.etree.ElementTree as ET
@@ -39,4 +41,4 @@ async def search(client: httpx.AsyncClient, settings: dict, query: str, limit: i
     response.raise_for_status()
     root = ET.fromstring(response.content)
     records = root.findall(f".//{MARC_NS}record")
-    return parse_records(records, settings.get("record_url"))[:limit]
+    return parse_records(records, settings.get("record_url"), settings.get("items_tag"))[:limit]

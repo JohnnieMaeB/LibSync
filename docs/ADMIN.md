@@ -10,6 +10,10 @@ Google account, or an emailed link, and control their library's assistant:
   model.
 - **Allowed websites:** only these origins may embed the chat. Leave it empty to allow any.
 - **The embed snippet,** ready to paste.
+- **Catalog.** Point book search at the library's own catalog: Koha (REST API), Polaris (PAPI) or any SRU server.
+  Credentials are stored write-only. If the catalog doesn't answer, LibSync falls back to Open Library and tells the
+  patron those results don't show the library's copies. The Koha and Polaris drivers are written to their vendors'
+  documented APIs but haven't yet been run against a live server.
 - **Policy documents.** Upload PDFs, text, Markdown or HTML (up to 5 MB). The text is split into sections and
   indexed into the library's own search namespace, and from then on the assistant answers policy questions from
   these documents instead of LibSync's sample policies. Uploading a file with the same name replaces it, and

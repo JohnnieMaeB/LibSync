@@ -25,8 +25,12 @@ def _fields(record: ET.Element, tag: str) -> list[ET.Element]:
 
 
 def _clean(text: str) -> str:
-    # ISBD punctuation MARC leaves at the end of subfields (" /", " :", ",").
-    return re.sub(r"[\s/:;,.=]+$", "", text).strip()
+    # ISBD punctuation MARC leaves at the end of subfields (" /", " :", ","),
+    # keeping the period of a trailing initial ("Ursula K.").
+    cleaned = re.sub(r"[\s/:;,=]+$", "", text).strip()
+    if cleaned.endswith(".") and not re.search(r"[A-Z]\.$", cleaned):
+        cleaned = cleaned[:-1].rstrip()
+    return cleaned
 
 
 def _year(record: ET.Element) -> int | None:
@@ -45,18 +49,23 @@ def _year(record: ET.Element) -> int | None:
 
 
 def display_name(name: str) -> str:
-    """MARC stores personal names inverted ("Weir, Andy"); patrons read
-    "Andy Weir". Leaves corporate names and multi-comma forms alone."""
+    """MARC stores personal names inverted ("Weir, Andy", "Le Guin, Ursula
+    K."); patrons read "Andy Weir". Leaves multi-comma forms alone."""
     parts = [p.strip() for p in name.split(",")]
-    if len(parts) == 2 and all(parts) and " " not in parts[0]:
+    if len(parts) == 2 and all(parts):
         return f"{parts[1]} {parts[0]}"
     return name
 
 
-def _koha_item_availability(record: ET.Element) -> str | None:
+def _koha_item_availability(record: ET.Element, items_tag: str | None) -> str | None:
     """Koha embeds its items in 952: $q = due date (checked out), $7 = not for
-    loan, $1 = lost, $0 = withdrawn. None when the record carries no items."""
-    items = _fields(record, "952")
+    loan, $1 = lost, $0 = withdrawn. Opt-in per server (`items_tag`), because
+    952 is a local field other catalogs use differently — the Library of
+    Congress's records carry one that has nothing to do with holdings. None
+    when not enabled or the record carries no items."""
+    if not items_tag:
+        return None
+    items = _fields(record, items_tag)
     if not items:
         return None
     for item in items:
@@ -66,18 +75,19 @@ def _koha_item_availability(record: ET.Element) -> str | None:
     return "checked out"
 
 
-def record_to_book(record: ET.Element, url_template: str | None = None) -> dict | None:
+def record_to_book(record: ET.Element, url_template: str | None = None, items_tag: str | None = None) -> dict | None:
     title_field = _field(record, "245")
     if title_field is None:
         return None
     title = ": ".join(filter(None, (_clean(part) for part in _subfields(title_field, "ab"))))
     if not title:
         return None
-    author_field = _field(record, "100")
-    if author_field is None:
-        author_field = _field(record, "110")
-    if author_field is not None:
-        author = display_name(_clean(" ".join(_subfields(author_field, "a"))))
+    personal = _field(record, "100")
+    corporate = _field(record, "110")
+    if personal is not None:
+        author = display_name(_clean(" ".join(_subfields(personal, "a"))))
+    elif corporate is not None:
+        author = _clean(" ".join(_subfields(corporate, "a")))
     else:
         author = _clean(" ".join(_subfields(title_field, "c"))) or "Unknown author"
 
@@ -105,9 +115,11 @@ def record_to_book(record: ET.Element, url_template: str | None = None) -> dict 
         "first_publish_year": _year(record),
         "cover_url": COVER_BY_ISBN.format(isbn=isbn) if isbn else None,
         "url": url,
-        "availability": _koha_item_availability(record) or "in catalog",
+        "availability": _koha_item_availability(record, items_tag) or "in catalog",
     }
 
 
-def parse_records(records: list[ET.Element], url_template: str | None = None) -> list[dict]:
-    return [book for book in (record_to_book(r, url_template) for r in records) if book]
+def parse_records(
+    records: list[ET.Element], url_template: str | None = None, items_tag: str | None = None
+) -> list[dict]:
+    return [book for book in (record_to_book(r, url_template, items_tag) for r in records) if book]
