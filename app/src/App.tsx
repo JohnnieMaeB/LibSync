@@ -10,6 +10,7 @@ import { useConversations } from "./hooks/useConversations";
 import { generateId } from "./lib/id";
 import { getWidgetConfig, standaloneHelpUrl, standaloneLibraryId, type WidgetConfig } from "./widget";
 import { PatronAccount } from "./components/PatronAccount";
+import { DeviceDataControls } from "./components/DataControls";
 import { consumeMagicLink, conversationSync, loadSession, type PatronSession } from "./patron";
 import { useLibraryConfig } from "./libraryConfig";
 
@@ -178,6 +179,7 @@ function StandaloneApp() {
   // Phase 37: a signed-in patron's history also syncs to their account.
   const sync = useMemo(() => (patron ? conversationSync(patron) : null), [patron]);
   const {
+    clearDevice,
     conversations,
     activeId,
     activeEntries,
@@ -197,14 +199,17 @@ function StandaloneApp() {
       onRenameConversation={renameConversation}
       onDeleteConversation={removeConversation}
       sidebarFooter={
-        library && libraryId ? (
-          <PatronAccount
-            libraryId={libraryId}
-            methods={library.patronSignIn}
-            session={patron}
-            onSessionChange={setPatron}
-          />
-        ) : null
+        <>
+          {library && libraryId && (
+            <PatronAccount
+              libraryId={libraryId}
+              methods={library.patronSignIn}
+              session={patron}
+              onSessionChange={setPatron}
+            />
+          )}
+          <DeviceDataControls onClearDevice={clearDevice} />
+        </>
       }
     >
       <div className="container">

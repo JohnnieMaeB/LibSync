@@ -435,8 +435,12 @@ the embeddable widget (6). Tier 4 deviated from [TIER4_PLAN.md](TIER4_PLAN.md) �
 `@ag-ui/client`'s `HttpAgent` directly rather than CopilotKit's React packages, which are built around a Node
 Copilot Runtime proxy this repo's Python AG-UI endpoint doesn't need.
 
-Tier 8 is in progress. The tenant groundwork (per-library namespaces, `library_id` on every trace) is merged.
-Next, in the recommended order from [TIER8_PLAN.md](TIER8_PLAN.md#5-roadmap-continues-tier-17s-phase-numbering):
-Supabase with staff sign-in (Phase 30), then trust and compliance (36T, the gate for any real library pilot),
-then document upload, ILS drivers, stats, and the Springshare and OverDrive integrations. See the full
-[roadmap](README.md#-future-enhancements) for Tiers 7–9.
+Tiers 7–9 are built (October 2026): the Android and iOS shells (7); the staff dashboard, per-library settings,
+document upload, ILS drivers, usage stats, Springshare and OverDrive integrations, and API keys (8); and optional
+patron accounts with SIP2 card sign-in, synced history, account lookups and privacy controls (9).
+
+Everything that needs an outside account is **off until configured** and falls back to today's behavior: Supabase
+for Tier 8 and email sign-in, a Logfire read token for stats, `PATRON_SESSION_SECRET` for patron sessions, and each
+library's own ILS, SIP2, Springshare and OverDrive credentials. Those integrations are written to the vendors'
+documented APIs and covered by mocked tests (SRU and Pinecone were also tested live); verifying them against real
+library systems is the next step. See the full [roadmap](README.md#-future-enhancements).

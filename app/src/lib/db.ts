@@ -49,3 +49,9 @@ export async function deleteConversation(id: string): Promise<void> {
   const db = await getDB();
   await db.delete(STORE_NAME, id);
 }
+
+// Tier 9 Phase 39: the patron's "delete everything on this device" control.
+export async function clearConversations(): Promise<void> {
+  const db = await getDB();
+  await db.clear(STORE_NAME);
+}

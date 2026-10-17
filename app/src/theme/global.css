@@ -1257,3 +1257,36 @@ a.work-card-title:hover {
     margin: 0;
     font-weight: 600;
 }
+
+/* Tier 9 Phase 39: privacy controls. */
+.patron-data {
+    margin: 8px 0;
+}
+
+.patron-data summary {
+    cursor: pointer;
+    color: var(--ls-accent);
+}
+
+.data-confirm {
+    padding: 8px;
+    font-size: 0.85rem;
+    background: rgba(232, 115, 92, 0.12);
+    border: 1px solid var(--ls-danger);
+    border-radius: var(--ls-radius-sm);
+}
+
+.data-confirm p {
+    margin: 0 0 6px;
+}
+
+.data-confirm-yes {
+    margin-right: 10px;
+    padding: 4px 12px;
+    font: inherit;
+    color: #000;
+    background: var(--ls-danger);
+    border: none;
+    border-radius: var(--ls-radius-pill);
+    cursor: pointer;
+}
