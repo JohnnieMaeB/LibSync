@@ -393,6 +393,13 @@ pydantic-ai's `validation_context`) would need a structured `PolicyAnswer` outpu
 rule itself is plain functions, so it can move into a Pydantic validator if answers ever become structured. A
 prompt rule covers what numbers can't (invented services or steps), and the eval suite has a regression case.
 
+**Structured answers are grounded by Pydantic validation.** Book answers *are* structured (`BookResult`), so their
+guard (#67) is a `@model_validator` on `BookResult` itself: every listed book must be one `search_catalog`
+returned, and its availability, year, author, links and cover are replaced with the catalog's own values. The
+agent supplies this turn's catalog results through pydantic-ai's `validation_context`, which it rebuilds at every
+step, and a failed validation becomes a retry. Built without that context (API responses, tests), `BookResult`
+is a plain model.
+
 **Integrate with what libraries already run.** Supabase, Render and Pinecone are LibSync's own infrastructure,
 invisible to a library. Everything a library *touches* should be a system it already has. Research in October
 2026 ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026),
