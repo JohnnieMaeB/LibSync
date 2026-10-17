@@ -77,6 +77,10 @@ export function PrivacyDialog({ helpUrl, onClose }: { helpUrl: string | null; on
             citations.
           </li>
           <li>
+            <strong>Feedback:</strong> if your library collects it and you choose "Not helpful", that one question and
+            answer are sent to your library's staff. LibSync keeps no copy.
+          </li>
+          <li>
             <strong>No accounts, ads or tracking cookies.</strong> Please don't share your library card number, PIN,
             passwords or other personal details in the chat.
           </li>

@@ -12,10 +12,12 @@ export function BotBubble({
   entry,
   onRegenerate,
   onRetry,
+  onFeedback,
 }: {
   entry: BotEntry;
   onRegenerate: (id: string) => void;
   onRetry: (id: string) => void;
+  onFeedback?: (id: string) => Promise<boolean>;
 }) {
   const isLoadingLike = entry.status === "loading" || entry.status === "tool";
   const className = ["bot", isLoadingLike ? "loading" : "", entry.status === "error" ? "error" : ""]
@@ -77,6 +79,7 @@ export function BotBubble({
         <MessageActions
           text={blocksToPlainText(entry.blocks)}
           onRegenerate={entry.isLatest ? () => onRegenerate(entry.id) : undefined}
+          onFeedback={onFeedback ? () => onFeedback(entry.id) : undefined}
         />
       )}
     </div>

@@ -20,7 +20,8 @@ _CACHE_TTL_SECONDS = 60
 _cache: dict[str, tuple[float, "LibraryConfig | None"]] = {}
 
 _PUBLIC_COLUMNS = (
-    "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config,integrations"
+    "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config,integrations,"
+    "feedback_webhook"
 )
 
 
@@ -36,6 +37,8 @@ class LibraryConfig:
     catalog_config: dict | None = None
     # Non-secret vendor settings (Phase 37T): {"overdrive": {...}, "libcal": {...}}.
     integrations: dict | None = None
+    # Phase 34: where patrons' "not helpful" feedback is posted (https only).
+    feedback_webhook: str | None = None
 
     def integration(self, name: str) -> dict | None:
         settings = (self.integrations or {}).get(name)
@@ -49,6 +52,7 @@ class LibraryConfig:
             "help_url": self.help_url,
             "enabled_tools": sorted(self.enabled_tools) if self.enabled_tools is not None else None,
             "ai_enabled": self.ai_enabled,
+            "feedback_enabled": bool(self.feedback_webhook),
         }
 
 
@@ -78,6 +82,7 @@ def _parse(row: dict) -> LibraryConfig:
         catalog_driver=row.get("catalog_driver") or "openlibrary",
         catalog_config=row.get("catalog_config") or {},
         integrations=row.get("integrations") or {},
+        feedback_webhook=row.get("feedback_webhook"),
     )
 
 
