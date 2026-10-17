@@ -5,6 +5,7 @@ import { safeHelpUrl } from "../widget";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { CatalogPanel } from "./CatalogPanel";
 import { StatsPanel } from "./StatsPanel";
+import { IntegrationsPanel } from "./IntegrationsPanel";
 
 // Tier 8 Phase 30: the staff dashboard at #/admin. Staff sign in with their
 // work Microsoft or Google account (or an emailed link), and edit only the
@@ -15,6 +16,8 @@ export const TOOL_GROUPS = [
   { id: "catalog", label: "Catalog search" },
   { id: "research", label: "Research papers" },
   { id: "citations", label: "Citations" },
+  { id: "ebooks", label: "E-book availability (OverDrive, if connected below)" },
+  { id: "rooms", label: "Room availability (LibCal, if connected below)" },
 ] as const;
 
 export interface LibraryRow {
@@ -26,10 +29,11 @@ export interface LibraryRow {
   allowed_origins: string[] | null;
   catalog_driver?: string;
   catalog_config?: Record<string, string> | null;
+  integrations?: Record<string, Record<string, string>> | null;
 }
 
 const LIBRARY_COLUMNS =
-  "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config";
+  "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config,integrations";
 
 function dashboardUrl(): string {
   return `${window.location.origin}${window.location.pathname}#/admin`;
@@ -153,6 +157,7 @@ function Libraries({ client, accessToken }: { client: SupabaseClient; accessToke
           <LibrarySettings client={client} library={library} />
           <DocumentsPanel libraryId={library.id} accessToken={accessToken} />
           <CatalogPanel client={client} library={library} />
+          <IntegrationsPanel client={client} library={library} />
           <StatsPanel libraryId={library.id} accessToken={accessToken} />
         </div>
       ))}

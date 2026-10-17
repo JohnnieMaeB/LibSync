@@ -28,7 +28,8 @@ from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
 from app.deps import LibSyncDeps
 from app.schemas import Book, BookResult, Citation, ResearchResult, ScholarlyWork
 from app.library_config import LibraryConfig
-from app.services import catalog, citation_service, crossref_service, openalex_service
+from app.library_config import get_library_secret
+from app.services import catalog, citation_service, crossref_service, libcal, openalex_service, overdrive
 from app.services.pinecone_service import search_pinecone
 from app.tenants import TOOL_GROUPS, policy_namespace
 from app.session_store import session_store
@@ -140,7 +141,14 @@ chat_agent = Agent(
 # `{"type": "function", "name": "search_catalog", ...}` JSON. Since `str` is
 # a valid final output on its own, the agent would otherwise accept any of
 # these as the reply. Retry instead of showing garbled syntax to a patron.
-_TOOL_NAMES = ("search_library_policies", "search_catalog", "search_scholarly_works", "lookup_and_cite")
+_TOOL_NAMES = (
+    "search_library_policies",
+    "search_catalog",
+    "search_scholarly_works",
+    "lookup_and_cite",
+    "check_ebook_availability",
+    "check_room_availability",
+)
 _LEAKED_TOOL_CALL_PATTERN = re.compile(
     r"<function=" r"|<(?:" + "|".join(_TOOL_NAMES) + r")\b" r'|"name"\s*:\s*"(?:' + "|".join(_TOOL_NAMES) + r')"'
 )
@@ -283,6 +291,106 @@ async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn
         return_value="\n".join(lines),
         metadata=[_custom_event("book_card", book) for book in results],
     )
+
+
+@chat_agent.instructions
+def _library_instructions(ctx: RunContext[LibSyncDeps]) -> str | None:
+    """Per-library guidance (Phases 30, 37T), added only for what the library
+    configured, so every other library gets exactly the static prompt."""
+    config = ctx.deps.library_config
+    if config is None:
+        return None
+    lines = []
+    if config.help_url:
+        lines.append(
+            "If you can't answer, the patron needs something only staff can do, or they ask for a person, "
+            f"give them this way to reach library staff: {config.help_url}"
+        )
+    if config.integration("overdrive"):
+        lines.append(
+            "This library's OverDrive/Libby collection is connected: for Libby or OverDrive e-book and audiobook "
+            "questions, call `check_ebook_availability` and report its live copy and hold counts instead of saying "
+            "you can't check Libby."
+        )
+    if config.integration("libcal"):
+        lines.append(
+            "For questions about free study or meeting rooms on a date, call `check_room_availability` and point "
+            "the patron to the booking link it returns; you can't book rooms yourself."
+        )
+    return "\n".join(lines) or None
+
+
+def _when_configured(group: str, integration: str):
+    """Hidden unless the library set up this vendor and hasn't switched the group off."""
+    switch = _tool_group_switch(group)
+
+    async def prepare(ctx: RunContext[LibSyncDeps], tool_def: ToolDefinition) -> ToolDefinition | None:
+        config = ctx.deps.library_config
+        if config is None or not config.integration(integration):
+            return None
+        return await switch(ctx, tool_def)
+
+    return prepare
+
+
+@chat_agent.tool(prepare=_when_configured("ebooks", "overdrive"))
+async def check_ebook_availability(ctx: RunContext[LibSyncDeps], query: str) -> str:
+    """Check live availability of an e-book or audiobook in this library's
+    OverDrive/Libby collection: copies available, copies owned, and holds.
+
+    Args:
+        query: A title and/or author.
+    """
+    config = ctx.deps.library_config
+    try:
+        secret = await get_library_secret(ctx.deps.http_client, config.id, "overdrive_client_secret")
+        results = await overdrive.search_availability(
+            ctx.deps.http_client, config.integration("overdrive"), secret, query
+        )
+    except Exception as error:
+        print("OverDrive lookup failed:", error)
+        return "Libby/OverDrive availability is temporarily unavailable. Suggest checking in the Libby app."
+    if not results:
+        return "No matching titles were found in this library's Libby/OverDrive collection."
+    lines = []
+    for item in results:
+        by = f" by {item['creator']}" if item.get("creator") else ""
+        formats = f" ({', '.join(item['formats'])})" if item.get("formats") else ""
+        counts = (
+            f"{item['copies_available']} of {item['copies_owned']} copies available, {item['holds']} holds"
+            if item.get("copies_owned") is not None
+            else "availability unknown"
+        )
+        lines.append(f'- "{item["title"]}"{by}{formats}: {counts}')
+    return "Live availability in this library's Libby/OverDrive collection:\n" + "\n".join(lines)
+
+
+@chat_agent.tool(prepare=_when_configured("rooms", "libcal"))
+async def check_room_availability(ctx: RunContext[LibSyncDeps], date: str) -> str:
+    """List which of the library's study or meeting rooms are free on a date
+    (read-only; booking happens on the library's LibCal page).
+
+    Args:
+        date: The day to check, as YYYY-MM-DD.
+    """
+    config = ctx.deps.library_config
+    settings = config.integration("libcal")
+    try:
+        secret = await get_library_secret(ctx.deps.http_client, config.id, "libcal_client_secret")
+        rooms = await libcal.room_availability(ctx.deps.http_client, settings, secret, date)
+    except Exception as error:
+        print("LibCal lookup failed:", error)
+        return "Room availability is temporarily unavailable."
+    booking = settings.get("booking_url")
+    footer = f"\nBook at: {booking}" if booking else ""
+    if not rooms:
+        return f"No rooms were listed for {date}.{footer}"
+    lines = [
+        f"- {room['name']}" + (f" (seats {room['capacity']})" if room.get("capacity") else "") + ": "
+        + (", ".join(room["free"]) if room["free"] else "no free times")
+        for room in rooms
+    ]
+    return f"Free times on {date}:\n" + "\n".join(lines) + footer
 
 
 @chat_agent.tool(prepare=_tool_group_switch("research"))

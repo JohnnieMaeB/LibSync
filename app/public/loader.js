@@ -15,7 +15,7 @@
  * Optional: data-help-url="https://library.example/ask" (where "Talk to a
  * librarian" goes: a chat page, mailto: or tel: link), and
  * data-tools="policies,catalog" (only these tool groups; the others are
- * research and citations).
+ * research, citations, ebooks and rooms).
  *
  * See TIER6_PLAN.md for the full design (iframe isolation, postMessage
  * contract, per-origin rate limiting on the backend).
