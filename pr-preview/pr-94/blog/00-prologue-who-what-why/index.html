@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who's building this, why, and why I'm posting it | LibSync build log</title>
+<meta name="description" content="A library AI assistant built on a $0 budget, with Claude Code as the builder and me as the architect, and why I'm writing it all down in public.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/00-prologue-who-what-why/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Who's building this, why, and why I'm posting it">
+<meta property="og:description" content="A library AI assistant built on a $0 budget, with Claude Code as the builder and me as the architect, and why I'm writing it all down in public.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/00-prologue-who-what-why/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Prologue</p>
+<h1>Who's building this, why, and why I'm posting it</h1>
+<p class="meta"><time datetime="2026-10-06">October 6, 2026</time></p>
+<p>In 2024 I left a corporate engineering job to find my place in AI. I went to grad school. I worked a public library&#39;s patron desk and a university accessibility office. Then I went back to building AI professionally. LibSync is where all of it meets.</p>
+<p>This is the first post in a series about building it, and before the technical posts begin I owe you the reasons: what the project is, who it&#39;s for, who is actually writing the code, and why I&#39;m talking about any of it in public.</p>
+<h2>What I believe</h2>
+<p>The AI conversation keeps sorting itself into two camps, hype and panic. I&#39;m not in either one. I think we can make AI ethical, interesting and useful, and I care most about the people technology tends to underserve, like disabled people.</p>
+<p>I also believe information should be available to everyone and, more importantly, <em>accessible</em> to everyone. Those are different things. A library can hold the answer to your question and still make it hard to get, and sometimes the barrier isn&#39;t a missing book. It&#39;s the social cost of asking a stranger.</p>
+<p>I&#39;m autistic, and I&#39;m painfully aware of how design choices can lock someone out of a space. For people like me, walking up to a desk and asking for help can be the barrier. I want an AI that makes asking a library a question easier, with a human always one click away. It isn&#39;t meant to replace the librarian. It&#39;s meant to make the first question cheaper to ask.</p>
+<h2>What LibSync is</h2>
+<p>LibSync is an AI assistant for public libraries. It answers the things people ask at a library desk: how much is the late fee, can I renew this twice, how do I cite that paper. It answers from sources it can point to, such as the library&#39;s own policies and open catalog and research data. When it can&#39;t check something, it says so instead of guessing.</p>
+<p>That last part matters more than it sounds, and it&#39;s a recurring character in this series. A confident wrong answer and a correct one look identical in a demo, and a library patron is the wrong person to hand a confident guess.</p>
+<p>I spent most of 2025 operating a Sierra ILS (an integrated library system) behind a public library desk. Building LibSync is how I&#39;m exploring the rest of library technology hands-on: the standards, the vendors and the way real libraries run their systems.</p>
+<h2>Who is writing the code</h2>
+<p>I&#39;m the architect. Claude Code is the builder, and it wrote nearly all of the code you&#39;ll read about. The first version, from last October, was mine, with another AI agent&#39;s help. Nearly everything built since July is Claude Code working under my direction.</p>
+<p>By day I build production AI agents. LibSync is where I explore the same ideas on my own time, in a field I care about. It&#39;s a portfolio project on a $0 budget, built around a full-time job and grad school, with no ops team and no QA department. That&#39;s exactly how things fall through the cracks, and I&#39;ll show you where they did.</p>
+<p>So the series has three threads, and every post pulls on all of them:</p>
+<ol>
+<li><strong>What Claude Code built</strong>, and how.</li>
+<li><strong>What it got wrong</strong>, and what finally caught it. Some of those mistakes were mine, and some belong to an earlier agent. I&#39;ll say whose, because naming it plainly is what makes any of this worth reading.</li>
+<li><strong>What I did as the architect.</strong> I set constraints, supplied the domain knowledge, asked the questions the agent couldn&#39;t, verified, and decided.</li>
+</ol>
+<p>Each post ends with an &quot;architect&#39;s note&quot;: one sentence of advice for anyone directing an AI coding agent. I&#39;m offering it as advice, not as a claim that I always follow it.</p>
+<h2>Why I&#39;m talking about any of this</h2>
+<p>Here&#39;s the honest reason: I have a lot left to learn, and I&#39;ve been trying to learn it in a vacuum. Library technology, agentic coding, accessibility done properly. All three have people who know far more than I do, and a vacuum has nobody to tell you you&#39;re wrong.</p>
+<p>So I&#39;m doing it in public: what I build, what breaks, and what I get wrong. I&#39;d rather be corrected by someone who knows than be quietly wrong where only I can see it.</p>
+<p>Yes, Claude Code helps draft these posts too, and I edit them. The first draft of this very series said we had 107 tests. We had 136. It also claimed that a server restart erased conversations, which stopped being true several versions earlier. Both errors were caught before publishing, and they tell you roughly how the whole series goes.</p>
+<h2>What&#39;s coming</h2>
+<p>Eighteen posts. They open with the Friday everything broke, then move through the answers the assistant gives, the interface it gives them in, the pipeline that ships it, the evals that tested it, and finally the question that reshaped the plan: how do real libraries actually run their systems?</p>
+<p>Everything is MIT licensed and in the open, including the decision records.</p>
+<p>If you work in libraries, accessibility or AI, I have a question for you before we start: <strong>what should I be learning that I don&#39;t know to look for?</strong></p>
+<p><em>Prologue. Next: Part 1, the Friday the preview died.</em></p>
+
+<nav class="series-nav" aria-label="Series">
+<span></span>
+<span><a href="../01-the-friday/">The Friday &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
