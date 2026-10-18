@@ -42,8 +42,8 @@ class BookResult(BaseModel):
             source = seen.get(book.title.casefold().strip())
             if source is None:
                 raise ValueError(
-                    f'"{book.title}" was not in the search_catalog results. List only books search_catalog '
-                    "returned, with their titles exactly as returned, or answer in plain text."
+                    f'"{book.title}" was not in the search_catalog or recommend_books results. List only books '
+                    "those tools returned, with their titles exactly as returned, or answer in plain text."
                 )
             grounded.append(Book(**{key: source.get(key) for key in Book.model_fields}))
         self.books = grounded

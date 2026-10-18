@@ -8,7 +8,7 @@ too small to serve as a primary provider.
 
 import re
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Literal
 
 import anyio
 import httpx
@@ -38,7 +38,15 @@ from app.schemas import CATALOG_BOOKS_CONTEXT, BookResult, Citation, ResearchRes
 from app.library_config import LibraryConfig
 from app.grounding import unsupported_quantities
 from app.library_config import get_library_secret
-from app.services import catalog, citation_service, crossref_service, libcal, openalex_service, overdrive
+from app.services import (
+    catalog,
+    citation_service,
+    crossref_service,
+    libcal,
+    openalex_service,
+    overdrive,
+    readers_advisory,
+)
 from app.services.sip2 import SIP2Client
 from app.services.pinecone_service import search_pinecone
 from app.tenants import TOOL_GROUPS, policy_namespace
@@ -92,6 +100,12 @@ on Libby, OverDrive, Kanopy, hoopla, or any other platform you can't check,
 answer in plain text instead of cards: say plainly that you can't see live
 availability there, share what the catalog did show, and tell them how to
 check in that app.
+
+For recommendations — "books like X", "something for a 10-year-old who loves
+dragons", "what should I read next?" — call `recommend_books` and suggest only
+the books it returns, as structured book data like a catalog answer. Never
+recommend a title from memory: it may not exist or not be in this library.
+If it returns nothing, say so and offer to search for a specific title.
 
 For research questions — "find papers on X", "who has written about X",
 "what's been cited by/citing this work" — call `search_scholarly_works`
@@ -162,6 +176,7 @@ chat_agent = Agent(
 _TOOL_NAMES = (
     "search_library_policies",
     "search_catalog",
+    "recommend_books",
     "search_scholarly_works",
     "lookup_and_cite",
     "check_ebook_availability",
@@ -251,13 +266,17 @@ def _ground_policy_numbers(ctx: RunContext[LibSyncDeps], data: str | BookResult)
     )
 
 
+_BOOK_TOOLS = ("search_catalog", "recommend_books")
+
+
 def _catalog_books_seen(messages) -> dict[str, dict]:
-    """Every book `search_catalog` returned this run, keyed by folded title,
-    read from the book_card events it attached to its tool returns."""
+    """Every book `search_catalog` or `recommend_books` returned this run,
+    keyed by folded title, read from the book_card events attached to their
+    tool returns."""
     seen: dict[str, dict] = {}
     for message in messages:
         for part in getattr(message, "parts", []):
-            if not isinstance(part, ToolReturnPart) or part.tool_name != "search_catalog":
+            if not isinstance(part, ToolReturnPart) or part.tool_name not in _BOOK_TOOLS:
                 continue
             events = part.metadata if isinstance(part.metadata, list) else [part.metadata]
             for event in events:
@@ -349,6 +368,46 @@ async def search_catalog(ctx: RunContext[LibSyncDeps], query: str) -> ToolReturn
     return ToolReturn(
         return_value="\n".join(lines),
         metadata=[_custom_event("book_card", book) for book in results],
+    )
+
+
+@chat_agent.tool(prepare=_tool_group_switch("recommendations"))
+async def recommend_books(
+    ctx: RunContext[LibSyncDeps],
+    like: str | None = None,
+    about: str | None = None,
+    audience: Literal["children", "teen", "adult"] | None = None,
+) -> ToolReturn:
+    """Recommend books (readers' advisory): read-alikes for a book the patron
+    enjoyed, or books on a topic, held by this library when its catalog is
+    connected. Suggest only what this returns.
+
+    Args:
+        like: A book (title and author if known) the patron wants more like.
+        about: A topic or theme, in a few words (e.g. "dragons", "climate fiction").
+        audience: Who the books are for: "children" (up to about 12), "teen", or
+            "adult". Always set it when the patron mentions a child, an age or a
+            grade.
+    """
+    if not like and not about:
+        return ToolReturn(return_value="Ask the patron for a book they enjoyed or a topic they'd like.")
+    try:
+        books, source, subjects = await readers_advisory.recommend(
+            ctx.deps.http_client, ctx.deps.library_config, like=like, about=about, audience=audience
+        )
+    except Exception as error:
+        print("Recommendation error:", type(error).__name__, error)
+        return ToolReturn(return_value="Recommendations are temporarily unavailable.")
+    if not books:
+        return ToolReturn(return_value=f"No recommendations were found in {source}.")
+
+    lines = [f"Recommendations from {source}, sharing the subjects: {', '.join(subjects) or about}."]
+    for book in books:
+        year = f" ({book['first_publish_year']})" if book.get("first_publish_year") else ""
+        lines.append(f'- "{book["title"]}" by {book["author"]}{year} — availability: {book["availability"]}')
+    return ToolReturn(
+        return_value="\n".join(lines),
+        metadata=[_custom_event("book_card", book) for book in books],
     )
 
 

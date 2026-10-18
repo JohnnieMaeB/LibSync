@@ -400,6 +400,14 @@ agent supplies this turn's catalog results through pydantic-ai's `validation_con
 step, and a failed validation becomes a retry. Built without that context (API responses, tests), `BookResult`
 is a plain model.
 
+**Recommendations come from the catalog, never from the model's memory.** `recommend_books`
+(`app/services/readers_advisory.py`) picks read-alikes from Open Library subjects: the seed book's genre headings
+first, generic and marketing tags dropped, kept on the seed's shelf (fiction, children's, teen). When a library's
+catalog is connected, only titles that catalog finds are offered. The model chooses none of the titles, and the
+`BookResult` validator rejects any it didn't get from a tool. The audience is a fixed choice
+(`children`/`teen`/`adult`), because a free-text "children 10" once failed to match and produced adult fantasy for a
+10-year-old.
+
 **Integrate with what libraries already run.** Supabase, Render and Pinecone are LibSync's own infrastructure,
 invisible to a library. Everything a library *touches* should be a system it already has. Research in October
 2026 ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026),

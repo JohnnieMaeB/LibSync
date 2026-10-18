@@ -59,6 +59,8 @@ def policy_namespace(library_id: str | None) -> str:
 TOOL_GROUPS: dict[str, str] = {
     "policies": "search_library_policies",
     "catalog": "search_catalog",
+    # Readers' advisory: read-alikes, only from what the catalog returns.
+    "recommendations": "recommend_books",
     "research": "search_scholarly_works",
     "citations": "lookup_and_cite",
     # Phase 37T: only offered at all when the library configured the vendor.

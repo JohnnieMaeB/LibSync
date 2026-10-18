@@ -91,7 +91,8 @@ catalog or policy MCP servers turned up.
    it was found ("I searched the catalog for…; these came from the library's policies"), and research answers can
    offer a short evaluation prompt in the RUSA tradition (who wrote it, when, is it peer reviewed, lateral reading).
    A library could make "teach the search" the default.
-5. **Readers' advisory grounded in the collection.** "Books like X" and "something for a 10-year-old who loves
+5. ✅ **Readers' advisory grounded in the collection.** *Built: `recommend_books` (`app/services/readers_advisory.py`),
+   its own `recommendations` tool group.* "Books like X" and "something for a 10-year-old who loves
    dragons", answered only with titles the library holds, through the catalog drivers, with subjects from Open
    Library. This is NoveList's critique of chatbots, turned into a feature.
 6. **Language access.**

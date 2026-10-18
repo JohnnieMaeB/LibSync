@@ -33,7 +33,7 @@ def test_facts_come_from_the_catalog_not_the_model():
 
 def test_a_book_the_catalog_never_returned_fails_validation():
     invented = {"intro": "x", "books": [{"title": "Not A Real Book", "author": "Nobody", "availability": "available"}]}
-    with pytest.raises(ValidationError, match="was not in the search_catalog results"):
+    with pytest.raises(ValidationError, match="was not in the search_catalog or recommend_books results"):
         BookResult.model_validate(invented, context={CATALOG_BOOKS_CONTEXT: CATALOG})
 
 

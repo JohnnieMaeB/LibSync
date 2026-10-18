@@ -78,6 +78,7 @@ export const en = {
   toolStatus: {
     search_library_policies: "📚 Checking library policies",
     search_catalog: "🔍 Searching the catalog",
+    recommend_books: "📖 Finding books you might like",
     search_scholarly_works: "🎓 Looking up research",
     lookup_and_cite: "🎓 Looking up citation",
   } as Record<string, string>,
@@ -221,6 +222,7 @@ export const es: Messages = {
   toolStatus: {
     search_library_policies: "📚 Consultando las normas de la biblioteca",
     search_catalog: "🔍 Buscando en el catálogo",
+    recommend_books: "📖 Buscando libros que te podrían gustar",
     search_scholarly_works: "🎓 Buscando investigaciones",
     lookup_and_cite: "🎓 Buscando la cita",
   },
