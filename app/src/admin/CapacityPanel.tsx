@@ -3,7 +3,8 @@ import { API_BASE_URL } from "../config";
 
 // NEXT_FEATURES.md P2.8: how much of today's free AI budget is left, from the
 // rate-limit numbers the AI provider reports on every reply (server
-// app/capacity.py). Service-wide, so shown once, not per library. A table,
+// app/capacity.py). Groq's daily budget refills continuously, so its "reset"
+// time is when the next request frees up, not a midnight reset. Service-wide, so shown once, not per library. A table,
 // like the usage stats, so screen-reader users get the same numbers.
 
 interface ModelCapacity {
@@ -25,8 +26,8 @@ interface Capacity {
 
 const STATUS_TEXT: Record<Capacity["status"], string> = {
   ok: "Plenty of AI capacity left today.",
-  low: "AI capacity is running low today. When the main model's budget runs out, the assistant switches to backup models until the daily reset.",
-  exhausted: "Today's main AI budget is used up. The assistant is using backup models until the daily reset.",
+  low: "AI capacity is running low today. When the main model's budget runs out, the assistant switches to backup models while it refills.",
+  exhausted: "Today's main AI budget is used up. The assistant is using backup models while it refills.",
   unknown: "No AI replies since LibSync last restarted, so there's nothing to report yet.",
 };
 
@@ -67,7 +68,7 @@ export function CapacityPanel() {
                 <tr>
                   <th scope="col">Model</th>
                   <th scope="col">Requests left today</th>
-                  <th scope="col">Resets in</th>
+                  <th scope="col">Next request frees up in</th>
                   <th scope="col">Rate-limited replies, last hour</th>
                 </tr>
               </thead>
