@@ -256,6 +256,8 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
 - An interface in English and Spanish (`app/src/i18n/`): it follows `?lang=`, the patron's saved choice or their
   browser's language, sets the page language for screen readers, and has a picker in the header. The assistant
   answers in whatever language the patron writes in
+- An MCP server at `/mcp/` so staff can use LibSync's grounded lookups (policies, catalog, read-alikes, papers,
+  citations) from their own AI tools; see [docs/MCP.md](docs/MCP.md)
 - An embeddable widget for library websites: one `<script>` tag (`app/public/loader.js`, dependency-free, with
   `data-library`, `data-accent`, `data-position`, plus optional `data-help-url` for a "Talk to a librarian" link and
   `data-tools` to limit the assistant to some tool groups, and `data-lang` for the interface language, which

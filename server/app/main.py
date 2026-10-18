@@ -5,7 +5,7 @@ all API routes. Mirrors the structure of the original Express server.
 """
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import httpx
 import logfire
@@ -14,7 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-from app.config import LOGFIRE_INCLUDE_CONTENT, LOGFIRE_TOKEN
+from app import mcp_server
+from app.config import LOGFIRE_INCLUDE_CONTENT, LOGFIRE_TOKEN, MCP_ENABLED
 from app.rate_limit import limiter
 from app.routers import (
     agent,
@@ -35,8 +36,13 @@ from app.routers import (
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # A single shared client (connection pooling) for tool calls to Open
     # Library, reused across every request for the life of the process.
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=10.0) as client, AsyncExitStack() as stack:
         app.state.http_client = client
+        mcp_server.http_client = client
+        if MCP_ENABLED:
+            # A mounted app's own lifespan doesn't run, so the MCP server is
+            # started here.
+            await stack.enter_async_context(mcp_server.running())
         yield
 
 
@@ -70,6 +76,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if MCP_ENABLED:
+    app.mount("/mcp", mcp_server.asgi_app())
 
 app.include_router(chat.router)
 app.include_router(agent.router)

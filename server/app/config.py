@@ -21,6 +21,9 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PORT = int(os.getenv("PORT", "3000"))
 IS_TEST_ENV = os.getenv("NODE_ENV") == "test" or os.getenv("ENV") == "test"
 LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
+# The MCP endpoint (app/mcp_server.py): on unless MCP_ENABLED=0.
+MCP_ENABLED = os.getenv("MCP_ENABLED", "1").strip().lower() not in ("0", "false", "no")
+MCP_RATE_LIMIT_PER_MINUTE = int(os.getenv("MCP_RATE_LIMIT_PER_MINUTE", "30"))
 # Tier 8 (optional): per-library settings and the staff dashboard. Unset means
 # every library uses the defaults and the embed snippet's attributes, as before.
 SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/") or None
