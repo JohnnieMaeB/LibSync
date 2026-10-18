@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The day the cards disappeared | LibSync build log</title>
+<meta name="description" content="Three bugs only a real browser, a real conversation and a real model provider could produce, and why the unit tests never saw them.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/07-the-day-the-cards-disappeared/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The day the cards disappeared">
+<meta property="og:description" content="Three bugs only a real browser, a real conversation and a real model provider could produce, and why the unit tests never saw them.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/07-the-day-the-cards-disappeared/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 7 of 18</p>
+<h1>The day the cards disappeared</h1>
+<p class="meta"><time datetime="2026-12-01">December 1, 2026</time></p>
+<p>The book card appeared for a split second, then vanished. Every unit test was green. They&#39;d been written against an event order that happened not to trigger the bug.</p>
+<h2>How cards get to the screen</h2>
+<p>LibSync streams its replies to the browser over <strong>AG-UI</strong>, an open protocol for sending events from an agent backend to a frontend: message text, tool calls, tool results, and custom events for anything structured, like a book card.</p>
+<p>Claude Code and I chose it over the other contender, MCP Apps. The tier plan lays out why. MCP Apps exists so a generic AI client can safely render a <em>stranger&#39;s</em> tool interface inside a sandbox. My frontend is first-party and already trusts my backend, so that&#39;s a problem I don&#39;t have. AG-UI also has first-party PydanticAI support, which meant one new dependency and no new architecture.</p>
+<p>The migration was also deliberately additive: the old <code>/chat</code> endpoint stayed untouched and the new transport went beside it at <code>/agent</code>, so a bug in the new path couldn&#39;t take down the old one.</p>
+<p>A tool becomes a card by returning a <code>ToolReturn</code> whose metadata carries a custom event. The catalog search emits one <code>book_card</code> event per result, live, as it finds them.</p>
+<h2>Three bugs</h2>
+<p>What follows is three bugs that only a real browser, a real conversation and a real provider could produce.</p>
+<h3>1. Vanishing cards</h3>
+<p>The real event order for a grounded answer is:</p>
+<ol>
+<li><code>TOOL_CALL_RESULT</code></li>
+<li><code>CUSTOM</code> (the card)</li>
+<li><code>TEXT_MESSAGE_CONTENT</code> (the model&#39;s narration)</li>
+</ol>
+<p>The narration comes <em>after</em> the card. The frontend handler cleared the message bubble on every text event, so when the narration arrived it wiped the card that had just rendered. The unit tests used event orders in which that never happened.</p>
+<p><strong>The fix:</strong> clear the &quot;Thinking…&quot; placeholder exactly once, on whichever event arrives first, text or card. After that, everything appends. It lives in a function called <code>ensureContentStarted()</code>.</p>
+<h3>2. Amnesia from turn two</h3>
+<p><code>AGUIAdapter</code> folds the user&#39;s new message into the conversation history <em>before</em> the run starts. So when the run finishes, <code>result.new_messages()</code> doesn&#39;t contain that message. It only covers what the run generated beyond the history it was given.</p>
+<p>The code persisted only <code>new_messages()</code>, which silently dropped every user turn. The assistant would answer the first question fine, then forget that you&#39;d ever asked it anything.</p>
+<p><strong>The fix:</strong> store the existing history, plus the request&#39;s messages, plus <code>new_messages()</code>.</p>
+<h3>3. Raw provider errors</h3>
+<p>Groq&#39;s <code>tool_use_failed</code> error, where the API itself rejects a tool call the model generated, escaped <code>FallbackModel</code>. The reason is subtle: <code>FallbackModel</code> guards the <em>start</em> of a stream, not the iteration of a stream it has already handed back. So the retries I&#39;d configured, and the fallback to another provider, never engaged. About two in three attempts at &quot;Find me a sci-fi audiobook&quot; failed, and the patron saw the provider&#39;s raw text. (Yes, that&#39;s Part 1&#39;s prompt.)</p>
+<p><strong>The fix:</strong> buffer events until the first one that isn&#39;t <code>RUN_STARTED</code>. If what arrives next is a <code>RUN_ERROR</code> before any real content, throw the buffer away and retry the whole turn, up to three times. Once any content has streamed, commit and never retry, because by then the patron has seen something and a retry could contradict it.</p>
+<h2>Why none of this appeared in tests</h2>
+<p>All three were caught live, in a browser, against real services. They weren&#39;t caught by the tests, because the tests were written against the world the builder imagined: a tidy event order, a history that included the user&#39;s message, and a provider that fails cleanly.</p>
+<p>That isn&#39;t an accusation. It&#39;s what writing your own tests is. You encode your model of the system, and the bugs live where your model is wrong.</p>
+<h2>What I changed about &quot;done&quot;</h2>
+<p>The rule I took from this: the definition of done for every tier includes &quot;verified in a real browser against real services.&quot; I don&#39;t think a test suite could have replaced that, but I do want it to shrink the gap, which is why the evals in Part 14 exist.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> put &quot;verified in a real browser against real services&quot; in every tier&#39;s definition of done. The definition of done is the architect&#39;s lever, and the agent will hit exactly the bar you set.</p>
+</blockquote>
+<p>I&#39;d like to know how people test streaming UIs. I don&#39;t have a good answer for reproducing &quot;events arrive in the order the real provider sends them&quot; without a real provider.</p>
+<p><em>Part 7 of 18. Next: the attacker never touches my app. They edit a catalog record.</em></p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../06-i-cant-check-that/">&larr; I can't check that</a></span>
+<span><a href="../08-the-attacker-edits-a-catalog-record/">The attacker edits a catalog record &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
