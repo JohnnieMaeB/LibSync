@@ -120,3 +120,26 @@ async def test_availability_check_defaults_to_unknown_on_error():
         await client.aclose()
 
     assert results[0]["availability"] == "unknown"
+
+
+def _docs_handler(titles):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "search.json" in str(request.url):
+            return httpx.Response(200, json={"docs": [{"title": t, "author_name": ["A"], "key": f"/works/{i}"} for i, t in enumerate(titles)]})
+        return httpx.Response(200, json={"items": []})
+
+    return handler
+
+
+async def test_knock_offs_are_left_out_of_a_title_search():
+    titles = ["Project Hail Mary", "SUMMARY and REVIEW : PROJECT HAIL MARY", "Project Hail Mary: A Novel"]
+    async with _make_client(_docs_handler(titles)) as client:
+        results = await open_library_service.search_catalog(client, "Project Hail Mary", limit=3)
+    assert [r["title"] for r in results] == ["Project Hail Mary", "Project Hail Mary: A Novel"]
+
+
+async def test_a_patron_asking_for_a_study_guide_still_gets_one():
+    titles = ["Study Guide for Beloved", "Beloved"]
+    async with _make_client(_docs_handler(titles)) as client:
+        results = await open_library_service.search_catalog(client, "Beloved study guide", limit=3)
+    assert "Study Guide for Beloved" in [r["title"] for r in results]
