@@ -16,14 +16,15 @@ needs a human judgment is marked **Not Evaluated** until a manual review happens
 |---|---|
 | Name | LibSync patron chat: the standalone web app and the embeddable widget (`loader.js`) |
 | Version | `main` as of October 2026 |
-| Not covered | The staff dashboard (Tier 8, not built yet) and the Android/iOS wrappers (Tier 7) |
+| Interfaces | English and Spanish (the patron's choice, their browser's language, or the library website's) |
+| Not covered | The staff dashboard beyond its signed-out view, and the Android/iOS wrappers (Tier 7) |
 
 ## Evaluation methods
 
 | Method | Scope | Where |
 |---|---|---|
 | axe-core 4.x, WCAG 2.1 A/AA rules, in jsdom | Standalone app, widget, privacy dialog | [`app/src/a11y.test.tsx`](../../app/src/a11y.test.tsx), every push |
-| axe-core 4.x via Playwright in Chromium, **including color contrast** | Same views plus a reply with book, research and citation cards, at 1280×800 and 390×844 | [`app/e2e/a11y.spec.ts`](../../app/e2e/a11y.spec.ts), every push |
+| axe-core 4.x via Playwright in Chromium, **including color contrast** | Same views plus a reply with book, research and citation cards and the expanded "How I found this" and source checklist; the Spanish interface and its privacy dialog; the staff-handoff card; at 1280×800 and 390×844 | [`app/e2e/a11y.spec.ts`](../../app/e2e/a11y.spec.ts), every push |
 | Scripted keyboard tests | Disclosure link → dialog → Escape restores focus; Tab stays inside the open dialog | `app/e2e/a11y.spec.ts`, `app/src/components/AiNotice.test.tsx` |
 | **Not yet done** | Manual screen reader testing (NVDA, JAWS, VoiceOver, TalkBack), 200% text resize and 400% zoom/320px reflow, non-text contrast, a cognitive-accessibility review | Planned before a pilot |
 
@@ -58,7 +59,7 @@ inside it.
 | 2.5.2 Pointer Cancellation | Supports | Standard buttons activate on click (up-event) |
 | 2.5.3 Label in Name | Supports | Fixed in this evaluation (scroll-to-latest button) |
 | 2.5.4 Motion Actuation | Not Applicable | No motion input |
-| 3.1.1 Language of Page | Supports | `<html lang>` set; axe passes |
+| 3.1.1 Language of Page | Supports | `<html lang>` follows the interface language (`en` or `es`) and changes with the language picker; axe passes in both |
 | 3.2.1 On Focus | Supports | Focus never changes context |
 | 3.2.2 On Input | Supports | Changing citation style only re-formats the citation |
 | 3.3.1 Error Identification | Supports | Errors appear as text in the conversation, with a Retry action |
@@ -72,7 +73,7 @@ inside it.
 |---|---|---|
 | 1.2.4–1.2.5 Captions, audio description | Not Applicable | No media |
 | 1.3.4 Orientation | Supports | Responsive layout, tested at desktop and phone sizes |
-| 1.3.5 Identify Input Purpose | Not Applicable | No inputs collect personal data |
+| 1.3.5 Identify Input Purpose | Supports | The optional sign-in fields declare their purpose (`autocomplete="username"`, `current-password`, `email`) |
 | 1.4.3 Contrast (Minimum) | Supports | axe color-contrast passes in Chromium on all audited views, including cards |
 | 1.4.4 Resize Text | Not Evaluated | 200% text resize not yet tested |
 | 1.4.5 Images of Text | Supports | Only the logo, which is exempt |
@@ -83,7 +84,7 @@ inside it.
 | 2.4.5 Multiple Ways | Not Applicable | A single-view application, not a set of pages |
 | 2.4.6 Headings and Labels | Supports | axe passes; dialog and app have descriptive headings |
 | 2.4.7 Focus Visible | Partially Supports | Visible focus rings since Tier 3; not manually reviewed on every control |
-| 3.1.2 Language of Parts | Partially Supports | Catalog titles in other languages are not marked with `lang` |
+| 3.1.2 Language of Parts | Partially Supports | Each language picker option is marked with its own `lang`. Catalog titles in other languages, and replies the assistant writes in a language other than the interface's, are not marked |
 | 3.2.3 Consistent Navigation | Supports | One consistent layout |
 | 3.2.4 Consistent Identification | Supports | Controls are named consistently |
 | 3.3.3 Error Suggestion | Supports | Error messages say what to do (wait, retry) |
@@ -91,6 +92,10 @@ inside it.
 | 4.1.3 Status Messages | Supports | The conversation is a `role="log"` live region; tool status is announced through it |
 
 ## How to keep this current
+
+**Since the first draft:** the Spanish interface, the language picker (a labelled `<select>`), "How I found this"
+and the source checklist (native `<details>` disclosures), and the staff-handoff card (a `role="status"` message) are
+in the automated audits above. They still need the manual screen-reader pass.
 
 Re-run `npm test` and `npm run test:e2e` in `app/` (CI does both on every push). Update this report when a
 criterion's evidence changes, and record manual review results with the date, tester and assistive technology used.

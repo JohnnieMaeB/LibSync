@@ -72,5 +72,6 @@ and the Library's search index namespace) within [30] days and confirms in writi
 | Groq | Chat messages | AI inference (primary) |
 | Hugging Face Inference Providers (novita) | Chat messages, only when every Groq model is unavailable | AI inference (fallback) |
 | Pinecone | Search terms; Library policy documents | Policy search index |
-| Open Library, OpenAlex, Crossref | Search terms | Catalog, research and citation lookups |
+| Open Library, OpenAlex, Crossref | Search terms | Catalog, research, recommendation and citation lookups |
+| Supabase | Library settings; staff and email-sign-in accounts; signed-in patrons' synced conversations (keyed by a one-way reference) | Dashboard, sign-in and history sync, only when enabled |
 | Logfire (Pydantic) | Diagnostics without message content | Error tracing, if enabled |

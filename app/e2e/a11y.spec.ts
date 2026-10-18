@@ -21,6 +21,10 @@ function sse(events: Record<string, unknown>[]) {
 // One reply carrying every card type, so their colors and structure are audited too.
 const CARD_REPLY = sse([
   { type: "RUN_STARTED", threadId: "t", runId: "r" },
+  // A search, so "How I found this" renders too.
+  { type: "TOOL_CALL_START", toolCallId: "c1", toolCallName: "search_catalog" },
+  { type: "TOOL_CALL_ARGS", toolCallId: "c1", delta: '{"query": "Project Hail Mary"}' },
+  { type: "TOOL_CALL_END", toolCallId: "c1" },
   { type: "TEXT_MESSAGE_START", messageId: "m", role: "assistant" },
   { type: "TEXT_MESSAGE_CONTENT", messageId: "m", delta: "Here's what I found. **Late fees** are $0.25 per day." },
   { type: "TEXT_MESSAGE_END", messageId: "m" },
@@ -100,6 +104,37 @@ test("a reply with book, research and citation cards", async ({ page }) => {
   await page.getByRole("button", { name: /send message/i }).click();
   await expect(page.getByText("Project Hail Mary")).toBeVisible();
   await expect(page.getByText(/ChatGPT for good\?/).first()).toBeVisible();
+  // Information literacy sections, expanded so their contents are audited.
+  await page.getByText("How I found this").click();
+  await page.getByText("Before you rely on a source").click();
+  await expect(page.getByText("Searched the catalog for “Project Hail Mary”")).toBeVisible();
+  await expectNoViolations(page);
+});
+
+test("the Spanish interface, with its privacy dialog", async ({ page }) => {
+  await page.goto("./?lang=es");
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  await page.getByRole("button", { name: "Cómo se manejan tus datos" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expectNoViolations(page);
+});
+
+test("the staff handoff after two misses", async ({ page }) => {
+  const miss = sse([
+    { type: "RUN_STARTED", threadId: "t", runId: "r" },
+    { type: "TEXT_MESSAGE_START", messageId: "m", role: "assistant" },
+    { type: "TEXT_MESSAGE_CONTENT", messageId: "m", delta: "Sorry, I couldn't find anything about that." },
+    { type: "TEXT_MESSAGE_END", messageId: "m" },
+    { type: "RUN_FINISHED", threadId: "t", runId: "r" },
+  ]);
+  await page.route("**/agent", (route) => route.fulfill({ status: 200, contentType: "text/event-stream", body: miss }));
+  await page.goto("./?mode=widget&library=acme&help=https%3A%2F%2Facme.example%2Fask");
+  for (const question of ["Do you lend telescopes?", "What about binoculars?"]) {
+    await page.getByLabel("Type your question").fill(question);
+    await page.getByRole("button", { name: /send message/i }).click();
+    await expect(page.getByRole("button", { name: /send message/i })).toBeVisible();
+  }
+  await expect(page.getByText("I haven't been able to answer this. A librarian can help.")).toBeVisible();
   await expectNoViolations(page);
 });
 

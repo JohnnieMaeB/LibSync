@@ -24,6 +24,8 @@ Intelligence in Libraries](https://www.ala.org/tools/standards-and-guidelines/gu
 | A card-signed-in patron's checkouts, holds and fees, **only when they ask about their own account** | Read from the library's ILS over SIP2 by LibSync's server, shown on the patron's own screen | To answer "what do I have checked out?" | Not stored. **Titles are never sent to the AI provider**; the model sees only the counts |
 | Conversations had **while signed in** | LibSync's database (Supabase), keyed by a one-way patron reference, never a card number or email | So history follows the patron across devices | Until the patron deletes it, and automatically after 90 days without use. Conversations from before signing in are not uploaded |
 | Conversation history (standalone app) | The patron's own browser (IndexedDB) | So patrons can return to conversations | Until the patron deletes it from the sidebar or clears site data |
+| The interface language the patron picked | The patron's own browser (local storage) | To show the same language next time | Until site data is cleared |
+| Search terms for e-books, rooms or events, **only when the library connected OverDrive or LibCal** | The library's own OverDrive or Springshare LibCal account | To check e-book copies, free rooms or upcoming events | Governed by the library's agreement with that vendor; no patron identifier is sent |
 
 Patron accounts are **optional** and off unless the library enables them. LibSync has **no advertising, no
 analytics trackers and no tracking cookies**. The widget on a
@@ -32,8 +34,11 @@ other personal details in the chat.
 
 ## Library controls
 
-- `data-tools` on the embed snippet turns off tool groups (policies, catalog, research, citations); switched-off
-  tools are hidden from the model.
+- `data-tools` on the embed snippet, or the staff dashboard, turns off tool groups (policies, catalog,
+  recommendations, research, citations, e-books, rooms, events, account); switched-off tools are hidden from the
+  model. The same switches apply to LibSync's MCP endpoint, which serves staff AI tools and never receives patron
+  conversations.
+- `data-lang` sets the interface language (otherwise the library website's own language, then the patron's browser).
 - `data-help-url` sets where "Talk to a librarian" goes.
 - Removing the snippet turns the assistant off on that site.
 
