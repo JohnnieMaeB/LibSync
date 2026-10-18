@@ -97,7 +97,8 @@ catalog or policy MCP servers turned up.
 6. **Language access.**
    - ✅ Answer in the patron's language: a prompt rule, Spanish number words in the number check, and eval cases
      in Spanish and Chinese.
-   - Translate the interface, starting with Spanish.
+   - ✅ Translate the interface, starting with Spanish (`app/src/i18n/`; a widget follows `data-lang` or the
+     library website's own language). The Spanish needs a native speaker's review before a pilot.
    - ✅ Measured policy retrieval across languages (`evals/multilingual_retrieval.py`): the expected policy was in
      the top 3 for 79 of 80 questions across English, Spanish, Chinese, Vietnamese, Tagalog, Arabic, Korean and
      Russian. The one miss was a Vietnamese question about visual-impairment services.

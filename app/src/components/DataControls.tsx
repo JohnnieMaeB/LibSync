@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../i18n";
 
 // Tier 9 Phase 39: privacy controls (TIER9_PLAN.md §2.3). Destructive actions
 // ask once more before acting, and say exactly what will be removed.
@@ -12,6 +13,7 @@ export function ConfirmButton({
   confirmLabel: string;
   onConfirm: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [asking, setAsking] = useState(false);
   const [status, setStatus] = useState("");
 
@@ -34,27 +36,28 @@ export function ConfirmButton({
         onClick={async () => {
           try {
             await onConfirm();
-            setStatus("Deleted.");
+            setStatus(t.deleted);
           } catch (error) {
             setStatus((error as Error).message);
           }
           setAsking(false);
         }}
       >
-        Delete
+        {t.deleteButton}
       </button>
       <button type="button" className="patron-link" onClick={() => setAsking(false)}>
-        Cancel
+        {t.cancel}
       </button>
     </div>
   );
 }
 
 export function DeviceDataControls({ onClearDevice }: { onClearDevice: () => Promise<void> }) {
+  const { t } = useI18n();
   return (
     <ConfirmButton
-      label="Delete all conversations on this device"
-      confirmLabel="This removes every conversation saved in this browser. It can't be undone."
+      label={t.deleteDevice}
+      confirmLabel={t.deleteDeviceConfirm}
       onConfirm={onClearDevice}
     />
   );

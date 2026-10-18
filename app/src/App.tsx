@@ -13,6 +13,7 @@ import { PatronAccount } from "./components/PatronAccount";
 import { DeviceDataControls } from "./components/DataControls";
 import { consumeMagicLink, conversationSync, loadSession, type PatronSession } from "./patron";
 import { useLibraryConfig } from "./libraryConfig";
+import { I18nProvider, useI18n } from "./i18n";
 
 // Loaded only when a staff member opens #/admin, so the patron app never
 // downloads the dashboard or the Supabase client.
@@ -111,17 +112,18 @@ function ChatConversation({
 // Shown instead of the chat when the library switched the assistant off in its
 // dashboard (TIER8_PLAN.md §2.8: the library can disable AI features).
 function AssistantOff({ helpUrl, onClose }: { helpUrl: string | null; onClose: () => void }) {
+  const { t } = useI18n();
   return (
     <>
       <Header onClose={onClose} />
       <div className="assistant-off" role="status">
-        <p>This library has turned the AI assistant off.</p>
+        <p>{t.assistantOff}</p>
         {helpUrl ? (
           <a href={helpUrl} target="_blank" rel="noopener noreferrer">
-            Talk to a librarian
+            {t.talkToLibrarian}
           </a>
         ) : (
-          <p>Please contact library staff for help.</p>
+          <p>{t.contactStaff}</p>
         )}
       </div>
     </>
@@ -249,8 +251,6 @@ export default function App() {
       </Suspense>
     );
   }
-  if (widgetConfig.isWidget) {
-    return <WidgetApp config={widgetConfig} />;
-  }
-  return <StandaloneApp />;
+  // The patron app only; the staff dashboard above stays English.
+  return <I18nProvider>{widgetConfig.isWidget ? <WidgetApp config={widgetConfig} /> : <StandaloneApp />}</I18nProvider>;
 }

@@ -364,6 +364,23 @@ h1 {
   color: var(--ls-accent);
 }
 
+/* Interface language (i18n/index.tsx). */
+.language-picker {
+  margin-left: auto;
+  align-self: flex-start;
+  background: var(--ls-surface);
+  color: var(--ls-text);
+  border: 1px solid var(--ls-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.language-picker + .widget-close-btn {
+  margin-left: 4px;
+}
+
 .tagline {
   font-size: 0.9rem;
   color: var(--ls-text-muted);

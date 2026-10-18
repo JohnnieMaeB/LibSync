@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { deleteSyncedHistory, requestEmailLink, signInWithCard, signOut, type PatronSession } from "../patron";
 import { ConfirmButton } from "./DataControls";
+import { useI18n } from "../i18n";
 
 // Tier 9 Phase 36: signing in is offered, never required (TIER9_PLAN.md §2).
 // Card + PIN is checked by the library's own system; LibSync never keeps the PIN.
@@ -16,6 +17,7 @@ export function PatronAccount({
   session: PatronSession | null;
   onSessionChange: (session: PatronSession | null) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [card, setCard] = useState("");
   const [pin, setPin] = useState("");
@@ -26,20 +28,15 @@ export function PatronAccount({
   if (session) {
     return (
       <div className="patron-account">
-        <p>Signed in {session.kind === "card" ? "with your library card" : "by email"}.</p>
+        <p>{t.signedInWith(session.kind)}</p>
         <details className="patron-data">
-          <summary>Your data</summary>
+          <summary>{t.yourData}</summary>
           <p>
-            Conversations you have while signed in are saved to your account so they follow you to other devices.
-            They're deleted automatically after 90 days without use.{" "}
-            {session.kind === "card"
-              ? "LibSync never stores your PIN."
-              : "LibSync keeps your email address only to sign you in."}{" "}
-            This sign-in lasts 12 hours on this device.
+            {t.syncedNote} {session.kind === "card" ? t.pinNote : t.emailNote} {t.sessionNote}
           </p>
           <ConfirmButton
-            label="Delete my synced history"
-            confirmLabel="This deletes every conversation saved to your account, on all devices. Conversations on this device stay until you delete them here too."
+            label={t.deleteSynced}
+            confirmLabel={t.deleteSyncedConfirm}
             onConfirm={() => deleteSyncedHistory(session)}
           />
         </details>
@@ -51,7 +48,7 @@ export function PatronAccount({
             onSessionChange(null);
           }}
         >
-          Sign out
+          {t.signOut}
         </button>
       </div>
     );
@@ -63,9 +60,9 @@ export function PatronAccount({
     return (
       <div className="patron-account">
         <button type="button" className="patron-link" onClick={() => setOpen(true)}>
-          {methods.includes("card") ? "Sign in with your library card" : "Sign in"}
+          {methods.includes("card") ? t.signInWithCard : t.signIn}
         </button>
-        <p className="patron-hint">Optional. You can keep chatting without an account.</p>
+        <p className="patron-hint">{t.signInOptional}</p>
       </div>
     );
   }
@@ -89,7 +86,7 @@ export function PatronAccount({
     setBusy(true);
     try {
       await requestEmailLink(libraryId, email.trim());
-      setStatus("Check your email for a sign-in link.");
+      setStatus(t.checkEmail);
     } catch (error) {
       setStatus((error as Error).message);
     } finally {
@@ -98,10 +95,10 @@ export function PatronAccount({
   }
 
   return (
-    <section className="patron-account" aria-label="Sign in">
+    <section className="patron-account" aria-label={t.signIn}>
       {methods.includes("card") && (
         <form onSubmit={cardSubmit}>
-          <label htmlFor="patron-card">Library card number</label>
+          <label htmlFor="patron-card">{t.cardNumber}</label>
           <input
             id="patron-card"
             inputMode="numeric"
@@ -110,7 +107,7 @@ export function PatronAccount({
             value={card}
             onChange={(e) => setCard(e.target.value)}
           />
-          <label htmlFor="patron-pin">PIN</label>
+          <label htmlFor="patron-pin">{t.pin}</label>
           <input
             id="patron-pin"
             type="password"
@@ -120,13 +117,13 @@ export function PatronAccount({
             onChange={(e) => setPin(e.target.value)}
           />
           <button type="submit" disabled={busy}>
-            Sign in
+            {t.signIn}
           </button>
         </form>
       )}
       {methods.includes("email") && (
         <form onSubmit={emailSubmit}>
-          <label htmlFor="patron-email">{methods.includes("card") ? "Or use your email" : "Email"}</label>
+          <label htmlFor="patron-email">{methods.includes("card") ? t.orEmail : t.email}</label>
           <input
             id="patron-email"
             type="email"
@@ -136,13 +133,13 @@ export function PatronAccount({
             onChange={(e) => setEmail(e.target.value)}
           />
           <button type="submit" disabled={busy}>
-            Email me a sign-in link
+            {t.emailMe}
           </button>
         </form>
       )}
       <p role="status">{status}</p>
       <button type="button" className="patron-link" onClick={() => setOpen(false)}>
-        Continue without an account
+        {t.continueWithout}
       </button>
     </section>
   );

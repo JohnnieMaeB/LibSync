@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { ConversationSummary } from "../types";
+import { useI18n } from "../i18n";
 
 export function SidebarConversationItem({
   conversation,
@@ -15,6 +16,7 @@ export function SidebarConversationItem({
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(conversation.title);
 
@@ -50,7 +52,7 @@ export function SidebarConversationItem({
             onChange={(e) => setDraftTitle(e.target.value)}
             onBlur={commitEditing}
             onKeyDown={handleKeyDown}
-            aria-label="Conversation title"
+            aria-label={t.conversationTitle}
           />
         ) : (
           <button
@@ -66,7 +68,7 @@ export function SidebarConversationItem({
           <button
             type="button"
             className="sidebar-conversation-action-btn"
-            aria-label={`Rename ${conversation.title}`}
+            aria-label={t.rename(conversation.title)}
             onClick={startEditing}
           >
             ✎
@@ -74,9 +76,9 @@ export function SidebarConversationItem({
           <button
             type="button"
             className="sidebar-conversation-action-btn"
-            aria-label={`Delete ${conversation.title}`}
+            aria-label={t.delete(conversation.title)}
             onClick={() => {
-              if (window.confirm(`Delete "${conversation.title}"?`)) onDelete(conversation.id);
+              if (window.confirm(t.confirmDelete(conversation.title))) onDelete(conversation.id);
             }}
           >
             🗑

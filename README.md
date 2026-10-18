@@ -253,9 +253,13 @@ budget headroom surfaced where they'll actually see it, not buried in a planning
   "Add to Home Screen"/desktop-install experience). **iOS note:** Safari has no automatic install prompt —
   installing requires the user to manually choose "Add to Home Screen" from the share sheet, and iOS has
   historically lagged Android on PWA feature parity (e.g. push notifications, background sync)
+- An interface in English and Spanish (`app/src/i18n/`): it follows `?lang=`, the patron's saved choice or their
+  browser's language, sets the page language for screen readers, and has a picker in the header. The assistant
+  answers in whatever language the patron writes in
 - An embeddable widget for library websites: one `<script>` tag (`app/public/loader.js`, dependency-free, with
   `data-library`, `data-accent`, `data-position`, plus optional `data-help-url` for a "Talk to a librarian" link and
-  `data-tools` to limit the assistant to some tool groups) adds a floating launcher that opens the
+  `data-tools` to limit the assistant to some tool groups, and `data-lang` for the interface language, which
+  defaults to the host page's own language) adds a floating launcher that opens the
   existing app in an iframe-isolated widget mode, so host-page CSS and scripts can't collide with it
 - Abuse protection for that open embed surface: a per-origin rate limit stacked on the existing per-IP one,
   plus a lightweight library-id → origin allowlist (`POST /widget/register`) with a small grace quota, so a

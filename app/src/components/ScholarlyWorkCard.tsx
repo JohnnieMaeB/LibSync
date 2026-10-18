@@ -1,7 +1,9 @@
 import type { WorkCardData } from "../types";
 import { SourceBadge } from "./SourceBadge";
+import { useI18n } from "../i18n";
 
 export function ScholarlyWorkCard({ data, number }: { data: WorkCardData; number: number }) {
+  const { t } = useI18n();
   const { title, authors, year, doi, citationCount, isOa, abstract } = data;
   const titleText = year ? `${title} (${year})` : title;
 
@@ -18,15 +20,15 @@ export function ScholarlyWorkCard({ data, number }: { data: WorkCardData; number
       <div className="work-card-authors">{authors}</div>
       <div className="work-card-meta">
         <span className="work-card-citations">
-          {citationCount} citation{citationCount === 1 ? "" : "s"}
+          {t.citations(citationCount)}
         </span>
         <span className={`work-card-oa work-card-oa--${isOa ? "open" : "closed"}`}>
-          {isOa ? "Open access" : "Not open access"}
+          {isOa ? t.openAccess : t.notOpenAccess}
         </span>
       </div>
       {abstract && (
         <details className="work-card-abstract">
-          <summary>Abstract</summary>
+          <summary>{t.abstract}</summary>
           <p>{abstract}</p>
         </details>
       )}

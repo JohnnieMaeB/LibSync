@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../i18n";
 
 export function MessageActions({
   text,
@@ -11,6 +12,7 @@ export function MessageActions({
   // exactly what is shared and with whom, so sending is the patron's choice.
   onFeedback?: () => Promise<boolean>;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"idle" | "sending" | "sent" | "failed">("idle");
 
@@ -30,23 +32,23 @@ export function MessageActions({
 
   return (
     <div className="message-actions">
-      <button type="button" className="message-action-btn" aria-label="Copy message" onClick={handleCopy}>
-        {copied ? "Copied ✓" : "Copy"}
+      <button type="button" className="message-action-btn" aria-label={t.copyMessage} onClick={handleCopy}>
+        {copied ? t.copied : t.copy}
       </button>
       {onRegenerate && (
         <button
           type="button"
           className="message-action-btn message-action-btn--regenerate"
-          aria-label="Regenerate response"
+          aria-label={t.regenerateLabel}
           onClick={onRegenerate}
         >
-          Regenerate
+          {t.regenerate}
         </button>
       )}
       {onFeedback &&
         (feedback === "sent" ? (
           <span className="message-action-note" role="status">
-            Sent to library staff. Thank you.
+            {t.feedbackSent}
           </span>
         ) : (
           <button
@@ -55,7 +57,7 @@ export function MessageActions({
             onClick={handleFeedback}
             disabled={feedback === "sending"}
           >
-            {feedback === "failed" ? "Couldn't send. Try again" : "Not helpful: send this question and answer to library staff"}
+            {feedback === "failed" ? t.feedbackFailed : t.feedbackSend}
           </button>
         ))}
     </div>

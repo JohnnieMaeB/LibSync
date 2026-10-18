@@ -28,7 +28,7 @@ def _clean(text: str) -> str:
     # ISBD punctuation MARC leaves at the end of subfields (" /", " :", ","),
     # keeping the period of a trailing initial ("Ursula K.").
     cleaned = re.sub(r"[\s/:;,=]+$", "", text).strip()
-    if cleaned.endswith(".") and not re.search(r"[A-Z]\.$", cleaned):
+    if cleaned.endswith(".") and not re.search(r"\b[A-Z]\.$", cleaned):
         cleaned = cleaned[:-1].rstrip()
     return cleaned
 
