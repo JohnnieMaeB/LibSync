@@ -15,7 +15,8 @@ patron's card and PIN (23/24), and read a patron's account summary (63/64).
 not the caller needs them, so connections should use TLS (or a VPN tunnel);
 LibSync keeps only the yes/no answer and counts, never the PIN or the
 personal fields. Written to the SIP2 2.0 specification and tested against a
-fake server; not yet run against a library's real SIP2 server.
+fake server, and run weekly against a real Koha's SIP2 server
+(.github/workflows/koha-live.yml).
 
 integrations.sip2: {"host": "...", "port": 6001, "tls": true, "institution_id": "...",
                     "login_user": "...", "location": "..."}
@@ -145,7 +146,8 @@ class SIP2Client:
             return item_id
         if not response.startswith("18") or len(response) < 26:
             return item_id
-        return parse_fields(response[26:]).get("AJ", "").strip() or item_id
+        # Drop ISBD punctuation the catalog leaves on titles ("E Street shuffle :").
+        return parse_fields(response[26:]).get("AJ", "").strip().rstrip(" /:;,=").strip() or item_id
 
     async def _patron_information(self, card: str, summary: str) -> tuple[dict[str, int], dict[str, str]]:
         response = await self._send(

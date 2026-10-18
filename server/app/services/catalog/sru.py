@@ -1,6 +1,7 @@
 """SRU (Search/Retrieve via URL) catalog driver: a best-effort, cross-ILS
 fallback. Documented for Koha (its Zebra server) and Alma; live-tested against
-the Library of Congress's public SRU server.
+the Library of Congress's public SRU server and, weekly, a real Koha's
+Z39.50/SRU responder (.github/workflows/koha-live.yml).
 
 catalog_config:
   base_url        SRU endpoint, e.g. https://library.example:9999/biblios
