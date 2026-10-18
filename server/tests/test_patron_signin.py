@@ -15,6 +15,7 @@ from app.services.sip2 import PatronStatus, SIP2Client, SIP2Error
 
 CARD, PIN = "21234000567890", "4321"
 HEADER = "              001" + "20261017    120000"  # status(14) + language + date(18)
+TITLES = {"3001": "The Overstory", "3002": "Dune"}  # barcode 3999 has no title on file
 
 
 def _reply(body: str) -> bytes:
@@ -42,9 +43,14 @@ async def _fake_sip2_server(seen: list[str]):
             elif line.startswith("63"):
                 counts = "0001" + "0001" + "0002" + "0000" + "0000" + "0000"
                 # Like Koha: only the first "Y" in the summary picks a list.
-                lists = {0: "ASThe Overstory|", 1: "ATDune|", 2: "AUDune|AUBeloved|"}
+                # Like Koha, lists carry barcodes, not titles.
+                lists = {0: "AS3001|", 1: "AT3002|", 2: "AU3002|AU3999|"}
                 chosen = lists.get(line[23:33].find("Y"), "")
                 writer.write(_reply(f"64{HEADER}{counts}AOinst|AA{CARD}|AEJane Doe|BLY|{chosen}BV1.50|"))
+            elif line.startswith("17"):
+                barcode = sip2.parse_fields(line[20:]).get("AB", "")
+                title = TITLES.get(barcode, "")
+                writer.write(_reply(f"18030001{'20261017    120000'}AB{barcode}|AJ{title}|"))
             await writer.drain()
         writer.close()
 
@@ -93,10 +99,11 @@ async def test_patron_information_counts_and_items():
         async with SIP2Client(_settings(port), "sippass") as client:
             info = await client.patron_information(CARD)
     assert info.counts["charged"] == 2 and info.counts["holds"] == 1
-    assert info.items == {"holds": ["The Overstory"], "overdue": ["Dune"], "charged": ["Dune", "Beloved"]}
+    # Barcodes are turned into titles (17 Item Information); one without a title stays as-is.
+    assert info.items == {"holds": ["The Overstory"], "overdue": ["Dune"], "charged": ["Dune", "3999"]}
     assert info.fee_amount == "1.50"
     assert all("AD" not in line for line in seen[1:])  # the PIN is never sent for account lookups
-    assert [line[23:33] for line in seen[1:]] == ["Y         ", " Y        ", "  Y       "]
+    assert [line[23:33] for line in seen[1:] if line.startswith("63")] == ["Y         ", " Y        ", "  Y       "]
 
 
 async def test_rejected_sip_login_raises():

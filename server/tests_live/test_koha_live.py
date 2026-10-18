@@ -113,4 +113,5 @@ async def test_sip2_account_summary_counts_the_checkout():
     print("SIP2 patron information:", info)
     assert info.valid_patron
     assert info.counts["charged"] == 1
-    assert len(info.items["charged"]) == 1
+    # Koha lists barcodes; the client turns them into titles for the patron's card.
+    assert len(info.items["charged"]) == 1 and _is_seeded_title(info.items["charged"][0])

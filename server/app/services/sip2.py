@@ -135,6 +135,18 @@ class SIP2Client:
             screen_message=fields.get("AF"),
         )
 
+    async def item_title(self, item_id: str) -> str:
+        """17 Item Information: the title for an item identifier. Item lists
+        carry identifiers, which are barcodes on Koha and some other systems,
+        so each is looked up; on any failure the identifier is kept."""
+        try:
+            response = await self._send(f"17{sip_date()}AO{_escape(self.institution)}|AB{_escape(item_id)}|AC|")
+        except (asyncio.TimeoutError, OSError):
+            return item_id
+        if not response.startswith("18") or len(response) < 26:
+            return item_id
+        return parse_fields(response[26:]).get("AJ", "").strip() or item_id
+
     async def _patron_information(self, card: str, summary: str) -> tuple[dict[str, int], dict[str, str]]:
         response = await self._send(
             f"63001{sip_date()}{summary}AO{_escape(self.institution)}|AA{_escape(card)}|AC|BP1|BQ10|"
@@ -166,7 +178,7 @@ class SIP2Client:
             list_counts, list_fields = await self._patron_information(card, (" " * position + "Y").ljust(10))
             counts = counts or list_counts
             fields = fields or list_fields
-            items[name] = [i for i in list_fields.get(code, "").split("\n") if i]
+            items[name] = [await self.item_title(i) for i in list_fields.get(code, "").split("\n") if i]
         return PatronStatus(
             valid_patron=fields.get("BL") == "Y",
             valid_password=fields.get("CQ") == "Y",
