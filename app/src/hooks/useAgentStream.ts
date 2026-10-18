@@ -5,6 +5,7 @@ import { API_BASE_URL } from "../config";
 import { generateId } from "../lib/id";
 import type { BotEntry, ChatEntry, NumberedWork } from "../types";
 import { useI18n } from "../i18n";
+import { stepFromToolCall } from "../lib/searchSteps";
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 600;
@@ -191,6 +192,8 @@ export function useAgentStream({
       let activeTextKey: string | null = null;
       let currentText = "";
       let runErrorMessage: string | null = null;
+      // Tool calls in flight, by id: name plus streamed JSON arguments.
+      const toolCalls = new Map<string, { name: string; args: string }>();
 
       const ensureContentStarted = () => {
         if (!hasContent) {
@@ -229,12 +232,25 @@ export function useAgentStream({
             return;
           }
           case "TOOL_CALL_START":
+            toolCalls.set(anyEvent.toolCallId, { name: anyEvent.toolCallName, args: "" });
             if (!hasContent) {
               // Friendly, tool-specific status text while a tool call is in flight.
               const label = textRef.current.toolStatus[anyEvent.toolCallName] || textRef.current.working;
               patchBot(botId, (e) => ({ ...e, status: "tool", toolLabel: label }));
             }
             return;
+          case "TOOL_CALL_ARGS": {
+            const call = toolCalls.get(anyEvent.toolCallId);
+            if (call) call.args += anyEvent.delta ?? "";
+            return;
+          }
+          case "TOOL_CALL_END": {
+            const call = toolCalls.get(anyEvent.toolCallId);
+            toolCalls.delete(anyEvent.toolCallId);
+            const step = call && stepFromToolCall(call.name, call.args);
+            if (step) patchBot(botId, (e) => ({ ...e, steps: [...(e.steps ?? []), step] }));
+            return;
+          }
           case "CUSTOM": {
             ensureContentStarted();
             const name = anyEvent.name;

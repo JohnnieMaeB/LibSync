@@ -1307,3 +1307,29 @@ a.work-card-title:hover {
     border-radius: var(--ls-radius-pill);
     cursor: pointer;
 }
+
+/* Information literacy (lib/searchSteps.ts, ResearchResult): how an answer was
+   found, and how to judge a source. Collapsed, so they never crowd the answer. */
+.search-steps,
+.evaluate-sources {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--ls-text-muted);
+}
+
+.search-steps summary,
+.evaluate-sources summary {
+    cursor: pointer;
+    color: var(--ls-info);
+    width: fit-content;
+}
+
+.search-steps ol,
+.evaluate-sources ul {
+    margin: 6px 0;
+    padding-left: 20px;
+}
+
+.search-steps p {
+    margin: 4px 0 0;
+}
