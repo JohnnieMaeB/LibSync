@@ -32,6 +32,8 @@ Google account, or an emailed link, and control their library's assistant:
 - **Usage.** Questions answered, errors and what the assistant looked up, by day, over 7, 30 or 90 days. Counted
   from diagnostic traces, which never contain what patrons wrote. Needs `LOGFIRE_READ_TOKEN` on the backend: a
   Logfire *read* token (Logfire → Settings → Read tokens), separate from the write token used for tracing.
+- **Teach the search.** Opens "How I found this" under every answer, and the source checklist under research results,
+  instead of leaving them for patrons to expand. For libraries that want the assistant to model the research process.
 - **AI capacity today.** How much of the free AI budget is left, per model, and when the next request frees up (the budget refills continuously), from the numbers
   the AI provider reports on each reply (`GET /capacity`). Shown once for the whole service. Needs nothing to set up;
   it says "nothing to report yet" until the first reply after a restart.

@@ -36,10 +36,11 @@ export interface LibraryRow {
   catalog_config?: Record<string, string> | null;
   integrations?: Record<string, Record<string, string>> | null;
   feedback_webhook?: string | null;
+  teach_search?: boolean;
 }
 
 const LIBRARY_COLUMNS =
-  "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config,integrations,feedback_webhook";
+  "id,name,help_url,enabled_tools,ai_enabled,allowed_origins,catalog_driver,catalog_config,integrations,feedback_webhook,teach_search";
 
 function dashboardUrl(): string {
   return `${window.location.origin}${window.location.pathname}#/admin`;
@@ -202,6 +203,7 @@ function LibrarySettings({ client, library }: { client: SupabaseClient; library:
   const [name, setName] = useState(library.name);
   const [aiEnabled, setAiEnabled] = useState(library.ai_enabled);
   const [helpUrl, setHelpUrl] = useState(library.help_url ?? "");
+  const [teachSearch, setTeachSearch] = useState(library.teach_search ?? false);
   const [tools, setTools] = useState<string[]>(library.enabled_tools ?? TOOL_GROUPS.map((t) => t.id));
   const [origins, setOrigins] = useState((library.allowed_origins ?? []).join("\n"));
   const [status, setStatus] = useState("");
@@ -228,6 +230,7 @@ function LibrarySettings({ client, library }: { client: SupabaseClient; library:
         help_url: trimmedHelp || null,
         enabled_tools: allTools ? null : tools,
         allowed_origins: parsed.origins,
+        teach_search: teachSearch,
       })
       .eq("id", library.id);
     setStatus(error ? `Couldn't save: ${error.message}` : "Saved. Patrons see the change within a minute.");
@@ -250,6 +253,19 @@ function LibrarySettings({ client, library }: { client: SupabaseClient; library:
             onChange={(e) => setAiEnabled(e.target.checked)}
           />
           <label htmlFor={`${headingId}-ai`}>AI assistant is on</label>
+        </div>
+
+        <div className="admin-check">
+          <input
+            id={`${headingId}-teach`}
+            type="checkbox"
+            checked={teachSearch}
+            onChange={(e) => setTeachSearch(e.target.checked)}
+          />
+          <label htmlFor={`${headingId}-teach`}>
+            Teach the search: show how each answer was found, and how to judge sources, without patrons having to
+            open it
+          </label>
         </div>
 
         <label htmlFor={`${headingId}-help`}>"Talk to a librarian" link (web page, mailto: or tel:)</label>

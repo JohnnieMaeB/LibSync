@@ -2,7 +2,15 @@ import type { NumberedWork } from "../types";
 import { ScholarlyWorkCard } from "./ScholarlyWorkCard";
 import { useI18n } from "../i18n";
 
-export function ResearchResult({ intro, works }: { intro?: string; works: NumberedWork[] }) {
+export function ResearchResult({
+  intro,
+  works,
+  teachSearch = false,
+}: {
+  intro?: string;
+  works: NumberedWork[];
+  teachSearch?: boolean;
+}) {
   const { t } = useI18n();
   return (
     <div className="research-result">
@@ -12,7 +20,7 @@ export function ResearchResult({ intro, works }: { intro?: string; works: Number
       ))}
       {/* RUSA: help patrons evaluate what they find, not just find it. */}
       {works.length > 0 && (
-        <details className="evaluate-sources">
+        <details className="evaluate-sources" open={teachSearch}>
           <summary>{t.evaluateHeading}</summary>
           <ul>
             {t.evaluateItems.map((item) => (

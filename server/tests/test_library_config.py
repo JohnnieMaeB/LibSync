@@ -85,7 +85,9 @@ async def test_unknown_library_is_none(supabase_on):
 def test_public_view_never_exposes_catalog_config():
     config = library_config._parse({**ROW, "catalog_config": {"base_url": "https://koha.example"}})
     # feedback_enabled is a yes/no flag; the webhook URL itself stays private.
-    assert set(config.public()) == {"id", "name", "help_url", "enabled_tools", "ai_enabled", "feedback_enabled"}
+    assert set(config.public()) == {
+        "id", "name", "help_url", "enabled_tools", "ai_enabled", "feedback_enabled", "teach_search"
+    }
 
 
 @pytest.mark.parametrize(
@@ -161,3 +163,10 @@ def test_public_endpoint(client, monkeypatch):
     monkeypatch.setattr(libraries, "get_library_config", fake)
     assert client.get("/libraries/springfield-pl").json()["name"] == "Springfield Public Library"
     assert client.get("/libraries/unknown").status_code == 404
+
+
+def test_teach_search_defaults_off_and_reaches_the_patron_app():
+    from app.library_config import _parse
+
+    assert _parse({"id": "lib"}).public()["teach_search"] is False
+    assert _parse({"id": "lib", "teach_search": True}).public()["teach_search"] is True

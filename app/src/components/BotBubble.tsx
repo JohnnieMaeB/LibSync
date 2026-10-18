@@ -14,11 +14,13 @@ export function BotBubble({
   onRegenerate,
   onRetry,
   onFeedback,
+  teachSearch = false,
 }: {
   entry: BotEntry;
   onRegenerate: (id: string) => void;
   onRetry: (id: string) => void;
   onFeedback?: (id: string) => Promise<boolean>;
+  teachSearch?: boolean;
 }) {
   const { t } = useI18n();
   const isLoadingLike = entry.status === "loading" || entry.status === "tool";
@@ -67,7 +69,7 @@ export function BotBubble({
           case "book":
             return <BookCard key={block.key} data={block.data} number={block.number} />;
           case "research":
-            return <ResearchResult key={block.key} intro={block.intro} works={block.works} />;
+            return <ResearchResult key={block.key} intro={block.intro} works={block.works} teachSearch={teachSearch} />;
           case "citation":
             return <CitationCard key={block.key} data={block.data} number={block.number} />;
           case "account":
@@ -77,7 +79,7 @@ export function BotBubble({
         }
       })}
       {finalized && entry.steps && entry.steps.length > 0 && (
-        <details className="search-steps">
+        <details className="search-steps" open={teachSearch}>
           <summary>{t.howFound}</summary>
           <ol>
             {entry.steps.map((step, index) => (

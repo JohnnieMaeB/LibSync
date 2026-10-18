@@ -87,7 +87,7 @@ catalog or policy MCP servers turned up.
 
 ### P1: what libraries are asking for
 
-4. ✅ **Information literacy mode.** *Built: "How I found this" on every grounded answer (`app/src/lib/searchSteps.ts`) and a RUSA-style source checklist under research results. A per-library "teach the search" default is not built yet.* This answers librarians' top concern directly. Every grounded answer can show how
+4. ✅ **Information literacy mode.** *Built: "How I found this" on every grounded answer (`app/src/lib/searchSteps.ts`) and a RUSA-style source checklist under research results. Libraries can open both by default ("teach the search", a dashboard setting).* This answers librarians' top concern directly. Every grounded answer can show how
    it was found ("I searched the catalog for…; these came from the library's policies"), and research answers can
    offer a short evaluation prompt in the RUSA tradition (who wrote it, when, is it peer reviewed, lateral reading).
    A library could make "teach the search" the default.

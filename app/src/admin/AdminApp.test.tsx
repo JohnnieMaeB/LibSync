@@ -77,6 +77,7 @@ describe("staff dashboard (Tier 8 Phase 30)", () => {
       help_url: "tel:+15555550100",
       enabled_tools: ["policies", "catalog", "recommendations", "citations", "ebooks", "rooms", "events", "account"],
       allowed_origins: null,
+      teach_search: false,
     });
     expect(await screen.findByText(/saved/i)).toBeInTheDocument();
   });
