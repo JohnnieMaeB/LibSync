@@ -19,6 +19,10 @@ NUMBER_WORDS = {
     "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
     "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
     "forty": 40, "fifty": 50, "sixty": 60, "hundred": 100,
+    # Spanish, the most common language patrons write in after English. "once"
+    # (11) is left out: it is an everyday English word.
+    "cero": 0, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7,
+    "ocho": 8, "nueve": 9, "diez": 10, "doce": 12, "quince": 15, "veinte": 20, "treinta": 30, "sesenta": 60,
 }
 
 # Numbers too generic to police ("one of our services", "no fees"). Never
@@ -28,12 +32,12 @@ ALWAYS_ALLOWED = {0.0, 1.0}
 # Unit conversions, so a correct answer in other units still matches:
 # (unit pattern, factor to the family's base unit, family name).
 UNITS = [
-    (r"weeks?", 7, "days"),
-    (r"days?", 1, "days"),
-    (r"hours?|hrs?", 60, "minutes"),
-    (r"minutes?|mins?", 1, "minutes"),
-    (r"years?", 12, "months"),
-    (r"months?", 1, "months"),
+    (r"weeks?|semanas?", 7, "days"),
+    (r"days?|d[ií]as?", 1, "days"),
+    (r"hours?|hrs?|horas?", 60, "minutes"),
+    (r"minutes?|mins?|minutos?", 1, "minutes"),
+    (r"years?|a[ñn]os?", 12, "months"),
+    (r"months?|mes(?:es)?", 1, "months"),
 ]
 
 _WORD_ALTERNATION = "|".join(NUMBER_WORDS)
@@ -44,7 +48,7 @@ _QUANTITY = re.compile(
     re.IGNORECASE,
 )
 _LIST_MARKER = re.compile(r"^\s*\d+[.)]\s", re.MULTILINE)
-_AFTER = re.compile(r"[\s-]*(?P<unit>[A-Za-z%]+)")
+_AFTER = re.compile(r"[\s-]*(?P<unit>[^\W\d_]+|%)")
 
 
 def _value(match: re.Match) -> float:

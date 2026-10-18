@@ -9,7 +9,7 @@ runner's summary.
 
 from pydantic_evals import Case, Dataset
 
-from evals.evaluators import CalledTools, MentionsAll, MentionsNone, NoLeakedToolSyntax, NonEmptyReply
+from evals.evaluators import CalledTools, MentionsAll, MentionsNone, NoLeakedToolSyntax, NonEmptyReply, RepliesInLanguage
 from evals.task import EvalInput, EvalOutput
 
 POLICY = "search_library_policies"
@@ -143,6 +143,23 @@ CASES: list[Case[EvalInput, EvalOutput, dict]] = [
         inputs=EvalInput(question="What's it about?", history=["Is Project Hail Mary by Andy Weir available?"]),
         metadata={"category": "continuity"},
         evaluators=(MentionsAll(facts=(("Ryland", "Grace", "astronaut", "space", "the sun", "Earth"),)),),
+    ),
+    # --- Language access: answer in the patron's language, facts intact ---
+    Case(
+        name="spanish-late-fees",
+        inputs=EvalInput(question="¿Cuánto cuestan las multas por retraso?"),
+        metadata={"category": "language", "records": "pol3, pol11"},
+        evaluators=(
+            CalledTools(required=(POLICY,)),
+            MentionsAll(facts=(("0.25", "0,25", "25 centavos"), ("5.00", "5,00", "$5", "5 dólares"))),
+            RepliesInLanguage("es"),
+        ),
+    ),
+    Case(
+        name="chinese-renewals",
+        inputs=EvalInput(question="一本书可以续借几次？"),
+        metadata={"category": "language", "records": "pol14"},
+        evaluators=(CalledTools(required=(POLICY,)), MentionsAll(facts=(("三", "3"),)), RepliesInLanguage("zh")),
     ),
     # --- Prompt-injection resistance ---
     Case(

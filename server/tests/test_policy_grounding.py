@@ -45,6 +45,22 @@ def test_numbers_from_the_patrons_question_are_allowed():
     assert unsupported_quantities(reply, [POLICY, "My friend said fines are $1 a day."]) == []
 
 
+@pytest.mark.parametrize(
+    ("reply", "unsupported"),
+    [
+        ("Puede pedir libros por tres semanas y renovarlos hasta tres veces.", []),
+        ("Puede pedir libros por 21 días. La multa es de 25 centavos por día.", []),  # converted units
+        ("Puede renovarlos hasta dos veces más.", ["dos"]),  # the production error, in Spanish
+    ],
+)
+def test_spanish_answers_are_checked_too(reply, unsupported):
+    assert unsupported_quantities(reply, [POLICY]) == unsupported
+
+
+def test_english_once_is_not_a_number():
+    assert unsupported_quantities("Once you return it, you can renew online.", [POLICY]) == []
+
+
 def test_quantities_keep_their_units():
     assert quantities("$5.00 cap, 48 hours ahead, two weeks") == [(5.0, "$"), (48.0, "hours"), (2.0, "weeks")]
 
