@@ -144,6 +144,23 @@ CASES: list[Case[EvalInput, EvalOutput, dict]] = [
         metadata={"category": "continuity"},
         evaluators=(MentionsAll(facts=(("Ryland", "Grace", "astronaut", "space", "the sun", "Earth"),)),),
     ),
+    # --- Readers' advisory: suggestions only from what recommend_books returns ---
+    Case(
+        name="read-alikes",
+        inputs=EvalInput(question="I loved The Hunger Games. Can you recommend something similar?"),
+        metadata={"category": "catalog"},
+        evaluators=(CalledTools(required=("recommend_books",)), MentionsNone(phrases=("Summary of",))),
+    ),
+    Case(
+        name="kids-read-alikes",
+        inputs=EvalInput(question="Something for a 10-year-old who loves dragons?"),
+        metadata={"category": "catalog"},
+        # Production once offered "A Storm of Swords": the age didn't reach the search.
+        evaluators=(
+            CalledTools(required=("recommend_books",)),
+            MentionsNone(phrases=("Storm of Swords", "Game of Thrones", "Clash of Kings", "Feast for Crows")),
+        ),
+    ),
     # --- Language access: answer in the patron's language, facts intact ---
     Case(
         name="spanish-late-fees",

@@ -15,7 +15,7 @@
  * Optional: data-help-url="https://library.example/ask" (where "Talk to a
  * librarian" goes: a chat page, mailto: or tel: link), and
  * data-tools="policies,catalog" (only these tool groups; the others are
- * research, citations, ebooks and rooms), and data-lang="es" (the chat's
+ * recommendations, research, citations, ebooks and rooms), and data-lang="es" (the chat's
  * interface language; defaults to the host page's own <html lang>, then the
  * patron's browser).
  *
