@@ -130,6 +130,23 @@ catalog or policy MCP servers turned up.
     Keep the conformance report current with each interface change; the Spanish interface and new sections need a
     screen-reader pass.
 
+### Added from research, October 18 (second pass)
+
+13. ✅ **Screen readers and streaming replies.** A live region around streaming text makes screen readers read
+    fragments or fall behind ([tianpan.co](https://tianpan.co/blog/2026-06-29-streaming-tokens-meet-the-screen-reader),
+    [azukiazusa.dev](https://azukiazusa.dev/en/blog/accessible-streaming-chat-ui)). *Built: a separate status element
+    announces each reply once (`app/src/lib/announce.ts`). Needs the manual screen-reader pass to confirm.*
+14. **Evaluate on real reference questions.** Published studies score chatbots on real patron chat transcripts: 28
+    questions at Rider University found every chatbot "fluctuated greatly" in accuracy
+    ([EBLIP review](https://journals.library.ualberta.ca/eblip/index.php/EBLIP/article/view/30949)), and ChatGPT did
+    worst on e-resource access problems ([C&RL](https://crl.acrl.org/index.php/crl/article/view/26102)). A pilot
+    library's anonymized chat questions, sorted by type (directional, policy, catalog, research, access problems),
+    would make a far better eval set than ours, which we wrote ourselves.
+15. **Watch for patron-side evidence.** Most surveys ask staff, not patrons. Europe's ELAN/ADELE survey includes
+    library users, with recommendations due October–November 2026
+    ([EU Digital Skills](https://digital-skills-jobs.europa.eu/en/latest/news/elanadele-survey-20-mapping-digital-and-ai-readiness-europes-public-libraries)).
+    A pilot could also ask patrons directly, in the chat, after a few turns.
+
 ### Decisions only you can make
 - **Tier 7 Phase 29:** publish to the App Store ($99/year) and Google Play ($25 once)?
 - **Pilot library:** which library to approach first, and when.
