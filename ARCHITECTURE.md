@@ -408,6 +408,13 @@ catalog is connected, only titles that catalog finds are offered. The model choo
 (`children`/`teen`/`adult`), because a free-text "children 10" once failed to match and produced adult fantasy for a
 10-year-old.
 
+**The MCP server is lookups, not a second assistant.** `/mcp/` (`app/mcp_server.py`, MCP SDK 2.x) exposes
+policy search, catalog search, read-alikes, OpenAlex and Crossref citations as tools, calling the same service code
+as the patron agent but with no model in between. Staff bring their own AI client, LibSync spends no Groq quota, and
+nothing can be embellished on LibSync's side. It runs stateless with JSON responses (a single small instance keeps
+no sessions), with a per-IP limit because slowapi's decorators don't cover a mounted ASGI app. An `X-LibSync-Key`
+selects the library, and that library's dashboard switches, including AI-off, apply.
+
 **Integrate with what libraries already run.** Supabase, Render and Pinecone are LibSync's own infrastructure,
 invisible to a library. Everything a library *touches* should be a system it already has. Research in October
 2026 ([TIER8_PLAN.md §0](TIER8_PLAN.md#0-integrating-with-what-libraries-already-run-research-october-2026),

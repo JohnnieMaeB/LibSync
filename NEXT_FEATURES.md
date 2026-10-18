@@ -106,7 +106,7 @@ catalog or policy MCP servers turned up.
 
 ### P2: reach and resilience
 
-7. **A LibSync MCP server.** Expose catalog search, policy search and citations as MCP tools, so library staff can
+7. ✅ **A LibSync MCP server.** *Built: `/mcp/` with five grounded tools, no model calls ([docs/MCP.md](docs/MCP.md)).* Expose catalog search, policy search and citations as MCP tools, so library staff can
    use them from their own AI tools. It's cheap to build with the existing tools.
 8. **Capacity and budget visibility.** Surface Groq request and token headroom in the stats panel (the Tier 8 plan
    called for it), alert before the daily cap, and add OpenRouter's free models as one more fallback.
