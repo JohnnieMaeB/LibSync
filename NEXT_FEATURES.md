@@ -110,7 +110,8 @@ catalog or policy MCP servers turned up.
    use them from their own AI tools. It's cheap to build with the existing tools.
 8. ✅ **Capacity and budget visibility.** *Built: `app/capacity.py`, `GET /capacity`, the dashboard's "AI capacity today" panel and a log warning below 10%. Not done: OpenRouter as one more fallback.* Surface Groq request and token headroom in the stats panel (the Tier 8 plan
    called for it), alert before the daily cap, and add OpenRouter's free models as one more fallback.
-9. **Pilot kit.** A demo library seeded in Supabase, a one-page onboarding guide, a sample procurement packet
+9. ✅ **Pilot kit.** *Built: [docs/PILOT.md](docs/PILOT.md), `supabase/seed.sql`, and the compliance documents
+   brought up to date. Code4Lib outreach is yours.* A demo library seeded in Supabase, a one-page onboarding guide, a sample procurement packet
    (conformance report, privacy notice, data agreement) and outreach through Code4Lib.
 
 ### Added from research, October 18
@@ -122,8 +123,10 @@ catalog or policy MCP servers turned up.
     tool group; verified only with mocks until a library connects LibCal.* Vendors are adding program and event search by date, branch and age group
     ([Library Technology Guides](https://librarytechnology.org/document/24402)). LibSync already connects to LibCal for
     rooms; its events calendar is the natural next tool.
-12. **ADA Title II for smaller libraries.** Libraries serving under 50,000 people must meet WCAG 2.1 AA by April 26,
-    2027, and a vendor's tool is in scope if the library offers it ([ALA](https://www.ala.org/accessibility/new-rules-basics)).
+12. **ADA Title II deadlines.** DOJ's interim final rule of April 20, 2026 moved them a year: WCAG 2.1 AA by April 26,
+    2027 for libraries serving 50,000 or more people, and April 26, 2028 for smaller ones. A vendor's tool is in scope
+    if the library offers it ([ALA](https://www.ala.org/accessibility/new-rules-basics),
+    [Duane Morris](https://www.amazon.duanemorris.com/alerts/doj_extends_ada_title_ii_digital_accessibility_deadlines_one_year_0426.html)).
     Keep the conformance report current with each interface change; the Spanish interface and new sections need a
     screen-reader pass.
 
