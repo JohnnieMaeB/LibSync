@@ -103,6 +103,8 @@ export const en = {
     "Was it peer reviewed? Open access is about who can read it, not quality.",
     "What do other sources say about it? Search the author or claim in a new tab (lateral reading).",
   ],
+  handoff: "I haven't been able to answer this. A librarian can help.",
+  handoffNoLink: "Library staff can help in person, by phone or by email.",
   // Message actions
   copy: "Copy",
   copied: "Copied ✓",
@@ -268,6 +270,8 @@ export const es: Messages = {
     "¿Fue revisado por pares? El acceso abierto indica quién puede leerlo, no su calidad.",
     "¿Qué dicen otras fuentes? Busca al autor o la afirmación en otra pestaña (lectura lateral).",
   ],
+  handoff: "No he podido responder esto. Un bibliotecario puede ayudarte.",
+  handoffNoLink: "El personal de la biblioteca puede ayudarte en persona, por teléfono o por correo electrónico.",
   copy: "Copiar",
   copied: "Copiado ✓",
   copiedCitation: "¡Copiado!",

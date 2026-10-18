@@ -1333,3 +1333,21 @@ a.work-card-title:hover {
 .search-steps p {
     margin: 4px 0 0;
 }
+
+/* Staff handoff after repeated misses (lib/handoff.ts). */
+.staff-handoff {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--ls-accent);
+    border-radius: var(--ls-radius-sm);
+    background: var(--ls-surface);
+}
+
+.staff-handoff p {
+    margin: 0 0 6px;
+}
+
+.staff-handoff a {
+    color: var(--ls-accent);
+    font-weight: 600;
+}

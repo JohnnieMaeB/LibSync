@@ -150,6 +150,25 @@ describe("LibSync chat", () => {
     expect(secondBody.messages[2]).toMatchObject({ role: "user", content: "second question" });
   });
 
+  it("offers a person after the assistant misses twice", async () => {
+    const miss = (id: string) =>
+      makeStreamingResponse([
+        aguiEvent({ type: "RUN_STARTED", threadId: "abc-123", runId: id }),
+        ...textMessageEvents(id, ["Sorry, I couldn't find anything about that."]),
+        aguiEvent({ type: "RUN_FINISHED", threadId: "abc-123", runId: id }),
+      ]);
+    (fetch as any).mockResolvedValueOnce(miss("r1")).mockResolvedValueOnce(miss("r2"));
+
+    const user = userEvent.setup();
+    render(<App />);
+    await sendViaTextarea(user, "Do you lend telescopes?");
+    await screen.findByText(/couldn't find anything/);
+    expect(screen.queryByText(/A librarian can help/)).not.toBeInTheDocument();
+
+    await sendViaTextarea(user, "What about binoculars?");
+    expect(await screen.findByText("I haven't been able to answer this. A librarian can help.")).toBeInTheDocument();
+  });
+
   it("shows how an answer was found, from the tool calls, but not the output tool", async () => {
     (fetch as any).mockResolvedValueOnce(
       makeStreamingResponse([
