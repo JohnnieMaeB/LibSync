@@ -1,0 +1,88 @@
+name: Koha Live Check
+
+# Runs LibSync's Koha REST, SRU and SIP2 drivers against a real Koha, not
+# mocks (NEXT_FEATURES.md P0.2). koha-testing-docker (KTD) is the Koha
+# community's own dev/test environment: a full Koha with sample data, its REST
+# API, a Z39.50/SRU responder and a SIP2 server. It takes a while to start, so
+# this runs weekly, on demand, and on pull requests that touch the drivers,
+# not on every push. Costs nothing and needs no secrets.
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "server/app/services/catalog/**"
+      - "server/app/services/sip2.py"
+      - "server/tests_live/**"
+      - ".github/koha/**"
+      - ".github/workflows/koha-live.yml"
+
+jobs:
+  koha:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      KTD_HOME: ${{ github.workspace }}/ktd
+      SYNC_REPO: ${{ github.workspace }}/koha
+      PROJECTS_DIR: ${{ github.workspace }}
+      KOHA: koha-koha-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get koha-testing-docker and Koha
+        run: |
+          git clone --depth 1 https://gitlab.com/koha-community/koha-testing-docker.git ktd
+          git clone --depth 1 https://github.com/Koha-Community/Koha.git koha
+          cp ktd/env/defaults.env ktd/.env
+          echo "SKIP_L10N=yes" >> ktd/.env
+
+      - name: Start Koha
+        run: |
+          export PATH="$KTD_HOME/bin:$PATH" LOCAL_USER_ID=$(id -u)
+          ktd up -d
+          ktd --wait-ready 2400
+
+      - name: Seed test data and start SIP2
+        run: |
+          docker cp .github/koha/seed.pl "$KOHA":/tmp/seed.pl
+          docker exec -u kohadev-koha \
+            -e KOHA_CONF=/etc/koha/sites/kohadev/koha-conf.xml \
+            -e PERL5LIB=/kohadevbox/koha:/kohadevbox/koha/lib \
+            "$KOHA" perl /tmp/seed.pl | tail -1 > seed.json
+          jq 'del(.client_secret, .pin)' seed.json
+          # KTD's SIP config listens on 127.0.0.1 only; open it to the runner.
+          docker exec "$KOHA" bash -c '
+            sed -i "s#127.0.0.1:6001#0.0.0.0:6001#" /etc/koha/sites/kohadev/SIPconfig.xml
+            grep -n "port=\|login id=\"koha\"" /etc/koha/sites/kohadev/SIPconfig.xml
+            koha-sip --enable kohadev && koha-sip --start kohadev
+            koha-plack --restart kohadev
+            sleep 10
+            ss -ltn'
+          ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$KOHA")
+          {
+            echo "KOHA_LIVE_STAFF_URL=http://$ip:8081"
+            echo "KOHA_LIVE_OPAC_URL=http://$ip:8080"
+            echo "KOHA_LIVE_SRU_URL=http://$ip:2100/biblios"
+            echo "KOHA_LIVE_SIP_HOST=$ip"
+            echo "KOHA_LIVE_SEED=$(cat seed.json)"
+          } >> "$GITHUB_ENV"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --locked
+        working-directory: ./server
+
+      - name: Run the drivers against Koha
+        run: uv run pytest tests_live -v -s -rs
+        working-directory: ./server
+
+      - name: Koha logs on failure
+        if: failure()
+        run: |
+          docker exec "$KOHA" bash -c 'for f in /var/log/koha/kohadev/*.log; do echo "=== $f"; tail -40 "$f"; done' || true
+          docker logs --tail 80 "$KOHA" || true
