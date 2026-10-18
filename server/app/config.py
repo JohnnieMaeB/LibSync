@@ -17,6 +17,9 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 # an auth error until a valid token is set.
 GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "unset"
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN") or "unset"
+# Optional extra fallback (NEXT_FEATURES.md P2.8): OpenRouter's free models,
+# only when a key is set. See app/agent.py for the privacy routing it uses.
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or None
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PORT = int(os.getenv("PORT", "3000"))
 IS_TEST_ENV = os.getenv("NODE_ENV") == "test" or os.getenv("ENV") == "test"

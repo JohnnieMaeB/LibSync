@@ -32,7 +32,7 @@ from pydantic_ai.tools import ToolDefinition
 
 from app.bot_context.identity import PERSONA_PROMPT
 from app.bot_context.service_principles import SERVICE_PRINCIPLES
-from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN
+from app.config import GROQ_API_KEY, HUGGINGFACE_TOKEN, OPENROUTER_API_KEY
 from app.deps import LibSyncDeps
 from app.schemas import CATALOG_BOOKS_CONTEXT, BookResult, Citation, ResearchResult, ScholarlyWork
 from app.library_config import LibraryConfig
@@ -164,7 +164,45 @@ _huggingface_model = HuggingFaceModel(
     "deepseek-ai/DeepSeek-V4-Flash",
     provider=HuggingFaceProvider(api_key=HUGGINGFACE_TOKEN, provider_name="novita"),
 )
-_model = FallbackModel(_groq_model, _groq_qwen_model, _groq_small_model, _huggingface_model)
+# OpenRouter's free models, before the Hugging Face credit, only when the
+# operator set OPENROUTER_API_KEY. Free models are often served by providers
+# that keep prompts or train on them, which LibSync's privacy notice rules
+# out, so routing is restricted to zero-data-retention endpoints that don't
+# collect data. If none serves a model right now, the request fails and the
+# chain moves on: never a patron's message to a provider that keeps it.
+# Not yet vetted with the evals (needs the key): run
+# `uv run python -m evals.run --model openrouter:<id>` before relying on it.
+OPENROUTER_FREE_MODELS = ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-super-120b-a12b:free"]
+OPENROUTER_PRIVACY = {"data_collection": "deny", "zdr": True}
+
+
+def _openrouter_model(api_key: str | None):
+    if not api_key:
+        return None
+    from pydantic_ai.models.openrouter import OpenRouterModel, OpenRouterModelSettings
+    from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+    primary, *backups = OPENROUTER_FREE_MODELS
+    return OpenRouterModel(
+        primary,
+        provider=OpenRouterProvider(api_key=api_key),
+        settings=OpenRouterModelSettings(openrouter_provider=OPENROUTER_PRIVACY, openrouter_models=backups),
+    )
+
+
+def model_chain(openrouter_api_key: str | None = OPENROUTER_API_KEY) -> list:
+    """Every model the assistant may use, in order."""
+    openrouter = _openrouter_model(openrouter_api_key)
+    return [
+        _groq_model,
+        _groq_qwen_model,
+        _groq_small_model,
+        *([openrouter] if openrouter else []),
+        _huggingface_model,
+    ]
+
+
+_model = FallbackModel(*model_chain())
 
 chat_agent = Agent(
     _model,

@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "pydantic-ai-slim[ag-ui,groq,huggingface]>=1.0.8",
+    "pydantic-ai-slim[ag-ui,groq,huggingface,openrouter]>=1.0.8",
     "pinecone>=7.0",
     "slowapi>=0.1.9",
     "python-dotenv>=1.0",

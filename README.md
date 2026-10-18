@@ -348,6 +348,8 @@ fallback error message. Everything else is optional; the app runs fine with any 
 | `GROQ_API_KEY` | **Required** | Primary LLM | Free — no card |
 | `PINECONE_API_KEY` | **Required** | Policy RAG (`search_library_policies`) | Free tier |
 | `HUGGINGFACE_TOKEN` | Optional | Fallback LLM if Groq is unavailable | Free tier ($0.10/mo credit) |
+| `OPENROUTER_API_KEY` | Optional | Extra fallback: OpenRouter's free models, before Hugging Face, routed only to zero-data-retention endpoints | Free models (about 50 requests/day without credit) |
+| `MCP_ENABLED` | Optional | `0` turns off the MCP endpoint at `/mcp` (on by default) | Free |
 | `LOGFIRE_TOKEN` | Optional | Tracing of agent runs/tool calls | Free Hobby tier |
 | `OPENALEX_MAILTO` | Optional | Polite-pool identification for `search_scholarly_works` | Free, no signup |
 | `OPENALEX_API_KEY` | Optional | OpenAlex premium tier, if you have one | N/A unless you have a paid plan |
