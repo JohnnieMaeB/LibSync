@@ -18,7 +18,8 @@ HEADER = "              001" + "20261017    120000"  # status(14) + language + d
 
 
 def _reply(body: str) -> bytes:
-    return sip2.frame(body, 0).encode()
+    # Koha ends replies with CR LF by default; the client must cope.
+    return sip2.frame(body, 0).encode() + b"\n"
 
 
 async def _fake_sip2_server(seen: list[str]):
@@ -40,12 +41,10 @@ async def _fake_sip2_server(seen: list[str]):
                 writer.write(_reply(f"24{HEADER}AOinst|AA{CARD}|AEJane Doe|BL{'Y' if known else 'N'}|CQ{'Y' if good else 'N'}|BV0.00|"))
             elif line.startswith("63"):
                 counts = "0001" + "0001" + "0002" + "0000" + "0000" + "0000"
-                writer.write(
-                    _reply(
-                        f"64{HEADER}{counts}AOinst|AA{CARD}|AEJane Doe|BLY|"
-                        "ASThe Overstory|ATDune|AUDune|AUBeloved|BV1.50|"
-                    )
-                )
+                # Like Koha: only the first "Y" in the summary picks a list.
+                lists = {0: "ASThe Overstory|", 1: "ATDune|", 2: "AUDune|AUBeloved|"}
+                chosen = lists.get(line[23:33].find("Y"), "")
+                writer.write(_reply(f"64{HEADER}{counts}AOinst|AA{CARD}|AEJane Doe|BLY|{chosen}BV1.50|"))
             await writer.drain()
         writer.close()
 
@@ -96,7 +95,8 @@ async def test_patron_information_counts_and_items():
     assert info.counts["charged"] == 2 and info.counts["holds"] == 1
     assert info.items == {"holds": ["The Overstory"], "overdue": ["Dune"], "charged": ["Dune", "Beloved"]}
     assert info.fee_amount == "1.50"
-    assert "AD" not in seen[1]  # the PIN is never sent for account lookups
+    assert all("AD" not in line for line in seen[1:])  # the PIN is never sent for account lookups
+    assert [line[23:33] for line in seen[1:]] == ["Y         ", " Y        ", "  Y       "]
 
 
 async def test_rejected_sip_login_raises():
