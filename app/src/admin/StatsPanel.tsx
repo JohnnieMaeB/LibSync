@@ -17,6 +17,11 @@ interface LibraryStats {
 const TOOL_LABELS: Record<string, string> = {
   search_library_policies: "Library policies",
   search_catalog: "Catalog search",
+  recommend_books: "Book recommendations",
+  check_ebook_availability: "E-book availability",
+  check_room_availability: "Room availability",
+  check_library_events: "Upcoming events",
+  check_my_account: "Patron account lookups",
   search_scholarly_works: "Research papers",
   lookup_and_cite: "Citations",
 };

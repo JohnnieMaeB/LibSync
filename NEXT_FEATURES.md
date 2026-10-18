@@ -108,7 +108,7 @@ catalog or policy MCP servers turned up.
 
 7. ✅ **A LibSync MCP server.** *Built: `/mcp/` with five grounded tools, no model calls ([docs/MCP.md](docs/MCP.md)).* Expose catalog search, policy search and citations as MCP tools, so library staff can
    use them from their own AI tools. It's cheap to build with the existing tools.
-8. **Capacity and budget visibility.** Surface Groq request and token headroom in the stats panel (the Tier 8 plan
+8. ✅ **Capacity and budget visibility.** *Built: `app/capacity.py`, `GET /capacity`, the dashboard's "AI capacity today" panel and a log warning below 10%. Not done: OpenRouter as one more fallback.* Surface Groq request and token headroom in the stats panel (the Tier 8 plan
    called for it), alert before the daily cap, and add OpenRouter's free models as one more fallback.
 9. **Pilot kit.** A demo library seeded in Supabase, a one-page onboarding guide, a sample procurement packet
    (conformance report, privacy notice, data agreement) and outreach through Code4Lib.

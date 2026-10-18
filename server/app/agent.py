@@ -38,6 +38,7 @@ from app.schemas import CATALOG_BOOKS_CONTEXT, BookResult, Citation, ResearchRes
 from app.library_config import LibraryConfig
 from app.grounding import unsupported_quantities
 from app.library_config import get_library_secret
+from app import capacity
 from app.services import (
     catalog,
     citation_service,
@@ -147,7 +148,15 @@ asking library staff what this one offers.
 # credit is a last resort. Ordered by eval pass rate on the 22-case suite
 # (October 2026): gpt-oss-120b, then qwen3.8-27b (19/22), then gpt-oss-20b
 # (18/22). FallbackModel moves on at any provider error, including a 429.
-_groq_provider = GroqProvider(api_key=GROQ_API_KEY)
+# Its own HTTP client so every Groq response's rate-limit headers reach
+# app/capacity.py (the dashboard's capacity view). Timeouts match the client
+# pydantic-ai would otherwise create.
+_groq_provider = GroqProvider(
+    api_key=GROQ_API_KEY,
+    http_client=httpx.AsyncClient(
+        timeout=httpx.Timeout(timeout=600, connect=5), event_hooks={"response": [capacity.on_response]}
+    ),
+)
 _groq_model = GroqModel("openai/gpt-oss-120b", provider=_groq_provider)
 _groq_qwen_model = GroqModel("qwen/qwen3.8-27b", provider=_groq_provider)
 _groq_small_model = GroqModel("openai/gpt-oss-20b", provider=_groq_provider)

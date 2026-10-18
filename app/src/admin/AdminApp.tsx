@@ -5,6 +5,7 @@ import { safeHelpUrl } from "../widget";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { CatalogPanel } from "./CatalogPanel";
 import { StatsPanel } from "./StatsPanel";
+import { CapacityPanel } from "./CapacityPanel";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 import { DeveloperPanel } from "./DeveloperPanel";
 
@@ -167,6 +168,7 @@ function Libraries({ client, accessToken }: { client: SupabaseClient; accessToke
           <DeveloperPanel client={client} library={library} accessToken={accessToken} />
         </div>
       ))}
+      <CapacityPanel />
     </>
   );
 }
