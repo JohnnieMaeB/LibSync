@@ -15,6 +15,7 @@ export function ChatBox({
   onRetry,
   onFeedback,
   helpUrl = null,
+  teachSearch = false,
 }: {
   entries: ChatEntry[];
   chipsHidden: boolean;
@@ -25,6 +26,8 @@ export function ChatBox({
   onFeedback?: (id: string) => Promise<boolean>;
   // Where "Talk to a librarian" goes, for the staff handoff.
   helpUrl?: string | null;
+  // The library's "teach the search" setting: search steps open by default.
+  teachSearch?: boolean;
 }) {
   const { t } = useI18n();
   const { containerRef, showScrollButton, scrollToBottom, handleScroll } = useAutoScroll(entries);
@@ -51,6 +54,7 @@ export function ChatBox({
               onRegenerate={onRegenerate}
               onRetry={onRetry}
               onFeedback={onFeedback}
+              teachSearch={teachSearch}
             />
           ),
         )}

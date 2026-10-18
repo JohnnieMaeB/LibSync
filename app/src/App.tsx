@@ -34,6 +34,7 @@ function ChatConversation({
   tools,
   helpUrl,
   feedbackEnabled = false,
+  teachSearch = false,
   patronToken = null,
   onClose,
 }: {
@@ -44,6 +45,7 @@ function ChatConversation({
   tools?: string | null;
   helpUrl: string | null;
   feedbackEnabled?: boolean;
+  teachSearch?: boolean;
   patronToken?: string | null;
   onClose?: () => void;
 }) {
@@ -99,6 +101,7 @@ function ChatConversation({
         onRetry={retry}
         onFeedback={feedbackEnabled ? sendFeedback : undefined}
         helpUrl={helpUrl}
+        teachSearch={teachSearch}
       />
       <Composer isStreaming={isStreaming} onSend={sendMessage} onStop={stop} />
       <AiNotice helpUrl={helpUrl} />
@@ -164,6 +167,7 @@ function WidgetApp({ config }: { config: WidgetConfig }) {
             tools={config.tools}
             helpUrl={helpUrl}
             feedbackEnabled={library?.feedbackEnabled ?? false}
+            teachSearch={library?.teachSearch ?? false}
             onClose={handleClose}
           />
         )}
@@ -226,6 +230,7 @@ function StandaloneApp() {
           libraryId={library ? libraryId : null}
           patronToken={patron?.token ?? null}
           helpUrl={library?.helpUrl ?? standaloneHelpUrl()}
+          teachSearch={library?.teachSearch ?? false}
         />
       </div>
     </AppShell>
