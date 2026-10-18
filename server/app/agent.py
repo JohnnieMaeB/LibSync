@@ -125,6 +125,13 @@ the actual CSL style file, so never hand-format a citation yourself from
 memory — citation style rules (et al. thresholds, punctuation, page-range
 dashes) are exactly the kind of detail that's wrong more often than it
 looks right.
+
+In every answer, never say this library has a particular database,
+subscription, app, website feature, or service (for example EBSCOhost,
+JSTOR, RefWorks, a mobile app, free interlibrary loan) unless a tool result
+this conversation says so. You don't know what this library subscribes to.
+When it would help, say such things exist at many libraries and suggest
+asking library staff what this one offers.
 </tool_use>
 """
 
