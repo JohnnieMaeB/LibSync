@@ -1351,3 +1351,15 @@ a.work-card-title:hover {
     color: var(--ls-accent);
     font-weight: 600;
 }
+
+/* AI capacity (admin/CapacityPanel.tsx): text carries the meaning; the border
+   color only repeats it. */
+.capacity-status {
+    padding: 8px 12px;
+    border-left: 4px solid var(--ls-info);
+}
+
+.capacity-status--low,
+.capacity-status--exhausted {
+    border-left-color: var(--ls-accent);
+}
