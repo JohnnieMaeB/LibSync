@@ -15,6 +15,7 @@ import { DeveloperPanel } from "./DeveloperPanel";
 export const TOOL_GROUPS = [
   { id: "policies", label: "Library policies" },
   { id: "catalog", label: "Catalog search" },
+  { id: "recommendations", label: "Book recommendations (only titles the catalog returns)" },
   { id: "research", label: "Research papers" },
   { id: "citations", label: "Citations" },
   { id: "ebooks", label: "E-book availability (OverDrive, if connected below)" },

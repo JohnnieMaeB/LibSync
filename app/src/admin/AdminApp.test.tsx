@@ -75,7 +75,7 @@ describe("staff dashboard (Tier 8 Phase 30)", () => {
       name: "Springfield Public Library",
       ai_enabled: false,
       help_url: "tel:+15555550100",
-      enabled_tools: ["policies", "catalog", "citations", "ebooks", "rooms", "account"],
+      enabled_tools: ["policies", "catalog", "recommendations", "citations", "ebooks", "rooms", "account"],
       allowed_origins: null,
     });
     expect(await screen.findByText(/saved/i)).toBeInTheDocument();
