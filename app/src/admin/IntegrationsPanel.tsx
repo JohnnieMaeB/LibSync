@@ -29,12 +29,13 @@ export const VENDORS: VendorSpec[] = [
   {
     id: "libcal",
     title: "Springshare LibCal",
-    note: "Lets the assistant say which rooms are free on a day. Booking stays on your LibCal page.",
+    note: "Lets the assistant say which rooms are free on a day and, with a calendar ID, list upcoming events. Booking and registration stay on your LibCal pages.",
     fields: [
       { key: "site", label: "LibCal site", placeholder: "yourlibrary.libcal.com" },
       { key: "location_id", label: "Location ID" },
       { key: "client_id", label: "API client ID" },
       { key: "booking_url", label: "Booking page URL", placeholder: "https://yourlibrary.libcal.com/reserve" },
+      { key: "calendar_id", label: "Events calendar ID (optional)" },
     ],
     secret: { name: "libcal_client_secret", label: "API client secret" },
   },

@@ -118,7 +118,8 @@ catalog or policy MCP servers turned up.
 10. ✅ **Offer a person after repeated misses.** Virginia Beach Public Library's chatbot gives a direct staff contact
     after two failed attempts ([Urban Libraries Council](https://www.urbanlibraries.org/innovations/vbpl-chatbot-page)).
     *Built: `app/src/lib/handoff.ts`.*
-11. **Library events.** Vendors are adding program and event search by date, branch and age group
+11. ✅ **Library events.** *Built: `check_library_events` (LibCal events calendar, read-only), its own `events`
+    tool group; verified only with mocks until a library connects LibCal.* Vendors are adding program and event search by date, branch and age group
     ([Library Technology Guides](https://librarytechnology.org/document/24402)). LibSync already connects to LibCal for
     rooms; its events calendar is the natural next tool.
 12. **ADA Title II for smaller libraries.** Libraries serving under 50,000 people must meet WCAG 2.1 AA by April 26,
