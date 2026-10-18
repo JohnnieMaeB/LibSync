@@ -1,5 +1,8 @@
 # Piloting LibSync at your library
 
+> **Draft for the project owner to review before sending.** The terms (free for the pilot, eight weeks, deletion on
+> request) are proposals, not commitments yet.
+
 LibSync is an AI assistant for your library's website. It answers patrons' questions about your policies, searches
 your catalog, recommends books you hold, finds research papers and formats citations, and shows how each answer was
 found. This page is what a pilot involves. It is a personal, open-source project, offered free for the pilot.
