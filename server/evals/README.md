@@ -34,6 +34,23 @@ tool-name comparisons (no LLM-as-judge, so a failure always has a concrete reaso
 
 A case passes only if all of its checks pass.
 
+## Policy faithfulness (HHEM, reported, not gating)
+
+Every answer that used the policy search also gets a score from Vectara's
+[HHEM-2.1-Open](https://huggingface.co/vectara/hallucination_evaluation_model), a small open model that rates how
+well the retrieved policy text supports the answer (0 = unsupported, 1 = supported). It catches what the
+number check in `app/grounding.py` can't: invented details with no number in them, like "the renewal option will be
+removed" for overdue items. See [`faithfulness.py`](faithfulness.py).
+
+- **It doesn't gate the run.** HHEM is about 67% accurate on adversarial benchmarks, so answers scoring below 0.5
+  are listed in the summary for a person to read.
+- **Answers are cleaned first.** Markdown, emoji, referrals to staff, offers of help and pleasantries are removed
+  before scoring. None of those are in the policy text, so HHEM would count them as unsupported: on the real renewal
+  policy, a correct answer ending "ask library staff" scored 0.13, and 0.98 without that sentence. An invented
+  detail scored 0.01.
+- **It only runs where torch is installed.** The weekly workflow installs CPU torch and transformers; locally,
+  install them into the server environment to get scores (`--no-hhem` skips it). It never runs in production.
+
 ## The dataset
 
 [`dataset.py`](dataset.py) holds 23 cases across policy (each fact traced to a seed record id in
