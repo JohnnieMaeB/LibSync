@@ -14,7 +14,7 @@ Intelligence in Libraries](https://www.ala.org/tools/standards-and-guidelines/gu
 | Data | Where it goes | Why | How long it is kept |
 |---|---|---|---|
 | Chat messages | LibSync's server (Render, US) | To run the assistant | In server memory for up to 1 hour of inactivity, then discarded. No chat database |
-| Chat messages | AI provider: Groq (primary); Hugging Face Inference Providers (novita) only if all Groq models are unavailable | To write the reply | Groq: not used for training (Groq's services agreement). By default Groq may keep request logs up to 30 days for abuse and reliability monitoring; Zero Data Retention removes that (see the operator checklist). Hugging Face: governed by its and novita's terms |
+| Chat messages | AI provider: Groq (primary); OpenRouter's free models, **only if the operator enabled them**, and only through endpoints with zero data retention that don't collect data; Hugging Face Inference Providers (novita) only if all of those are unavailable | To write the reply | Groq: not used for training (Groq's services agreement). By default Groq may keep request logs up to 30 days for abuse and reliability monitoring; Zero Data Retention removes that (see the operator checklist). Hugging Face: governed by its and novita's terms |
 | Search terms the assistant chooses (not the whole conversation) | Pinecone (policy search); Open Library, OpenAlex, Crossref (books, papers, citations) | To ground answers in real data | Governed by each service's terms; no account or patron identifier is sent |
 | Diagnostics (timing, tool names, token counts, errors, `library_id`) | Logfire, if the operator enables tracing | To find and fix failures | Logfire retention. **Message text is excluded** unless `LOGFIRE_INCLUDE_CONTENT` is turned on for local debugging |
 | IP address, request metadata | GitHub Pages and Render (hosting) | Delivering the site | Hosting providers' logs |
@@ -59,3 +59,6 @@ Things the person running a LibSync deployment must do, because they are account
 - [ ] Enable **Zero Data Retention** in the Groq console (Data Controls). Available on every Groq plan.
 - [ ] Keep `LOGFIRE_INCLUDE_CONTENT` unset in production.
 - [ ] Decide whether the Hugging Face fallback's retention terms are acceptable; remove it from the chain if not.
+- [ ] Only set `OPENROUTER_API_KEY` if an extra fallback is wanted. LibSync restricts OpenRouter to zero-data-retention,
+  no-data-collection endpoints on every request; in OpenRouter's privacy settings, leave "allow providers that may
+  train on inputs" off as well.

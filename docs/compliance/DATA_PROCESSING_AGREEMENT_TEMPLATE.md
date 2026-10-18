@@ -70,7 +70,8 @@ and the Library's search index namespace) within [30] days and confirms in writi
 | Render | All requests | Server hosting (US) |
 | GitHub Pages | Page requests | Static hosting of the patron app and widget |
 | Groq | Chat messages | AI inference (primary) |
-| Hugging Face Inference Providers (novita) | Chat messages, only when every Groq model is unavailable | AI inference (fallback) |
+| OpenRouter | Chat messages, only if the operator enables it and every Groq model is unavailable; routed only to zero-data-retention endpoints | AI inference (fallback) |
+| Hugging Face Inference Providers (novita) | Chat messages, only when every other model is unavailable | AI inference (last fallback) |
 | Pinecone | Search terms; Library policy documents | Policy search index |
 | Open Library, OpenAlex, Crossref | Search terms | Catalog, research, recommendation and citation lookups |
 | Supabase | Library settings; staff and email-sign-in accounts; signed-in patrons' synced conversations (keyed by a one-way reference) | Dashboard, sign-in and history sync, only when enabled |
