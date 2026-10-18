@@ -12,8 +12,8 @@ what libraries need now and ranks the next features. Sources are linked inline; 
 | Grounding | Policy RAG, catalog, research, citations; book answers carry the catalog's exact facts (#67) |
 | Staff dashboard, documents, ILS drivers, stats, vendor tools, API keys | Built; **off until Supabase etc. are configured** |
 | Patron accounts (SIP2 card, email), synced history, account lookups | Built; **off until `PATRON_SESSION_SECRET`** |
-| Verified live | SRU (Library of Congress), Pinecone indexing, the production chat |
-| **Verified only with mocks** | Koha REST, Polaris PAPI, SIP2, OverDrive, LibCal, LibAnswers, Supabase, Logfire queries |
+| Verified live | SRU (Library of Congress and Koha), Koha REST, SIP2 (Koha), Pinecone indexing, the production chat |
+| **Verified only with mocks** | Polaris PAPI, OverDrive, LibCal, LibAnswers, Supabase, Logfire queries |
 
 ## What the research says
 
@@ -78,11 +78,10 @@ catalog or policy MCP servers turned up.
    - A prompt rule: say only what the policy says, and suggest staff for anything else.
    - New eval cases for each embellishment seen in production.
    - HHEM-2.1-Open as an **offline** eval metric in the weekly run, not in production (RAM).
-2. **Verify the integrations against real systems, at $0, in CI.** Koha's community `koha-testing-docker` is a
-   Docker Compose setup that should fit a GitHub Actions runner. Koha itself provides the REST API, an SRU server and
-   a SIP2 server; whether KTD starts SRU and SIP2 by default needs checking. A weekly workflow could seed a few
-   records and run LibSync's Koha driver, SRU driver, SIP2 sign-in and account lookup against it, turning four
-   "mocked only" rows into "verified". Polaris has a free Developer Network sandbox (needs your sign-up).
+2. ✅ **Verify the integrations against real systems, at $0, in CI.** *Built for Koha: a weekly workflow
+   (`koha-live.yml`) runs the Koha REST, SRU and SIP2 drivers against koha-testing-docker. It found two SIP2
+   bugs the mocks hid (CR LF replies; one item list per request) and that Koha lists barcodes, not titles. Polaris
+   needs its free Developer Network sandbox, which needs your sign-up.*
 3. **Switch on the operator settings** (yours): Supabase, Groq Zero Data Retention, `PATRON_SESSION_SECRET`, a
    Logfire read token. Then a manual screen-reader pass (NVDA, VoiceOver) to finish the conformance report.
 

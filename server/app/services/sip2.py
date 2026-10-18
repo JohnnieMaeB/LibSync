@@ -15,7 +15,8 @@ patron's card and PIN (23/24), and read a patron's account summary (63/64).
 not the caller needs them, so connections should use TLS (or a VPN tunnel);
 LibSync keeps only the yes/no answer and counts, never the PIN or the
 personal fields. Written to the SIP2 2.0 specification and tested against a
-fake server; not yet run against a library's real SIP2 server.
+fake server, and run weekly against a real Koha's SIP2 server
+(.github/workflows/koha-live.yml).
 
 integrations.sip2: {"host": "...", "port": 6001, "tls": true, "institution_id": "...",
                     "login_user": "...", "location": "..."}
@@ -116,7 +117,9 @@ class SIP2Client:
         self._sequence += 1
         await self._writer.drain()
         raw = await asyncio.wait_for(self._reader.readuntil(b"\r"), TIMEOUT_SECONDS)
-        return raw.decode("ascii", errors="replace").rstrip("\r\n")
+        # Servers may end messages with CR LF (Koha does by default); the LF
+        # then arrives at the start of the next read, so strip both ends.
+        return raw.decode("ascii", errors="replace").strip("\r\n")
 
     async def verify_patron(self, card: str, pin: str) -> PatronStatus:
         """23 Patron Status: is this a valid card, and is the PIN right?"""
@@ -133,11 +136,20 @@ class SIP2Client:
             screen_message=fields.get("AF"),
         )
 
-    async def patron_information(self, card: str) -> PatronStatus:
-        """63 Patron Information with item lists: holds, overdue and charged
-        items. Asked without the patron's PIN; LibSync verified card ownership
-        at sign-in, and the library's SIP account authorizes the lookup."""
-        summary = "YYY       "  # hold items, overdue items, charged items
+    async def item_title(self, item_id: str) -> str:
+        """17 Item Information: the title for an item identifier. Item lists
+        carry identifiers, which are barcodes on Koha and some other systems,
+        so each is looked up; on any failure the identifier is kept."""
+        try:
+            response = await self._send(f"17{sip_date()}AO{_escape(self.institution)}|AB{_escape(item_id)}|AC|")
+        except (asyncio.TimeoutError, OSError):
+            return item_id
+        if not response.startswith("18") or len(response) < 26:
+            return item_id
+        # Drop ISBD punctuation the catalog leaves on titles ("E Street shuffle :").
+        return parse_fields(response[26:]).get("AJ", "").strip().rstrip(" /:;,=").strip() or item_id
+
+    async def _patron_information(self, card: str, summary: str) -> tuple[dict[str, int], dict[str, str]]:
         response = await self._send(
             f"63001{sip_date()}{summary}AO{_escape(self.institution)}|AA{_escape(card)}|AC|BP1|BQ10|"
         )
@@ -149,12 +161,26 @@ class SIP2Client:
         for i, name in enumerate(names):
             chunk = counts_raw[i * 4 : i * 4 + 4].strip()
             counts[name] = int(chunk) if chunk.isdigit() else 0
-        fields = parse_fields(response[61:])
-        items = {
-            "holds": [i for i in fields.get("AS", "").split("\n") if i],
-            "overdue": [i for i in fields.get("AT", "").split("\n") if i],
-            "charged": [i for i in fields.get("AU", "").split("\n") if i],
-        }
+        return counts, parse_fields(response[61:])
+
+    async def patron_information(self, card: str) -> PatronStatus:
+        """63 Patron Information: counts plus the hold, overdue and charged
+        item lists. Asked without the patron's PIN; LibSync verified card
+        ownership at sign-in, and the library's SIP account authorizes the
+        lookup.
+
+        The spec allows one item list per request (a single "Y" in the
+        summary field) and Koha honors only the first, so this asks once per
+        list on the same connection."""
+        counts: dict[str, int] = {}
+        fields: dict[str, str] = {}
+        items: dict[str, list[str]] = {}
+        # Summary position 0 = hold items (AS), 1 = overdue (AT), 2 = charged (AU).
+        for position, (name, code) in enumerate((("holds", "AS"), ("overdue", "AT"), ("charged", "AU"))):
+            list_counts, list_fields = await self._patron_information(card, (" " * position + "Y").ljust(10))
+            counts = counts or list_counts
+            fields = fields or list_fields
+            items[name] = [await self.item_title(i) for i in list_fields.get(code, "").split("\n") if i]
         return PatronStatus(
             valid_patron=fields.get("BL") == "Y",
             valid_password=fields.get("CQ") == "Y",

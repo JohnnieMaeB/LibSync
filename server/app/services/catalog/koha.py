@@ -4,10 +4,10 @@ Authenticates with OAuth2 client credentials (Koha: Administration → System
 preferences → RESTOAuth2ClientCredentials, then a patron's "Manage API keys"),
 searches bibliographic records, and checks item availability.
 
-**Not yet verified against a live Koha instance**: written to Koha's
-documented REST API (/api/v1/oauth/token, GET /api/v1/biblios with a `q`
-query, GET /api/v1/biblios/{id}/items) and covered by mocked tests. Verify
-with koha-testing-docker before relying on it.
+Written to Koha's documented REST API (/api/v1/oauth/token, GET
+/api/v1/biblios with a `q` query, GET /api/v1/biblios/{id}/items), covered
+by mocked tests, and run weekly against a real Koha (koha-testing-docker;
+.github/workflows/koha-live.yml).
 
 catalog_config:
   base_url    Koha staff REST base, e.g. https://staff.library.example
