@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ChatEntry } from "../types";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import { UserBubble } from "./UserBubble";
@@ -6,6 +7,7 @@ import { SuggestionChips } from "./SuggestionChips";
 import { ScrollToLatestButton } from "./ScrollToLatestButton";
 import { useI18n } from "../i18n";
 import { shouldOfferHandoff } from "../lib/handoff";
+import { latestNewReply, replyAnnouncement } from "../lib/announce";
 
 export function ChatBox({
   entries,
@@ -31,14 +33,21 @@ export function ChatBox({
 }) {
   const { t } = useI18n();
   const { containerRef, showScrollButton, scrollToBottom, handleScroll } = useAutoScroll(entries);
+  // Replies already here when this conversation opened aren't read aloud again.
+  const [seenAtOpen] = useState(() => new Set(entries.filter((e) => e.kind === "bot").map((e) => e.id)));
+  const reply = latestNewReply(entries, seenAtOpen);
+  const announcement = reply ? replyAnnouncement(reply, t) : "";
+  const busy = reply !== null && ["loading", "tool", "streaming"].includes(reply.status);
 
   return (
     <>
       <main
         id="chatBox"
         role="log"
-        aria-live="polite"
-        aria-relevant="additions"
+        // Not a live region: streamed tokens would be read as fragments. The
+        // status element below announces each reply once (lib/announce.ts).
+        aria-live="off"
+        aria-busy={busy}
         ref={containerRef}
         onScroll={handleScroll}
       >
@@ -71,6 +80,9 @@ export function ChatBox({
           </div>
         )}
       </main>
+      <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
       <ScrollToLatestButton hidden={!showScrollButton} onClick={scrollToBottom} />
     </>
   );

@@ -83,6 +83,8 @@ export const en = {
     search_scholarly_works: "🎓 Looking up research",
     lookup_and_cite: "🎓 Looking up citation",
   } as Record<string, string>,
+  announceAnswering: "LibSync is answering…",
+  announceReplied: "LibSync replied:",
   howFound: "How I found this",
   searchSteps: {
     search_library_policies: (q: string) => `Searched this library's policies for “${q}”`,
@@ -252,6 +254,8 @@ export const es: Messages = {
     search_scholarly_works: "🎓 Buscando investigaciones",
     lookup_and_cite: "🎓 Buscando la cita",
   },
+  announceAnswering: "LibSync está respondiendo…",
+  announceReplied: "LibSync respondió:",
   howFound: "Cómo encontré esto",
   searchSteps: {
     search_library_policies: (q) => `Busqué “${q}” en las normas de esta biblioteca`,

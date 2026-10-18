@@ -89,7 +89,7 @@ inside it.
 | 3.2.4 Consistent Identification | Supports | Controls are named consistently |
 | 3.3.3 Error Suggestion | Supports | Error messages say what to do (wait, retry) |
 | 3.3.4 Error Prevention (Legal, Financial, Data) | Not Applicable | No such transactions |
-| 4.1.3 Status Messages | Supports | The conversation is a `role="log"` live region; tool status is announced through it |
+| 4.1.3 Status Messages | Supports | A separate status element announces "answering", each search, and the finished reply once, as plain sentences (`lib/announce.ts`). The conversation stays a `role="log"` but is not itself a live region, and is `aria-busy` while a reply streams, so screen readers don't read partial tokens. Changed October 2026 after research on streaming AI output; still to be confirmed with NVDA, JAWS and VoiceOver |
 
 ## How to keep this current
 
