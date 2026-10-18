@@ -11,7 +11,12 @@ from app.deps import LibSyncDeps
 from app.tenants import TOOL_GROUPS, parse_enabled_tools
 
 # The two vendor tools (Phase 37T) are hidden unless the library configured them.
-ALL_TOOLS = set(TOOL_GROUPS.values()) - {"check_ebook_availability", "check_room_availability", "check_my_account"}
+ALL_TOOLS = set(TOOL_GROUPS.values()) - {
+    "check_ebook_availability",
+    "check_room_availability",
+    "check_library_events",
+    "check_my_account",
+}
 
 
 @pytest.mark.parametrize(

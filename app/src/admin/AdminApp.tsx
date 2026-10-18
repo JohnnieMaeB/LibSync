@@ -20,6 +20,7 @@ export const TOOL_GROUPS = [
   { id: "citations", label: "Citations" },
   { id: "ebooks", label: "E-book availability (OverDrive, if connected below)" },
   { id: "rooms", label: "Room availability (LibCal, if connected below)" },
+  { id: "events", label: "Upcoming events (LibCal events calendar, if connected below)" },
   { id: "account", label: "Patron account lookups (signed-in patrons, SIP2)" },
 ] as const;
 

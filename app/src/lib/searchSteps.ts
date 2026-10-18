@@ -16,6 +16,7 @@ const DESCRIBED = new Set([
   "lookup_and_cite",
   "check_ebook_availability",
   "check_room_availability",
+  "check_library_events",
   "check_my_account",
 ]);
 
@@ -33,7 +34,7 @@ export function stepFromToolCall(tool: string, rawArgs: string): SearchStep | nu
   } catch {
     // Arguments that don't parse still say which source was searched.
   }
-  const query = text(args.query) || text(args.like) || text(args.about) || text(args.title) || text(args.doi) || text(args.date);
+  const query = text(args.query) || text(args.search) || text(args.like) || text(args.about) || text(args.title) || text(args.doi) || text(args.date);
   return { tool, query, mode: text(args.like) ? "like" : undefined };
 }
 

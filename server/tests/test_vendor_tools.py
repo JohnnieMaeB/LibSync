@@ -140,3 +140,54 @@ async def test_switching_a_vendor_group_off_hides_its_tool():
             "hi", deps=LibSyncDeps(http_client=None, library_config=config, enabled_tools=frozenset({"catalog"}))
         )
     assert "check_ebook_availability" not in seen["tools"]
+
+
+async def test_libcal_upcoming_events():
+    def handler(request: httpx.Request):
+        if request.url.path == "/1.1/oauth/token":
+            return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        assert request.url.path == "/1.1/events"
+        assert dict(request.url.params) == {"cal_id": "456", "days": "60", "limit": "8", "search": "storytime"}
+        return httpx.Response(
+            200,
+            json={
+                "events": [
+                    {
+                        "title": "Toddler Storytime",
+                        "start": "2026-10-21T10:30:00-05:00",
+                        "end": "2026-10-21T11:00:00-05:00",
+                        "location": {"name": "Children's Room"},
+                        "audience": [{"name": "Toddlers"}, {"name": "Families"}],
+                        "description": "<p>Songs, <b>stories</b> and rhymes.</p>",
+                        "url": {"public": "https://lib.libcal.com/event/1"},
+                    }
+                ]
+            },
+        )
+
+    settings = {"site": "lib.libcal.com", "calendar_id": "456", "client_id": "cid"}
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        events = await libcal.upcoming_events(client, settings, "sec", "storytime", days=365)  # capped at 60
+    assert events == [
+        {
+            "title": "Toddler Storytime",
+            "start": "2026-10-21T10:30:00-05:00",
+            "end": "2026-10-21T11:00:00-05:00",
+            "all_day": False,
+            "location": "Children's Room",
+            "audience": "Toddlers, Families",
+            "description": "Songs, stories and rhymes.",
+            "url": "https://lib.libcal.com/event/1",
+        }
+    ]
+
+
+async def test_events_tool_needs_an_events_calendar():
+    rooms_only = await _run(LibraryConfig(id="lib", name="L", integrations={"libcal": {"site": "lib.libcal.com"}}))
+    assert "check_library_events" not in rooms_only["tools"]
+    assert "check_library_events" not in rooms_only["instructions"]
+
+    config = LibraryConfig(id="lib", name="L", integrations={"libcal": {"site": "lib.libcal.com", "calendar_id": "456"}})
+    with_events = await _run(config)
+    assert "check_library_events" in with_events["tools"]
+    assert "check_library_events" in with_events["instructions"]

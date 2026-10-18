@@ -188,6 +188,7 @@ _TOOL_NAMES = (
     "lookup_and_cite",
     "check_ebook_availability",
     "check_room_availability",
+    "check_library_events",
     "check_my_account",
 )
 _LEAKED_TOOL_CALL_PATTERN = re.compile(
@@ -448,6 +449,12 @@ def _library_instructions(ctx: RunContext[LibSyncDeps]) -> str | None:
             "For questions about free study or meeting rooms on a date, call `check_room_availability` and point "
             "the patron to the booking link it returns; you can't book rooms yourself."
         )
+        if config.integration("libcal").get("calendar_id"):
+            lines.append(
+                "For questions about events, programs, classes or storytimes, call `check_library_events` and "
+                "mention only events it returns, with their dates and registration links; you can't register "
+                "patrons yourself."
+            )
     return "\n".join(lines) or None
 
 
@@ -532,6 +539,51 @@ async def _when_signed_in_with_card(ctx: RunContext[LibSyncDeps], tool_def: Tool
         return None
     return await _tool_group_switch("account")(ctx, tool_def)
 
+
+
+def _events_configured():
+    """Hidden unless LibCal is set up with an events calendar and the library
+    hasn't switched events off."""
+    base = _when_configured("events", "libcal")
+
+    async def prepare(ctx: RunContext[LibSyncDeps], tool_def: ToolDefinition) -> ToolDefinition | None:
+        config = ctx.deps.library_config
+        if config is None or not (config.integration("libcal") or {}).get("calendar_id"):
+            return None
+        return await base(ctx, tool_def)
+
+    return prepare
+
+
+@chat_agent.tool(prepare=_events_configured())
+async def check_library_events(ctx: RunContext[LibSyncDeps], search: str | None = None, days: int = 14) -> str:
+    """List the library's upcoming events and programs from its LibCal
+    calendar (read-only; patrons register on each event's own page).
+
+    Args:
+        search: Optional words to match, e.g. "storytime", "coding", "book club".
+        days: How many days ahead to look (1 to 60, default 14).
+    """
+    config = ctx.deps.library_config
+    try:
+        secret = await get_library_secret(ctx.deps.http_client, config.id, "libcal_client_secret")
+        events = await libcal.upcoming_events(ctx.deps.http_client, config.integration("libcal"), secret, search, days)
+    except Exception as error:
+        print("LibCal events lookup failed:", type(error).__name__)
+        return "The events calendar is temporarily unavailable."
+    if not events:
+        matching = f' matching "{search}"' if search else ""
+        return f"No upcoming events{matching} in the next {days} days."
+    lines = ["Upcoming events:"]
+    for event in events:
+        details = "; ".join(filter(None, [event["location"], event["audience"] and f"for {event['audience']}"]))
+        line = f"- {event['title']}, {event['start'] or 'date not listed'}"
+        if details:
+            line += f" ({details})"
+        if event["url"]:
+            line += f". Details and registration: {event['url']}"
+        lines.append(line)
+    return "\n".join(lines)
 
 @chat_agent.tool(prepare=_when_signed_in_with_card)
 async def check_my_account(ctx: RunContext[LibSyncDeps]) -> ToolReturn:
