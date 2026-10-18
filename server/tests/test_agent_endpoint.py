@@ -490,3 +490,19 @@ class TestCitationStyleSwitchEndpoint:
 
         response = client.get("/citation/10.0000/does-not-exist")
         assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"not json",
+        b'{"messages": 5}',
+        # Not UTF-8: what a Windows shell sends when it re-encodes "\xbfC\xf3mo?" to cp1252.
+        b'{"threadId":"t","runId":"r","state":{},"messages":[{"id":"m","role":"user","content":"\xbfC\xf3mo?"}],'
+        b'"tools":[],"context":[],"forwardedProps":{}}',
+    ],
+)
+def test_a_malformed_body_is_a_400_not_a_500(client, body):
+    response = client.post("/agent", content=body, headers={"Content-Type": "application/json"})
+    assert response.status_code == 400
+    assert "isn't a valid AG-UI run" in response.json()["error"]

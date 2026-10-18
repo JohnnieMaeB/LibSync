@@ -22,6 +22,7 @@ from typing import Any
 from ag_ui.core import BaseEvent, EventType, RunErrorEvent
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.ui.ag_ui import AGUIAdapter
 
@@ -113,7 +114,12 @@ async def agent_endpoint(request: Request):
     if isinstance(gated, JSONResponse):
         return gated
 
-    adapter = await AGUIAdapter.from_request(request, agent=chat_agent)
+    try:
+        adapter = await AGUIAdapter.from_request(request, agent=chat_agent)
+    except ValidationError:
+        # Not JSON, not UTF-8, or not an AG-UI run: the caller's mistake, so a
+        # 400 rather than a 500 (and nothing of the body echoed back).
+        return JSONResponse(status_code=400, content={"error": "The request body isn't a valid AG-UI run (JSON, UTF-8)."})
     thread_id = adapter.conversation_id or str(uuid.uuid4())
     deps = LibSyncDeps(
         http_client=request.app.state.http_client,
