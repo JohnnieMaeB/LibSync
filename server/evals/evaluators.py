@@ -114,3 +114,31 @@ class NonEmptyReply(Evaluator[EvalInput, EvalOutput]):
 
     def evaluate(self, ctx: EvaluatorContext[EvalInput, EvalOutput]) -> bool:
         return len(ctx.output.reply.strip()) >= self.min_chars
+
+
+_SPANISH_WORDS = {"el", "la", "los", "las", "de", "que", "por", "para", "puede", "un", "una", "es", "en", "y", "su", "se"}
+_ENGLISH_WORDS = {"the", "you", "your", "can", "of", "and", "for", "is", "are", "to", "a", "it", "on", "per"}
+
+
+def _share_of_script(text: str, low: int, high: int) -> float:
+    letters = [ch for ch in text if ch.isalpha()]
+    return sum(low <= ord(ch) <= high for ch in letters) / len(letters) if letters else 0.0
+
+
+@dataclass
+class RepliesInLanguage(Evaluator[EvalInput, EvalOutput]):
+    """The reply is written in the patron's language: "es" (more Spanish than
+    English function words) or "zh" (mostly CJK characters, so titles and
+    numbers in Latin script don't fail it)."""
+
+    language: str = "es"
+
+    def evaluate(self, ctx: EvaluatorContext[EvalInput, EvalOutput]) -> EvaluationReason:
+        reply = ctx.output.reply
+        if self.language == "zh":
+            share = _share_of_script(reply, 0x4E00, 0x9FFF)
+            return EvaluationReason(value=share >= 0.5, reason=f"{share:.0%} of letters are CJK")
+        words = re.findall(r"[a-záéíóúñü]+", normalize(reply))
+        spanish = sum(word in _SPANISH_WORDS for word in words)
+        english = sum(word in _ENGLISH_WORDS for word in words)
+        return EvaluationReason(value=spanish > english, reason=f"{spanish} Spanish vs {english} English function words")

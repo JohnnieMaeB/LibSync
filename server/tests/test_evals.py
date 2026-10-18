@@ -247,3 +247,21 @@ async def test_dataset_checks_accept_natural_phrasings_models_actually_use():
         reply="Many e\u2011books have screen\u2011reader support.", tools_called=["search_library_policies"]
     )
     assert all((await _assertions(hyphenated, *cases["visual-impairment"].evaluators)).values())
+
+
+@pytest.mark.parametrize(
+    ("language", "reply", "expected"),
+    [
+        ("es", "La multa es de $0.25 por día, con un máximo de $5.00 por artículo.", True),
+        ("es", "The fine is $0.25 per day, capped at $5.00 per item.", False),
+        ("zh", "每本书可以续借最多三次（网上或电话），前提是没有其他人预约。", True),
+        ("zh", "You can renew up to 3 times.", False),
+    ],
+)
+def test_replies_in_language(language, reply, expected):
+    from types import SimpleNamespace
+
+    from evals.evaluators import RepliesInLanguage
+
+    ctx = SimpleNamespace(output=EvalOutput(reply=reply, tools_called=[]))
+    assert RepliesInLanguage(language).evaluate(ctx).value is expected

@@ -95,10 +95,12 @@ catalog or policy MCP servers turned up.
    dragons", answered only with titles the library holds, through the catalog drivers, with subjects from Open
    Library. This is NoveList's critique of chatbots, turned into a feature.
 6. **Language access.**
-   - Answer in the patron's language. The current model already can; the system prompt should say to.
+   - ✅ Answer in the patron's language: a prompt rule, Spanish number words in the number check, and eval cases
+     in Spanish and Chinese.
    - Translate the interface, starting with Spanish.
-   - Test policy retrieval across languages. The Pinecone index's embedding model is multilingual, but that
-     needs a measurement, not an assumption.
+   - ✅ Measured policy retrieval across languages (`evals/multilingual_retrieval.py`): the expected policy was in
+     the top 3 for 79 of 80 questions across English, Spanish, Chinese, Vietnamese, Tagalog, Arabic, Korean and
+     Russian. The one miss was a Vietnamese question about visual-impairment services.
 
 ### P2: reach and resilience
 
