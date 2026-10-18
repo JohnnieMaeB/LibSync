@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 
-from app.agent import chat_agent
+from app.agent import _policy_turn_sources, chat_agent
 from app.deps import LibSyncDeps
 from app.schemas import BookResult
 
@@ -25,6 +25,8 @@ class EvalInput(BaseModel):
 class EvalOutput(BaseModel):
     reply: str
     tools_called: list[str]
+    # Policy text the final turn's search returned, for the faithfulness score.
+    policy_sources: list[str] = Field(default_factory=list)
 
 
 # pydantic-ai delivers structured output (a `BookResult`) through its own
@@ -109,7 +111,11 @@ def make_task(http_client: httpx.AsyncClient, pace_seconds: float = 0.0):
         except Exception as error:
             print(f"  FAILED: {inputs.question[:60]!r} -> {type(error).__name__}: {str(error)[:200]}", flush=True)
             raise
-        output = EvalOutput(reply=reply_text(result.output), tools_called=tools_called(result.new_messages()))
+        output = EvalOutput(
+            reply=reply_text(result.output),
+            tools_called=tools_called(result.new_messages()),
+            policy_sources=_policy_turn_sources(result.all_messages())[0],
+        )
         # The rich progress bar doesn't render in CI logs; this does.
         print(f"  done: {inputs.question[:60]!r} -> tools {output.tools_called}", flush=True)
         return output

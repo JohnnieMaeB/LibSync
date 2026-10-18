@@ -27,6 +27,7 @@ from pydantic_evals import Dataset
 from app.agent import _groq_model, chat_agent
 from app.config import GROQ_API_KEY, PINECONE_API_KEY
 from evals.dataset import dataset
+from evals.faithfulness import REVIEW_BELOW, PolicyFaithfulness, load_hhem
 from evals.index_sync import check_index_in_sync
 from evals.task import make_task
 
@@ -43,10 +44,12 @@ def summarize(report) -> dict:
             for name, result in case.assertions.items()
             if not result.value
         }
+        hhem = case.scores.get("hhem")
         cases.append({
             "name": case.name,
             "category": (case.metadata or {}).get("category", "other"),
             "passed": not failed,
+            **({"hhem": hhem.value, "hhem_scored_text": hhem.reason} if hhem else {}),
             "failures": failed,
             "tools_called": case.output.tools_called,
             "duration_s": round(case.task_duration, 2),
@@ -70,7 +73,13 @@ def summarize(report) -> dict:
         by_category[case["category"]].append(case["passed"])
 
     passed = sum(case["passed"] for case in cases)
+    scored = [case for case in cases if "hhem" in case]
     return {
+        "faithfulness": {
+            "scored": len(scored),
+            "mean_hhem": round(sum(c["hhem"] for c in scored) / len(scored), 3) if scored else None,
+            "review": sorted((c["name"] for c in scored if c["hhem"] < REVIEW_BELOW)),
+        },
         "passed": passed,
         "total": len(cases),
         "pass_rate": passed / len(cases) if cases else 0.0,
@@ -89,6 +98,20 @@ def to_markdown(summary: dict, threshold: float) -> str:
         "|---|---|",
         *(f"| {cat} | {rate} |" for cat, rate in summary["by_category"].items()),
     ]
+    faithfulness = summary.get("faithfulness") or {}
+    if faithfulness.get("scored"):
+        lines += [
+            "",
+            f"**Policy faithfulness (HHEM, reported, not gating):** mean {faithfulness['mean_hhem']:.2f} "
+            f"over {faithfulness['scored']} policy answers.",
+        ]
+        review = [c for c in summary["cases"] if c["name"] in faithfulness["review"]]
+        if review:
+            lines += ["", f"Answers scoring below {REVIEW_BELOW} (read them; HHEM can be wrong):", ""]
+            lines += ["| Case | HHEM | Scored text |", "|---|---|---|"]
+            for case in review:
+                text = case["hhem_scored_text"][:300].replace("|", "\\|")
+                lines.append(f"| `{case['name']}` | {case['hhem']:.2f} | {text} |")
     failing = [c for c in summary["cases"] if not c["passed"]]
     if failing:
         lines += ["", "### Failing cases", "", "| Case | Why | Tools called |", "|---|---|---|"]
@@ -121,6 +144,7 @@ async def main() -> int:
         action="store_true",
         help="Skip the pre-flight check that the live Pinecone index matches pinecone-scripts' seed records.",
     )
+    parser.add_argument("--no-hhem", action="store_true", help="Skip the HHEM faithfulness score even if installed.")
     args = parser.parse_args()
 
     if GROQ_API_KEY == "unset" or not PINECONE_API_KEY:
@@ -155,6 +179,12 @@ to sync it, then re-run. No evals were run, so no LLM tokens were spent.
             cases=[case for case in dataset.cases if case.name in args.case],
             evaluators=dataset.evaluators,
         )
+
+    scorer = None if args.no_hhem else load_hhem()
+    print("Policy faithfulness:", "scoring with HHEM" if scorer else "not scored (torch/transformers not installed)")
+    selected = Dataset(
+        name=selected.name, cases=selected.cases, evaluators=[*selected.evaluators, PolicyFaithfulness(scorer)]
+    )
 
     if args.model:
         model_override = chat_agent.override(model=args.model)
