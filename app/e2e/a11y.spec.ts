@@ -102,7 +102,7 @@ test("a reply with book, research and citation cards", async ({ page }) => {
   await page.goto("./");
   await page.getByLabel("Type your question").fill("Show me everything");
   await page.getByRole("button", { name: /send message/i }).click();
-  await expect(page.getByText("Project Hail Mary")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Project Hail Mary (2021)" })).toBeVisible();
   await expect(page.getByText(/ChatGPT for good\?/).first()).toBeVisible();
   // Information literacy sections, expanded so their contents are audited.
   await page.getByText("How I found this").click();
