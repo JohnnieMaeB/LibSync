@@ -98,6 +98,7 @@ function ChatConversation({
         onRegenerate={regenerate}
         onRetry={retry}
         onFeedback={feedbackEnabled ? sendFeedback : undefined}
+        helpUrl={helpUrl}
       />
       <Composer isStreaming={isStreaming} onSend={sendMessage} onStop={stop} />
       <AiNotice helpUrl={helpUrl} />

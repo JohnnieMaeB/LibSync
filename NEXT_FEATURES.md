@@ -113,6 +113,19 @@ catalog or policy MCP servers turned up.
 9. **Pilot kit.** A demo library seeded in Supabase, a one-page onboarding guide, a sample procurement packet
    (conformance report, privacy notice, data agreement) and outreach through Code4Lib.
 
+### Added from research, October 18
+
+10. ✅ **Offer a person after repeated misses.** Virginia Beach Public Library's chatbot gives a direct staff contact
+    after two failed attempts ([Urban Libraries Council](https://www.urbanlibraries.org/innovations/vbpl-chatbot-page)).
+    *Built: `app/src/lib/handoff.ts`.*
+11. **Library events.** Vendors are adding program and event search by date, branch and age group
+    ([Library Technology Guides](https://librarytechnology.org/document/24402)). LibSync already connects to LibCal for
+    rooms; its events calendar is the natural next tool.
+12. **ADA Title II for smaller libraries.** Libraries serving under 50,000 people must meet WCAG 2.1 AA by April 26,
+    2027, and a vendor's tool is in scope if the library offers it ([ALA](https://www.ala.org/accessibility/new-rules-basics)).
+    Keep the conformance report current with each interface change; the Spanish interface and new sections need a
+    screen-reader pass.
+
 ### Decisions only you can make
 - **Tier 7 Phase 29:** publish to the App Store ($99/year) and Google Play ($25 once)?
 - **Pilot library:** which library to approach first, and when.
