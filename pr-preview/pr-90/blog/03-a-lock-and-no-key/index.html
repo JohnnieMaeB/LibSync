@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A lock and no key | LibSync build log</title>
+<meta name="description" content="My retrieval endpoint required an embedding vector that nothing in the codebase could produce. It had tests, and it sat there for eight months.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/03-a-lock-and-no-key/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="A lock and no key">
+<meta property="og:description" content="My retrieval endpoint required an embedding vector that nothing in the codebase could produce. It had tests, and it sat there for eight months.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/03-a-lock-and-no-key/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 3 of 18</p>
+<h1>A lock and no key</h1>
+<p class="meta"><time datetime="2026-10-27">October 27, 2026</time></p>
+<p>I had a lock and no key. My Pinecone endpoint required a precomputed embedding vector, and nothing in my codebase produced one. It had tests.</p>
+<h2>How it got there</h2>
+<p>In October 2025, Google&#39;s Jules agent added a function called <code>queryPinecone(vector, topK)</code> to my Node backend, with a mock Pinecone client in the tests. I merged it. When I rebuilt the backend in Python in July 2026, the function came along. It sat there for about eight months.</p>
+<p>The tests passed the entire time, which is the interesting part. They were testing that the function called a mock correctly. They had no way to learn that the real index couldn&#39;t be queried that way.</p>
+<h2>The question nobody had asked</h2>
+<p>The July 2026 audit asked: <em>what would have to be true for this to work end to end?</em></p>
+<p>The answer was a mismatch. My index had been created with <code>create_index_for_model</code>, which turns on <strong>integrated embedding</strong>. In that mode Pinecone turns your text into a vector for you, on the server, and you query by sending text: <code>index.search(inputs={&quot;text&quot;: ...})</code>. You never handle a vector at all.</p>
+<p>My endpoint was written for a different kind of index than the one I had. It expected a vector the code never created. Against mocks it returned 200 every time. Against the real service it could not have worked once.</p>
+<h2>The fix was deleting code</h2>
+<p>Claude Code&#39;s fix removed more than it added. The agent&#39;s retrieval tool collapsed to one argument, the question:</p>
+<pre><code class="language-text">search_library_policies(query: str)
+  -&gt; index.search(namespace, top_k=3,
+                  inputs={&quot;text&quot;: query},
+                  fields=[&quot;chunk_text&quot;, &quot;category&quot;])
+  -&gt; the matched chunks go back to the model as the tool result
+</code></pre>
+<p>No embedding step. No pass-me-a-vector contract that nothing could satisfy. The model asks a question in words, Pinecone finds the closest policy text, and the model reads what came back.</p>
+<p>The first grounded answer was &quot;How much are late fees?&quot;, and it returned <strong>$0.25 per day, capped at $5.00 per item.</strong> That came from two policy records, <code>pol3</code> and <code>pol11</code>, with the numbers copied out of the source rather than recalled from memory. It&#39;s the first time the assistant answered a policy question from the library&#39;s own words.</p>
+<h2>The tests had to change too</h2>
+<p>The old tests proved a mock worked. The new test uses a fake model (PydanticAI&#39;s <code>FunctionModel</code>) that issues the tool call, then asserts that the final reply contains the text of the tool&#39;s return. In other words, it checks that retrieval reached the answer. A status code proves nothing about that.</p>
+<h2>The word to remember</h2>
+<p>One more detail from that week. The seed set of policy records grew from 10 to 34. Loading it into the live index is done by a GitHub Actions workflow with a <strong>manual trigger</strong>.</p>
+<p>On a one-person project, &quot;manual&quot; means &quot;whenever I remember.&quot; I didn&#39;t think much of it at the time. Keep that word in mind. It comes back in Part 14, and it isn&#39;t kind to me.</p>
+<h2>What I&#39;d flag</h2>
+<p>This was a case where a passing test stood in for knowing. I merged the code, and the question the audit later asked (can this actually be called?) didn&#39;t come up until then. I&#39;d ask it now, and I ask agents to demonstrate that a feature works against the real service before I call it done.</p>
+<p>I&#39;m still working out where the line sits between &quot;mock it so tests are fast and cheap&quot; and &quot;test it live so you know it works.&quot; I have a rule of thumb (mock in unit tests, run real evals on a schedule), but I&#39;d like to hear how other people draw it.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> tests that pass against a mock prove the mock works. For anything an agent builds, ask it to walk the real path end to end, against the real service, before you call it done.</p>
+</blockquote>
+<p>Which &quot;working&quot; endpoint of yours has never actually been called end to end?</p>
+<p><em>Part 3 of 18. Next: the one thing the model is never allowed to do.</em></p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../02-the-expert-that-couldnt-check-anything/">&larr; The expert that couldn't check anything</a></span>
+<span><a href="../04-the-model-decides-when-code-decides-what/">The model decides when, code decides what &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
