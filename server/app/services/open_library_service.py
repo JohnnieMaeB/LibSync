@@ -5,6 +5,7 @@ title/author lookups, the Read/Availability API for per-edition lending
 status, and the Covers API for cover image URLs.
 """
 
+import re
 import time
 
 import httpx
@@ -19,6 +20,14 @@ WORK_URL = "https://openlibrary.org{key}"
 USER_AGENT = "LibSync/1.0 (https://github.com/JohnnieMaeB/LibSync)"
 
 _CACHE_TTL_SECONDS = 300
+# Knock-offs that ride a famous book's title: summaries, study guides.
+# Searching "Project Hail Mary" also returned "SUMMARY and REVIEW: PROJECT
+# HAIL MARY", which a patron asking for the novel doesn't want.
+DERIVATIVE = re.compile(
+    r"\b(summary|summaries|study guide|analysis of|workbook|sparknotes|cliffsnotes|book review|"
+    r"discussion questions|trivia)\b",
+    re.IGNORECASE,
+)
 _cache: dict[str, tuple[float, list[dict]]] = {}
 
 
@@ -42,12 +51,16 @@ async def search_catalog(client: httpx.AsyncClient, query: str, limit: int = 3) 
         params={
             "q": query,
             "fields": "title,author_name,first_publish_year,cover_i,key,edition_key,ebook_access",
-            "limit": limit,
+            # A few spare, so filtered-out knock-offs don't shorten the list.
+            "limit": limit + 3,
         },
         headers={"User-Agent": USER_AGENT},
     )
     response.raise_for_status()
     docs = response.json().get("docs", [])
+    if not DERIVATIVE.search(query):  # unless the patron asked for one
+        docs = [doc for doc in docs if not DERIVATIVE.search(doc.get("title", ""))]
+    docs = docs[:limit]
 
     results = []
     for doc in docs:

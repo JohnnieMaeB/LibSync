@@ -24,7 +24,7 @@ import httpx
 
 from app.library_config import LibraryConfig
 from app.services import catalog
-from app.services.open_library_service import COVER_URL, SEARCH_URL, USER_AGENT, WORK_URL
+from app.services.open_library_service import COVER_URL, DERIVATIVE, SEARCH_URL, USER_AGENT, WORK_URL
 
 # Subject headings that say nothing about what a book is like.
 _GENERIC_SUBJECTS = re.compile(
@@ -37,11 +37,7 @@ _GENERIC_SUBJECTS = re.compile(
     re.IGNORECASE,
 )
 # Knock-offs that share a famous book's subjects: summaries, study guides.
-_DERIVATIVE = re.compile(
-    r"\b(summary|summaries|study guide|analysis of|workbook|sparknotes|cliffsnotes|book review|"
-    r"discussion questions|trivia)\b",
-    re.IGNORECASE,
-)
+_DERIVATIVE = DERIVATIVE
 AUDIENCE_SUBJECTS = {"children": "juvenile fiction", "teen": "young adult fiction"}
 _CHILD_WORDS = re.compile(r"child|kid|juvenile|middle.grade|picture book|elementary", re.IGNORECASE)
 _TEEN_WORDS = re.compile(r"teen|young adult|\bya\b|high school", re.IGNORECASE)
