@@ -15,7 +15,9 @@
  * Optional: data-help-url="https://library.example/ask" (where "Talk to a
  * librarian" goes: a chat page, mailto: or tel: link), and
  * data-tools="policies,catalog" (only these tool groups; the others are
- * research, citations, ebooks and rooms).
+ * research, citations, ebooks and rooms), and data-lang="es" (the chat's
+ * interface language; defaults to the host page's own <html lang>, then the
+ * patron's browser).
  *
  * See TIER6_PLAN.md for the full design (iframe isolation, postMessage
  * contract, per-origin rate limiting on the backend).
@@ -49,13 +51,17 @@
   var tools = thisScript.getAttribute("data-tools");
   if (helpUrl) iframeSrc += "&help=" + encodeURIComponent(helpUrl);
   if (tools) iframeSrc += "&tools=" + encodeURIComponent(tools);
+  // A Spanish library website gets a Spanish chat without extra setup.
+  var lang = thisScript.getAttribute("data-lang") || document.documentElement.lang;
+  if (lang) iframeSrc += "&lang=" + encodeURIComponent(lang);
+  var spanish = /^es\b/i.test(lang || "");
 
   var SIDE_OFFSET = "20px";
   var sideStyle = position === "bottom-left" ? "left:" + SIDE_OFFSET : "right:" + SIDE_OFFSET;
 
   var launcher = document.createElement("button");
   launcher.type = "button";
-  launcher.setAttribute("aria-label", "Open chat with LibSync");
+  launcher.setAttribute("aria-label", spanish ? "Abrir el chat de LibSync" : "Open chat with LibSync");
   launcher.textContent = "💬"; // 💬
   launcher.style.cssText = [
     "position:fixed",
@@ -98,7 +104,7 @@
   function ensureFrame() {
     if (frame) return frame;
     frame = document.createElement("iframe");
-    frame.title = "LibSync chat";
+    frame.title = spanish ? "Chat de LibSync" : "LibSync chat";
     frame.src = iframeSrc;
     frame.style.cssText = frameStyle(false);
     // Same-origin as this loader's own host page would be a mistake here —
