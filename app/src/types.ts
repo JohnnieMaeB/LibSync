@@ -48,12 +48,20 @@ export interface AccountSummaryData {
 
 export type BotStatus = "loading" | "tool" | "streaming" | "done" | "error" | "stopped";
 
+// One search behind an answer, for "How I found this" (lib/searchSteps.ts).
+export interface SearchStep {
+  tool: string;
+  query: string;
+  mode?: "like";
+}
+
 export interface BotEntry {
   kind: "bot";
   id: string;
   status: BotStatus;
   toolLabel?: string;
   blocks: Block[];
+  steps?: SearchStep[];
   cardCount: number;
   errorText?: string;
   isLatest: boolean;

@@ -150,6 +150,31 @@ describe("LibSync chat", () => {
     expect(secondBody.messages[2]).toMatchObject({ role: "user", content: "second question" });
   });
 
+  it("shows how an answer was found, from the tool calls, but not the output tool", async () => {
+    (fetch as any).mockResolvedValueOnce(
+      makeStreamingResponse([
+        aguiEvent({ type: "RUN_STARTED", threadId: "abc-123", runId: "run-1" }),
+        aguiEvent({ type: "TOOL_CALL_START", toolCallId: "c1", toolCallName: "search_catalog" }),
+        aguiEvent({ type: "TOOL_CALL_ARGS", toolCallId: "c1", delta: '{"query": "Project ' }),
+        aguiEvent({ type: "TOOL_CALL_ARGS", toolCallId: "c1", delta: 'Hail Mary"}' }),
+        aguiEvent({ type: "TOOL_CALL_END", toolCallId: "c1" }),
+        aguiEvent({ type: "TOOL_CALL_START", toolCallId: "c2", toolCallName: "final_result" }),
+        aguiEvent({ type: "TOOL_CALL_ARGS", toolCallId: "c2", delta: '{"intro": "x", "books": []}' }),
+        aguiEvent({ type: "TOOL_CALL_END", toolCallId: "c2" }),
+        ...textMessageEvents("m1", ["It's in the catalog."]),
+        aguiEvent({ type: "RUN_FINISHED", threadId: "abc-123", runId: "run-1" }),
+      ]),
+    );
+
+    const user = userEvent.setup();
+    render(<App />);
+    await sendViaTextarea(user, "Is Project Hail Mary available?");
+
+    const summary = await screen.findByText("How I found this");
+    const steps = summary.closest("details")!.querySelectorAll("li");
+    expect([...steps].map((li) => li.textContent)).toEqual(["Searched the catalog for “Project Hail Mary”"]);
+  });
+
   it("renders a book_card CUSTOM event as a real card with cover and link-out", async () => {
     (fetch as any).mockResolvedValueOnce(
       makeStreamingResponse([

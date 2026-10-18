@@ -7,6 +7,7 @@ import { CitationCard } from "./CitationCard";
 import { MessageActions } from "./MessageActions";
 import { AccountCard } from "./AccountCard";
 import { useI18n } from "../i18n";
+import { describeStep } from "../lib/searchSteps";
 
 export function BotBubble({
   entry,
@@ -75,6 +76,17 @@ export function BotBubble({
             return null;
         }
       })}
+      {finalized && entry.steps && entry.steps.length > 0 && (
+        <details className="search-steps">
+          <summary>{t.howFound}</summary>
+          <ol>
+            {entry.steps.map((step, index) => (
+              <li key={`${step.tool}-${index}`}>{describeStep(step, t)}</li>
+            ))}
+          </ol>
+          <p>{t.searchStepsNote}</p>
+        </details>
+      )}
       {entry.status === "stopped" && entry.blocks.length > 0 && (
         <div className="bot-text">{t.stoppedTag}</div>
       )}
