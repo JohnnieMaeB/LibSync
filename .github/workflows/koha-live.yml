@@ -56,7 +56,7 @@ jobs:
           jq 'del(.client_secret, .pin)' seed.json
           # KTD's SIP config listens on 127.0.0.1 only; open it to the runner.
           docker exec "$KOHA" bash -c '
-            sed -i "s#127.0.0.1:6001#0.0.0.0:6001#" /etc/koha/sites/kohadev/SIPconfig.xml
+            sed -i "s#127.0.0.1:6001#*:6001#" /etc/koha/sites/kohadev/SIPconfig.xml
             grep -n "port=\|login id=\"koha\"" /etc/koha/sites/kohadev/SIPconfig.xml
             koha-sip --enable kohadev || true
             koha-sip --restart kohadev
