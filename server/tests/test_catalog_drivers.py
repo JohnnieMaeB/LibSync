@@ -253,3 +253,19 @@ async def test_agent_tells_the_model_when_it_fell_back(open_library):
     with chat_agent.override(model=FunctionModel(model)):
         await chat_agent.run("find x", deps=LibSyncDeps(http_client=None, library_config=config))
     assert "didn't respond" in returned[0] and "Open Library" in returned[0]
+
+
+@pytest.mark.parametrize(
+    ("raw", "cleaned"),
+    [
+        ("Le Guin, Ursula K.", "Le Guin, Ursula K."),  # a trailing initial keeps its period
+        ("Project Hail Mary /", "Project Hail Mary"),
+        ("The dispossessed :", "The dispossessed"),
+        ("Weir, Andy,", "Weir, Andy"),
+        ("A novel.", "A novel"),
+    ],
+)
+def test_marc_punctuation_cleanup(raw, cleaned):
+    from app.services.catalog.marc import _clean
+
+    assert _clean(raw) == cleaned
