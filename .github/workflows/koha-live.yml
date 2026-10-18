@@ -45,17 +45,21 @@ jobs:
 
       - name: Seed test data and start SIP2
         run: |
-          docker cp .github/koha/seed.pl "$KOHA":/tmp/seed.pl
+          set -o pipefail
+          # /tmp in the container is a tmpfs docker cp can't reach; the Koha
+          # checkout is bind-mounted at /kohadevbox/koha.
+          cp .github/koha/seed.pl koha/libsync-seed.pl
           docker exec -u kohadev-koha \
             -e KOHA_CONF=/etc/koha/sites/kohadev/koha-conf.xml \
             -e PERL5LIB=/kohadevbox/koha:/kohadevbox/koha/lib \
-            "$KOHA" perl /tmp/seed.pl | tail -1 > seed.json
+            "$KOHA" perl /kohadevbox/koha/libsync-seed.pl | tail -1 > seed.json
           jq 'del(.client_secret, .pin)' seed.json
           # KTD's SIP config listens on 127.0.0.1 only; open it to the runner.
           docker exec "$KOHA" bash -c '
             sed -i "s#127.0.0.1:6001#0.0.0.0:6001#" /etc/koha/sites/kohadev/SIPconfig.xml
             grep -n "port=\|login id=\"koha\"" /etc/koha/sites/kohadev/SIPconfig.xml
-            koha-sip --enable kohadev && koha-sip --start kohadev
+            koha-sip --enable kohadev || true
+            koha-sip --restart kohadev
             koha-plack --restart kohadev
             sleep 10
             ss -ltn'
