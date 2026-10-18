@@ -4,6 +4,7 @@ import { UserBubble } from "./UserBubble";
 import { BotBubble } from "./BotBubble";
 import { SuggestionChips } from "./SuggestionChips";
 import { ScrollToLatestButton } from "./ScrollToLatestButton";
+import { useI18n } from "../i18n";
 
 export function ChatBox({
   entries,
@@ -21,6 +22,7 @@ export function ChatBox({
   // Set only when the library collects feedback (Tier 8 Phase 34).
   onFeedback?: (id: string) => Promise<boolean>;
 }) {
+  const { t } = useI18n();
   const { containerRef, showScrollButton, scrollToBottom, handleScroll } = useAutoScroll(entries);
 
   return (
@@ -33,7 +35,7 @@ export function ChatBox({
         ref={containerRef}
         onScroll={handleScroll}
       >
-        <div className="bot intro">👋 Hi! I’m your AI Library Assistant. How can I help you today?</div>
+        <div className="bot intro">{t.intro}</div>
         <SuggestionChips hidden={chipsHidden} onSelect={onSelectSuggestion} />
         {entries.map((entry) =>
           entry.kind === "user" ? (

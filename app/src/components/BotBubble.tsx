@@ -6,8 +6,7 @@ import { ResearchResult } from "./ResearchResult";
 import { CitationCard } from "./CitationCard";
 import { MessageActions } from "./MessageActions";
 import { AccountCard } from "./AccountCard";
-
-const FALLBACK_TEXT = "Sorry, I couldn’t find an answer right now.";
+import { useI18n } from "../i18n";
 
 export function BotBubble({
   entry,
@@ -20,6 +19,7 @@ export function BotBubble({
   onRetry: (id: string) => void;
   onFeedback?: (id: string) => Promise<boolean>;
 }) {
+  const { t } = useI18n();
   const isLoadingLike = entry.status === "loading" || entry.status === "tool";
   const className = ["bot", isLoadingLike ? "loading" : "", entry.status === "error" ? "error" : ""]
     .filter(Boolean)
@@ -28,22 +28,22 @@ export function BotBubble({
   if (entry.status === "error") {
     return (
       <div className={className}>
-        <SafeMarkdown text={entry.errorText || "Something went wrong."} />
+        <SafeMarkdown text={entry.errorText || t.somethingWrong} />
         <button type="button" className="bot-retry" onClick={() => onRetry(entry.id)}>
-          Retry
+          {t.retry}
         </button>
       </div>
     );
   }
 
   if (entry.status === "loading") {
-    return <div className={className}>Thinking...</div>;
+    return <div className={className}>{t.thinking}</div>;
   }
 
   if (entry.status === "tool") {
     return (
       <div className={className}>
-        <span className="tool-status-pill">{entry.toolLabel || "Working"}</span>
+        <span className="tool-status-pill">{entry.toolLabel || t.working}</span>
       </div>
     );
   }
@@ -55,10 +55,10 @@ export function BotBubble({
     <div className={className}>
       {finalized && entry.cardCount > 0 && (
         <div className="grounded-tag">
-          Grounded in {entry.cardCount} source{entry.cardCount === 1 ? "" : "s"}
+          {t.grounded(entry.cardCount)}
         </div>
       )}
-      {showFallback && <SafeMarkdown text={entry.status === "stopped" ? "Stopped." : FALLBACK_TEXT} />}
+      {showFallback && <SafeMarkdown text={entry.status === "stopped" ? t.stopped : t.fallbackAnswer} />}
       {entry.blocks.map((block) => {
         switch (block.type) {
           case "text":
@@ -76,7 +76,7 @@ export function BotBubble({
         }
       })}
       {entry.status === "stopped" && entry.blocks.length > 0 && (
-        <div className="bot-text">(Stopped)</div>
+        <div className="bot-text">{t.stoppedTag}</div>
       )}
       {finalized && (
         <MessageActions

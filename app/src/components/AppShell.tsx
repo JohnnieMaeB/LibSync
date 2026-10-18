@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import type { ConversationSummary } from "../types";
+import { useI18n } from "../i18n";
 
 export function AppShell({
   compact = false,
@@ -26,6 +27,7 @@ export function AppShell({
   sidebarFooter?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -44,7 +46,7 @@ export function AppShell({
       <button
         type="button"
         className="sidebar-open-toggle"
-        aria-label="Open sidebar"
+        aria-label={t.openSidebar}
         onClick={() => setSidebarOpen(true)}
       >
         ☰

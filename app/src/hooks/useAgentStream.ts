@@ -4,21 +4,12 @@ import type { BaseEvent, RunAgentInput } from "@ag-ui/client";
 import { API_BASE_URL } from "../config";
 import { generateId } from "../lib/id";
 import type { BotEntry, ChatEntry, NumberedWork } from "../types";
+import { useI18n } from "../i18n";
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 600;
-const DEFAULT_ERROR_MSG = "⚠️ Error: Unable to reach AI service. Please try again later.";
-const RATE_LIMIT_MSG = "⏳ You're sending messages a little too quickly. Please wait a moment and try again.";
 const PERSIST_DEBOUNCE_MS = 300;
 
-// Friendly, tool-specific status text shown while a tool call is in flight,
-// sourced from the AG-UI TOOL_CALL_START event's toolCallName.
-const TOOL_STATUS_MESSAGES: Record<string, string> = {
-  search_library_policies: "📚 Checking library policies",
-  search_catalog: "🔍 Searching the catalog",
-  search_scholarly_works: "🎓 Looking up research",
-  lookup_and_cite: "🎓 Looking up citation",
-};
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -126,6 +117,11 @@ export function useAgentStream({
   // Tier 9: the signed-in patron's opaque session token, if any.
   patronToken?: string | null;
 }) {
+  // Interface text in the patron's language (i18n/messages.ts), read through a
+  // ref so the turn callbacks always use the current choice.
+  const { t } = useI18n();
+  const textRef = useRef(t);
+  textRef.current = t;
   const [entries, setEntriesState] = useState<ChatEntry[]>(initialEntries);
   const [isStreaming, setIsStreaming] = useState(false);
   const entriesRef = useRef<ChatEntry[]>(initialEntries);
@@ -234,7 +230,8 @@ export function useAgentStream({
           }
           case "TOOL_CALL_START":
             if (!hasContent) {
-              const label = TOOL_STATUS_MESSAGES[anyEvent.toolCallName] || "Working";
+              // Friendly, tool-specific status text while a tool call is in flight.
+              const label = textRef.current.toolStatus[anyEvent.toolCallName] || textRef.current.working;
               patchBot(botId, (e) => ({ ...e, status: "tool", toolLabel: label }));
             }
             return;
@@ -328,7 +325,7 @@ export function useAgentStream({
             return;
           }
           case "RUN_ERROR":
-            runErrorMessage = anyEvent.message || DEFAULT_ERROR_MSG;
+            runErrorMessage = anyEvent.message || textRef.current.serviceError;
             return;
           default:
             return;
@@ -368,14 +365,14 @@ export function useAgentStream({
           break;
         }
         if (result.outcome === "rate-limited") {
-          outcome.errorMessage = RATE_LIMIT_MSG;
+          outcome.errorMessage = textRef.current.rateLimited;
           break;
         }
         if (result.outcome === "retryable" && attempt < MAX_RETRIES) {
           await sleep(RETRY_DELAY_MS * (attempt + 1));
           continue;
         }
-        outcome.errorMessage = DEFAULT_ERROR_MSG;
+        outcome.errorMessage = textRef.current.serviceError;
         if (result.error) console.error(result.error);
         break;
       }

@@ -1,8 +1,11 @@
+import { useI18n } from "../i18n";
+
 export function CapabilityLine({ dismissed, onDismiss }: { dismissed: boolean; onDismiss: () => void }) {
+  const { t } = useI18n();
   return (
     <p className={`capability-line${dismissed ? " hidden" : ""}`}>
-      I can search the catalog, find research papers, and format citations — just ask.
-      <button type="button" className="capability-dismiss" aria-label="Dismiss" onClick={onDismiss}>
+      {t.capabilityLine}
+      <button type="button" className="capability-dismiss" aria-label={t.dismiss} onClick={onDismiss}>
         &times;
       </button>
     </p>

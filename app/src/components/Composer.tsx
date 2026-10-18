@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { useI18n } from "../i18n";
 
 export function Composer({
   isStreaming,
@@ -10,6 +11,7 @@ export function Composer({
   onSend: (text: string) => void;
   onStop: () => void;
 }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -45,8 +47,8 @@ export function Composer({
         <textarea
           ref={textareaRef}
           id="userInput"
-          placeholder="Type your question here..."
-          aria-label="Type your question"
+          placeholder={t.composerPlaceholder}
+          aria-label={t.composerLabel}
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
@@ -57,7 +59,7 @@ export function Composer({
         <button
           id="sendBtn"
           className={isStreaming ? "stopping" : ""}
-          aria-label={isStreaming ? "Stop generating" : "Send message"}
+          aria-label={isStreaming ? t.stop : t.send}
           disabled={!canSend}
           onClick={() => (isStreaming ? onStop() : submit())}
         >
