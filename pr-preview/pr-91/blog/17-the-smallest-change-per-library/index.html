@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The smallest change that makes data per-library | LibSync build log</title>
+<meta name="description" content="To make one assistant serve many libraries, I didn't start with a database. I asked what the smallest change was that makes the data per-library.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://johnniemaeb.github.io/LibSync/blog/17-the-smallest-change-per-library/">
+<link rel="alternate" type="application/atom+xml" title="LibSync build log" href="../feed.xml">
+<link rel="stylesheet" href="../assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The smallest change that makes data per-library">
+<meta property="og:description" content="To make one assistant serve many libraries, I didn't start with a database. I asked what the smallest change was that makes the data per-library.">
+<meta property="og:url" content="https://johnniemaeb.github.io/LibSync/blog/17-the-smallest-change-per-library/">
+<meta property="og:image" content="https://johnniemaeb.github.io/LibSync/blog/assets/social.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<a class="brand" href="../">LibSync build log</a>
+<nav aria-label="Site"><ul>
+<li><a href="../about/">About</a></li>
+<li><a href="../../">Live demo</a></li>
+<li><a href="https://github.com/JohnnieMaeB/LibSync">GitHub</a></li>
+<li><a href="../feed.xml">RSS</a></li>
+</ul></nav>
+</header>
+<main id="main">
+<p class="kicker">Part 17 of 18</p>
+<h1>The smallest change that makes data per-library</h1>
+<p class="meta"><time datetime="2027-02-23">February 23, 2027</time></p>
+<p>To make one assistant serve many libraries, I didn&#39;t start with a database. I started by asking what the smallest change was that makes the data per-library.</p>
+<h2>The requirement</h2>
+<p>Each library&#39;s policies (fines, loan periods, room rules) must answer only that library&#39;s patrons. A patron at one library must never get another library&#39;s late fee.</p>
+<p>Pinecone&#39;s documented pattern for multi-tenant retrieval is a <strong>namespace per tenant</strong>: a physically separate partition of the index. It gives real isolation, and deleting a namespace offboards a library completely.</p>
+<h2>The obvious design, and the one that shipped</h2>
+<p>The obvious design is a tenants table that maps each library to its namespace, with a place for configuration. The Tier 8 plan proposed one.</p>
+<p>Claude Code skipped it for the groundwork:</p>
+<ul>
+<li>The embeddable widget already sends an <code>X-LibSync-Library</code> header. The namespace <em>is</em> the library id.</li>
+<li>If a namespace with that name exists in the index, that library gets its own policies. If not, it gets the shared demo set.</li>
+<li>So the moment a library uploads its documents, it switches over automatically. A new library works on day one. There&#39;s no configuration to drift out of sync with reality, because the index itself is the record of who exists.</li>
+</ul>
+<p>That&#39;s &quot;activation by existence rather than config,&quot; and it means a feature whose purpose is isolation needed no new service to run.</p>
+<h2>Two details that mattered more than the design</h2>
+<p><strong>1. The id arrives in a header, so it&#39;s untrusted.</strong> It&#39;s validated against <code>^[a-z0-9][a-z0-9-]{0,62}$</code>. Anything that doesn&#39;t match counts as &quot;no library.&quot; A test sends <code>../../ns-other</code> and asserts it resolves to the shared set. A request header can never be used to select an arbitrary namespace, because a request header is just text somebody typed.</p>
+<p><strong>2. Listing namespaces is a network call to Pinecone.</strong> So the list is cached for five minutes, rather than adding a round trip to every policy search.</p>
+<h2>Observability, nearly free</h2>
+<p>The agent is built with a metadata callable, so every run carries its <code>library_id</code> on its Logfire trace. Per-library usage statistics, which a later tier needs for a dashboard, become a query over traces that already exist, not a second logging pipeline to build and keep running.</p>
+<h2>Why this is the same story as everything else</h2>
+<p>It&#39;s the same theme, at the data layer. Before a library can trust the assistant, it has to be certain the assistant isn&#39;t answering with someone else&#39;s rules. The rule from Part 2, grounded or &quot;I don&#39;t know,&quot; has a corollary: grounded in <em>whose</em> documents.</p>
+<h2>What isn&#39;t done</h2>
+<p>This is groundwork, not multi-tenancy. Library document upload hasn&#39;t shipped, so as far as I know no library has its own namespace yet, and everyone gets the shared set. The isolation machinery exists and is tested, but it hasn&#39;t yet carried a real library&#39;s data. I don&#39;t want to call it finished until it has, and I&#39;d like to hear from anyone who has run a multi-tenant retrieval system about what broke once real tenants arrived.</p>
+<blockquote>
+<p><strong>Architect&#39;s note:</strong> ask the agent for the smallest change that could work. Left alone, agents reach for new tables and new services, and every one is something a one-person project has to run.</p>
+</blockquote>
+<p>How do you handle tenant isolation in your systems?</p>
+<p><em>Part 17 of 18. Next: the scorecard.</em></p>
+
+<nav class="series-nav" aria-label="Series">
+<span><a href="../16-integrate-with-koha/">&larr; Integrate with Koha</a></span>
+<span><a href="../18-the-scorecard/">The scorecard &rarr;</a></span>
+</nav>
+</main>
+<footer class="site">
+<p>MIT licensed. Views are my own. Built with Claude Code; posts are drafted with Claude's help and edited by me.</p>
+</footer>
+</body>
+</html>
