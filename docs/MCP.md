@@ -3,7 +3,7 @@
 LibSync's grounded lookups are available as a [Model Context Protocol](https://modelcontextprotocol.io) server, so
 library staff can use them from an AI assistant they already work in (Claude, ChatGPT, Copilot, or any MCP client).
 
-**Endpoint:** `https://libsync.onrender.com/mcp/` (Streamable HTTP, stateless)
+**Endpoint:** `https://libsync.onrender.com/mcp` (Streamable HTTP, stateless; `/mcp/` works too)
 
 | Tool | What it returns |
 |---|---|
@@ -38,7 +38,7 @@ JSON, a typical entry looks like:
   "mcpServers": {
     "libsync": {
       "type": "http",
-      "url": "https://libsync.onrender.com/mcp/",
+      "url": "https://libsync.onrender.com/mcp",
       "headers": { "X-LibSync-Key": "lsk_..." }
     }
   }

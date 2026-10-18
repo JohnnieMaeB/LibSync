@@ -79,6 +79,7 @@ app.add_middleware(
 
 if MCP_ENABLED:
     app.mount("/mcp", mcp_server.asgi_app())
+    app.add_middleware(mcp_server.ServeBarePath)
 
 app.include_router(chat.router)
 app.include_router(agent.router)

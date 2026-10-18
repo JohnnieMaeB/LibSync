@@ -86,3 +86,9 @@ async def test_the_rate_limit_answers_429():
     for _ in range(3):
         await limited(scope, None, send)
     assert sent == ["app", "app", 429]
+
+
+def test_the_bare_path_is_served_without_a_redirect(client):
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
+    response = client.post("/mcp", content=body, headers=HEADERS, follow_redirects=False)
+    assert response.status_code == 200 and response.json()["result"]["tools"]

@@ -221,3 +221,16 @@ async def _delegate(scope, receive, send):
 def asgi_app():
     """What app/main.py mounts at /mcp."""
     return RateLimit(_delegate)
+
+
+class ServeBarePath:
+    """Serve /mcp as /mcp/ instead of redirecting: Starlette answers a mount's
+    bare path with a 307, which some MCP clients don't follow for a POST."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == "/mcp":
+            scope = {**scope, "path": "/mcp/", "raw_path": b"/mcp/"}
+        await self.app(scope, receive, send)
